@@ -28,7 +28,7 @@ struct StateDescription {
 struct Transition {
     from: String,
     to: String,
-    label: Option<String>,
+    description: Option<String>,
 }
 
 #[derive(Debug, PartialEq)]
@@ -127,7 +127,7 @@ fn parse_transition(input: &str) -> IResult<&str, Transition> {
     let transition = Transition {
         from: from.to_string(),
         to: to.to_string(),
-        label: label.map(|s| s.to_string()),
+        description: label.map(|s| s.to_string()),
     };
     Ok((input, transition))
 }
@@ -203,13 +203,14 @@ mod tests {
         let (leftover, output) = parse_transition(input).unwrap();
         assert_eq!(output.from, "A");
         assert_eq!(output.to, "B");
-        assert_eq!(output.label, Some("label".to_string()));
+        assert_eq!(output.description, Some("label".to_string()));
         assert_eq!(leftover, "");
     }
 
     #[test]
     fn test_parse_multiple_transitions() {
-        let input = r#"A --> B : label1
+        let input = r#"
+        A --> B : label1
         A -u-> C : label2
         "#;
         let (_, output) = many0(parse_transition).parse(input).unwrap();
