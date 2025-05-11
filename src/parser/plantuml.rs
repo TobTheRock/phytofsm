@@ -213,7 +213,7 @@ mod tests {
         A --> B : label1
         A -u-> C : label2
         "#;
-        let (_, output) = many0(parse_transition).parse(input).unwrap();
+        let (_, output) = many0(multi_ws(parse_transition)).parse(input).unwrap();
         assert_eq!(output.len(), 2);
     }
 
