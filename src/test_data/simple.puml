@@ -1,0 +1,14 @@
+@startuml Plant Seasonal Lifecycle
+
+state Winter 
+state Spring
+state Summer
+state Autumn
+
+[*] --> Winter
+Winter --> Spring : TemperatureRises
+Spring --> Summer : TemperaturePeaks \ StartBlooming
+Summer --> Autumn : DaylightDecreases \ RipenFruit
+Autumn --> Winter : TemperatureDrops  \ DropPetals 
+
+@enduml

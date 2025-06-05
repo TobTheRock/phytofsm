@@ -1,8 +1,0 @@
-@startuml
-
-[*] -> StateA
-StateA -> StateB: EventA
-StateB -> StateC: EventB
-StateC -> StateA: EventA
-
-@enduml
