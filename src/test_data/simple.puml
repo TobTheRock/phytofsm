@@ -7,8 +7,8 @@ state Autumn
 
 [*] --> Winter
 Winter --> Spring : TemperatureRises
-Spring --> Summer : TemperaturePeaks \ StartBlooming
+Spring --> Summer : DaylightIncreases \ StartBlooming
 Summer --> Autumn : DaylightDecreases \ RipenFruit
 Autumn --> Winter : TemperatureDrops  \ DropPetals 
 
-@enduml
+@endumld

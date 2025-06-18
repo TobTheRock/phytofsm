@@ -1,18 +1,26 @@
-use std::marker::PhantomData;
+use log::debug;
 
-// TODO
-// - split IFs?
-// - action results
-trait IPlantFsmActions {
-    type TemperaturePeaksEventData;
-    fn start_blooming(&mut self, event: Self::TemperaturePeaksEventData);
+pub trait IPlantFsmEventParams {
+    type TemperatureRisesParams;
+    type DaylightIncreasesParams;
+    type TemperatureDropsParams;
+    type DaylightDecreasesParams;
 }
 
-// Generated
-type EmptyEventData = ();
-enum PlantFsmEvent<T: IPlantFsmActions> {
-    TemperatureRises(EmptyEventData),
-    TemperaturePeaks(T::TemperaturePeaksEventData),
+// TODO
+// - action results
+pub trait IPlantFsmActions: IPlantFsmEventParams {
+    fn start_blooming(&mut self, event: Self::DaylightIncreasesParams);
+    fn ripen_fruit(&mut self, event: Self::DaylightDecreasesParams);
+    fn drop_petals(&mut self, event: Self::TemperatureDropsParams);
+}
+
+type NoEventData = ();
+pub enum PlantFsmEvent<T: IPlantFsmActions> {
+    TemperatureRises(T::TemperatureRisesParams),
+    DaylightIncreases(T::DaylightIncreasesParams),
+    TemperatureDrops(T::TemperatureDropsParams),
+    DaylightDecreases(T::DaylightDecreasesParams),
 }
 
 // TODO
@@ -41,8 +49,8 @@ where
         Self {
             name: "Spring",
             transition: |event, action| match event {
-                PlantFsmEvent::TemperaturePeaks(data) => {
-                    action.start_blooming(data);
+                PlantFsmEvent::DaylightIncreases(params) => {
+                    action.start_blooming(params);
                     Some(Self::summer())
                 }
                 _ => None,
@@ -53,12 +61,27 @@ where
     fn summer() -> Self {
         Self {
             name: "Summer",
-            transition: |event, action| todo!(),
+            transition: |event, action| match event {
+                PlantFsmEvent::DaylightDecreases(params) => {
+                    action.ripen_fruit(params);
+                    Some(Self::autumn())
+                }
+                _ => None,
+            },
         }
     }
 
     fn autumn() -> Self {
-        todo!()
+        Self {
+            name: "Autumn",
+            transition: |event, action| match event {
+                PlantFsmEvent::TemperatureDrops(params) => {
+                    action.drop_petals(params);
+                    Some(Self::winter())
+                }
+                _ => None,
+            },
+        }
     }
 }
 
@@ -82,6 +105,10 @@ where
 
     pub fn trigger_event(&mut self, event: PlantFsmEvent<T>) {
         if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
+            debug!(
+                "PlantFsm: Transitioning from {} to {}",
+                self.current_state.name, new_state.name
+            );
             self.current_state = new_state;
         }
     }
@@ -89,27 +116,58 @@ where
 
 #[cfg(test)]
 mod test {
-    use super::{EmptyEventData, IPlantFsmActions, PlantFsm, PlantFsmEvent};
 
-    struct LogActions;
-    enum Error {
-        Bad,
-        VeryBad,
-    }
-    impl IPlantFsmActions for LogActions {
-        type TemperaturePeaksEventData = u32;
+    use mockall::{mock, predicate};
 
-        fn start_blooming(&mut self, event: Self::TemperaturePeaksEventData) {
-            println!("Blooming at temperature {}", event);
+    use super::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm, PlantFsmEvent};
+
+    mock! {
+        PlantFsmActions {}
+        impl IPlantFsmActions for PlantFsmActions {
+            fn start_blooming(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::DaylightIncreasesParams);
+            fn ripen_fruit(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::DaylightDecreasesParams);
+            fn drop_petals(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TemperatureDropsParams);
         }
     }
 
-    #[test]
-    fn test_enum() {
-        let lg = LogActions {};
-        let mut fsm = PlantFsm::new(lg);
+    impl IPlantFsmEventParams for MockPlantFsmActions {
+        type TemperatureRisesParams = NoEventData;
+        type DaylightIncreasesParams = i32;
+        type DaylightDecreasesParams = NoEventData;
+        type TemperatureDropsParams = NoEventData;
+    }
 
+    fn setup() -> MockPlantFsmActions {
+        let _ = stderrlog::new().verbosity(log::Level::Debug).init();
+        MockPlantFsmActions::new()
+    }
+
+    #[test]
+    fn test_transitions() {
+        let lumen = 42;
+        let mut actions = setup();
+
+        actions
+            .expect_start_blooming()
+            .returning(|_| ())
+            .with(predicate::eq(lumen))
+            .times(1);
+        actions.expect_ripen_fruit().returning(|_| ()).times(1);
+        actions.expect_drop_petals().returning(|_| ()).times(1);
+
+        let mut fsm = PlantFsm::new(actions);
         fsm.trigger_event(PlantFsmEvent::TemperatureRises(()));
-        fsm.trigger_event(PlantFsmEvent::TemperaturePeaks(42));
+        fsm.trigger_event(PlantFsmEvent::DaylightIncreases(lumen));
+        fsm.trigger_event(PlantFsmEvent::DaylightDecreases(()));
+        fsm.trigger_event(PlantFsmEvent::TemperatureDrops(()));
+    }
+
+    #[test]
+    fn test_no_transitions() {
+        let mut actions = setup();
+        actions.expect_start_blooming().returning(|_| ()).times(0);
+
+        let mut fsm = PlantFsm::new(actions);
+        fsm.trigger_event(PlantFsmEvent::TemperatureDrops(()));
     }
 }
