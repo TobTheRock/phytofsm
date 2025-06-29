@@ -7,6 +7,8 @@ edition = "2024"
 proc-macro = true
 
 [dependencies]
+heck = "0.5"
+itertools = "0.14"
 log = "0.4"
 nom = "8.0"
 proc-macro2 = "1.0.95"
