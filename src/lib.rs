@@ -67,6 +67,18 @@ impl ParsedFsmData {
         Ident::new(&self.fsm_name.to_snake_case(), Span::call_site())
     }
 
+    pub fn event_params_trait_ident(&self) -> Ident {
+        format_ident!("I{}EventParams", self.fsm_name.to_upper_camel_case())
+    }
+
+    pub fn event_enum_ident(&self) -> Ident {
+        format_ident!("{}Event", self.fsm_name.to_upper_camel_case())
+    }
+    pub fn action_trait_ident(&self) -> Ident {
+        format_ident!("I{}Actions", self.fsm_name.to_upper_camel_case())
+    }
+
+    // TODO move to parser mod
     pub fn all_events(&self) -> impl Iterator<Item = &Event> {
         self.transitions.iter().map(|t| &t.event).unique()
     }
@@ -82,7 +94,7 @@ impl ParsedFsmData {
 }
 
 fn fsm_event_params_trait(data: &ParsedFsmData) -> TokenStream2 {
-    let trait_ident = format_ident!("I{}EventParams", data.fsm_name);
+    let trait_ident = data.event_params_trait_ident();
     let associated_types = data.all_events().map(|event| {
         let type_ident = event.params_ident();
         quote! { type #type_ident; }
@@ -95,9 +107,7 @@ fn fsm_event_params_trait(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_actions_trait(data: &ParsedFsmData) -> proc_macro2::TokenStream {
-    let trait_ident = format_ident!("I{}Actions", data.fsm_name);
-
+fn fsm_actions_trait(data: &ParsedFsmData) -> TokenStream2 {
     let action_methods = data.transitions.iter().filter_map(|transition| {
         if let Some(action) = &transition.action {
             let action_ident = Ident::new(&action.to_snake_case(), Span::call_site());
@@ -110,9 +120,8 @@ fn fsm_actions_trait(data: &ParsedFsmData) -> proc_macro2::TokenStream {
             None
         }
     });
-
-    // TODO dedup
-    let event_params_trait = format_ident!("I{}EventParams", data.fsm_name);
+    let event_params_trait = data.event_params_trait_ident();
+    let trait_ident = data.action_trait_ident();
 
     quote! {
         pub trait #trait_ident : #event_params_trait{
@@ -120,6 +129,28 @@ fn fsm_actions_trait(data: &ParsedFsmData) -> proc_macro2::TokenStream {
         }
     }
 }
+
+fn event_enum(data: &ParsedFsmData) -> TokenStream2 {
+    let event_variants = data.all_events().map(|event| {
+        let params_ident = event.params_ident();
+        let event_ident = event.ident();
+        quote! { #event_ident(P::#params_ident),}
+    });
+    let event_enum_ident = data.event_enum_ident();
+    let action_ident = data.action_trait_ident();
+    quote! {
+        pub enum #event_enum_ident<P: #action_ident> {
+            #(#event_variants)*
+        }
+    }
+}
+
+// pub enum PlantFsmEvent<T: IPlantFsmActions> {
+//     TemperatureRises(T::TemperatureRisesParams),
+//     DaylightIncreases(T::DaylightIncreasesParams),
+//     TemperatureDrops(T::TemperatureDropsParams),
+//     DaylightDecreases(T::DaylightDecreasesParams),
+// }
 
 #[proc_macro]
 pub fn generate_fsm(input: TokenStream) -> TokenStream {
@@ -184,6 +215,7 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
 
     let event_params_trait = fsm_event_params_trait(&fsm_data);
     let action_trait = fsm_actions_trait(&fsm_data);
+    let event_enum = event_enum(&fsm_data);
 
     let mod_ident = format_ident!("{}", module_name);
     let fsm_code = quote! {
@@ -192,6 +224,7 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
 
             #event_params_trait
             #action_trait
+            #event_enum
         }
     };
     println!("{}", fsm_code);
