@@ -34,7 +34,7 @@ struct ParsedFsmData {
 
 impl Event {
     pub fn params_ident(&self) -> Ident {
-        format_ident!("{}", self.0.to_upper_camel_case())
+        format_ident!("{}Params", self.0.to_upper_camel_case())
     }
 
     pub fn ident(&self) -> Ident {
@@ -89,7 +89,7 @@ fn fsm_event_params_trait(data: &ParsedFsmData) -> TokenStream2 {
     });
 
     quote! {
-        trait #trait_ident {
+        pub trait #trait_ident {
             #(#associated_types)*
         }
     }
@@ -115,7 +115,7 @@ fn fsm_actions_trait(data: &ParsedFsmData) -> proc_macro2::TokenStream {
     let event_params_trait = format_ident!("I{}EventParams", data.fsm_name);
 
     quote! {
-        trait #trait_ident : #event_params_trait{
+        pub trait #trait_ident : #event_params_trait{
             #(#action_methods)*
         }
     }
@@ -188,6 +188,8 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
     let mod_ident = format_ident!("{}", module_name);
     let fsm_code = quote! {
         mod #mod_ident {
+            pub type NoEventData = ();
+
             #event_params_trait
             #action_trait
         }
