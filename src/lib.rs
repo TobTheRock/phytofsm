@@ -1,9 +1,11 @@
+use derive_more::{From, Into};
 use heck::ToSnakeCase;
 use heck::ToUpperCamelCase;
 use itertools::Itertools;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
+use quote::ToTokens;
 use quote::{format_ident, quote};
 use syn::Ident;
 
@@ -14,11 +16,11 @@ mod reference;
 #[cfg(test)]
 mod test_data;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
 struct Event(String);
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
 struct Action(String);
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
 struct State(String);
 
 struct Transition {
@@ -54,9 +56,11 @@ impl State {
     pub fn function_ident(&self) -> Ident {
         Ident::new(&self.0.to_snake_case(), Span::call_site())
     }
+}
 
-    pub fn ident(&self) -> Ident {
-        Ident::new(&self.0.to_upper_camel_case(), Span::call_site())
+impl ToTokens for State {
+    fn to_tokens(&self, tokens: &mut TokenStream2) {
+        self.0.to_tokens(tokens);
     }
 }
 
@@ -207,11 +211,10 @@ fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
             }
         });
 
-        let state_name = state.ident();
         quote! {
             fn #fn_name() -> Self {
                 Self {
-                    name: "#state_name",
+                    name: #state,
                     transition: |event, action| match event {
                         #(#transitions,)*
                         _ => None,
