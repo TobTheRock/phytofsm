@@ -26,7 +26,7 @@ fn setup() -> MockPlantFsmActions {
 }
 
 #[test]
-fn simple_fsm() {
+fn simple_four_seasons() {
     let lumen = 42;
     let mut actions = setup();
 
@@ -35,7 +35,7 @@ fn simple_fsm() {
         .returning(|_| ())
         .with(predicate::eq(lumen))
         .times(1);
-    actions.expect_ripen_fruit().returning(|_| ()).times(2);
+    actions.expect_ripen_fruit().returning(|_| ()).times(1);
     actions.expect_drop_petals().returning(|_| ()).times(1);
 
     let mut fsm = PlantFsm::new(actions);

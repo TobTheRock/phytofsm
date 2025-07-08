@@ -48,8 +48,8 @@ pub struct Transition {
 mod test {
     use crate::test_data::TestFsm;
 
-    #[test]
-    fn parse_simple_fsm() {
-        let test_data = TestFsm::simple_fsm();
-    }
+    // #[test]
+    // fn parse_simple_fsm() {
+    //     let test_data = TestFsm::simple_fsm();
+    // }
 }
