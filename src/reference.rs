@@ -92,18 +92,18 @@ pub struct PlantFsm<T: IPlantFsmActions> {
 }
 
 // TODO traces for transitions
-impl<T> PlantFsm<T>
+impl<A> PlantFsm<A>
 where
-    T: IPlantFsmActions,
+    A: IPlantFsmActions,
 {
-    pub fn new(actions: T) -> Self {
+    pub fn new(actions: A) -> Self {
         Self {
             actions,
             current_state: PlantFsmState::winter(),
         }
     }
 
-    pub fn trigger_event(&mut self, event: PlantFsmEvent<T>) {
+    pub fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
         if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
             debug!(
                 "PlantFsm: Transitioning from {} to {}",

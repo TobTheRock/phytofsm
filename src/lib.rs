@@ -233,12 +233,48 @@ fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-// pub enum PlantFsmEvent<T: IPlantFsmActions> {
-//     TemperatureRises(T::TemperatureRisesParams),
-//     DaylightIncreases(T::DaylightIncreasesParams),
-//     TemperatureDrops(T::TemperatureDropsParams),
-//     DaylightDecreases(T::DaylightDecreasesParams),
-// }
+fn fsm_struct(data: &ParsedFsmData) -> TokenStream2 {
+    let fsm = data.fsm_ident();
+    let action = data.action_trait_ident();
+    let state = data.state_struct_ident();
+    quote! {
+        pub struct #fsm<A: #action> {
+            actions: A,
+            current_state: #state<A>,
+        }
+    }
+}
+
+fn fsm_impl(data: &ParsedFsmData) -> TokenStream2 {
+    let fsm = data.fsm_ident();
+    let action = data.action_trait_ident();
+    let state = data.state_struct_ident();
+    let event_enum = data.event_enum_ident();
+
+    // TODO find entry state!!!
+    let entry_state = format_ident!("winter");
+
+    // TODO tracing/logging
+    quote! {
+        impl<A> #fsm<A>
+        where
+            A: #action,
+        {
+            pub fn new(actions: A) -> Self {
+                Self {
+                    actions,
+                    current_state: #state::#entry_state(),
+                }
+            }
+
+            pub fn trigger_event(&mut self, event: #event_enum<A>) {
+                if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
+                    self.current_state = new_state;
+                }
+            }
+        }
+    }
+}
 
 #[proc_macro]
 pub fn generate_fsm(input: TokenStream) -> TokenStream {
@@ -304,14 +340,14 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
     let event_params_trait = fsm_event_params_trait(&fsm_data);
     let action_trait = fsm_actions_trait(&fsm_data);
     let event_enum = event_enum(&fsm_data);
-
     let state_struct = fsm_state_struct(&fsm_data);
     let state_impl = fsm_state_impl(&fsm_data);
-
-    let mod_ident = format_ident!("{}", module_name);
+    let fsm_struct = fsm_struct(&fsm_data);
+    let fsm_impl = fsm_impl(&fsm_data);
+    let module = format_ident!("{}", module_name);
 
     let fsm_code = quote! {
-        mod #mod_ident {
+        mod #module {
             pub type NoEventData = ();
 
             #event_params_trait
@@ -319,10 +355,11 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
             #event_enum
             #state_struct
             #state_impl
+            #fsm_struct
+            #fsm_impl
         }
     };
+    // TODO rm
     println!("{}", fsm_code);
-
-    // event_params_trait.into()
     fsm_code.into()
 }
