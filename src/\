@@ -54,10 +54,6 @@ impl State {
     pub fn function_ident(&self) -> Ident {
         Ident::new(&self.0.to_snake_case(), Span::call_site())
     }
-
-    pub fn ident(&self) -> Ident {
-        Ident::new(&self.0.to_upper_camel_case(), Span::call_site())
-    }
 }
 
 // impl Transition {
@@ -90,7 +86,7 @@ impl ParsedFsmData {
         format_ident!("I{}Actions", self.fsm_name.to_upper_camel_case())
     }
 
-    fn state_struct_ident(&self) -> Ident {
+    fn state_struct_ident(&self) -> _ {
         format_ident!("{}State", self.fsm_name.to_upper_camel_case())
     }
 
@@ -99,7 +95,7 @@ impl ParsedFsmData {
         self.transitions.iter().map(|t| &t.event).unique()
     }
 
-    pub fn transitions_by_source_state(&self) -> impl Iterator<Item = (&State, Vec<&Transition>)> {
+    pub fn transitions_by_source_state(&self) -> Iterator<Item = &State, &Vec<Transition>> {
         self.transitions
             .iter()
             .map(|t| (&t.from_state, t))
@@ -134,7 +130,7 @@ fn fsm_event_params_trait(data: &ParsedFsmData) -> TokenStream2 {
 fn fsm_actions_trait(data: &ParsedFsmData) -> TokenStream2 {
     let action_methods = data.transitions.iter().filter_map(|transition| {
         if let Some(action) = &transition.action {
-            let action_ident = action.ident();
+            let action_ident = Ident::new(&action.to_snake_case(), Span::call_site());
             let params_ident = transition.event.params_ident();
             let action_method = quote! {
                 fn #action_ident(&mut self, params: Self::#params_ident);
@@ -169,7 +165,7 @@ fn event_enum(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_state_struct(data: &ParsedFsmData) -> TokenStream2 {
+pub fn fsm_state_struct(data: &ParsedFsmData) -> TokenStream2 {
     let state_ident = data.state_struct_ident(); // e.g., PlantFsmState
     let actions_trait = data.action_trait_ident(); // e.g., IPlantFsmActions
     let event_enum = data.event_enum_ident(); // e.g., PlantFsmEvent
@@ -182,36 +178,39 @@ fn fsm_state_struct(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
+pub fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
+    let event_enum = data.event_enum_ident(); // e.g., PlantFsmEvent
+
     let lookup_states = data.transitions_by_source_state();
 
-    let state_fns = lookup_states.map(|(state, transitions)| {
-        let fn_name = state.function_ident();
-        let transitions = transitions.iter().map(|t| {
-            let event_ident = t.event.ident();
-
-            let event_enum = data.event_enum_ident(); // e.g., PlantFsmEvent
-            let next_state = t.to_state.function_ident();
-            let action = if let Some(a) = &t.action {
-                let action_ident = a.ident();
-                quote! { action.#action_ident(params); }
-            } else {
-                quote! {}
-            };
-
-            quote! {
-                #event_enum::#event_ident(params) => {
-                    #action
-                    Some(Self::#next_state())
+    let state_fns = lookup_states.iter().map(|(state, transitions)| {
+        let fn_name = format_ident!("{}", state.to_lowercase());
+        let state_name = state;
+        transitions
+            .iter()
+            .map(|t| {
+                let event_ident = t.event.ident();
+                let param_pat = quote! { params };
+                let next_state =  t.to_state.();
+                if let Some(action) = &t.action {
+                    let action_ident = format_ident!("{}", action.to_snake_case());
+                    quote! {
+                        #event_enum::#event_ident(params) => {
+                            action.#action_ident(params);
+                            Some(Self::#next_fn())
+                        }
+                    }
+                } else {
+                    quote! {
+                        #event_enum::#event_ident(_) => Some(Self::#next_fn())
+                    }
                 }
-            }
-        });
+            });
 
-        let state_name = state.ident();
         quote! {
             fn #fn_name() -> Self {
                 Self {
-                    name: "#state_name",
+                    name: #state_name,
                     transition: |event, action| match event {
                         #(#transitions,)*
                         _ => None,
@@ -221,8 +220,8 @@ fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
         }
     });
 
-    let struct_ident = data.state_struct_ident();
-    let actions_trait = data.action_trait_ident();
+    let struct_ident = data.state_struct_ident(); 
+    let actions_trait = data.action_trait_ident(); 
     quote! {
         impl<A: #actions_trait> #struct_ident<A> {
             #(#state_fns)*
@@ -272,28 +271,28 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
         fsm_name: fsm_name.to_string(),
         transitions: vec![
             Transition {
-                from_state: State("Winter".to_string()),
+                from_state: "Winter".to_string(),
                 event: Event("TemperatureRises".to_string()),
-                to_state: State("Spring".to_string()),
+                to_state: "Spring".to_string(),
                 action: None,
             },
             Transition {
-                from_state: State("Spring".to_string()),
+                from_state: "Spring".to_string(),
                 event: Event("DaylightIncreases".to_string()),
-                to_state: State("Summer".to_string()),
-                action: Some(Action("StartBlooming".to_string())),
+                to_state: "Summer".to_string(),
+                action: Some("StartBlooming".to_string()),
             },
             Transition {
-                from_state: State("Summer".to_string()),
+                from_state: "Summer".to_string(),
                 event: Event("DaylightDecreases".to_string()),
-                to_state: State("Autumn".to_string()),
-                action: Some(Action("RipenFruit".to_string())),
+                to_state: "Autumn".to_string(),
+                action: Some("RipenFruit".to_string()),
             },
             Transition {
-                from_state: State("Autumn".to_string()),
+                from_state: "Autumn".to_string(),
                 event: Event("TemperatureDrops".to_string()),
-                to_state: State("Winter".to_string()),
-                action: Some(Action("DropPetals".to_string())),
+                to_state: "Winter".to_string(),
+                action: Some("DropPetals".to_string()),
             },
         ],
     };
@@ -301,10 +300,7 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
     let event_params_trait = fsm_event_params_trait(&fsm_data);
     let action_trait = fsm_actions_trait(&fsm_data);
     let event_enum = event_enum(&fsm_data);
-
     let state_struct = fsm_state_struct(&fsm_data);
-    let state_impl = fsm_state_impl(&fsm_data);
-
     let mod_ident = format_ident!("{}", module_name);
 
     let fsm_code = quote! {
@@ -315,7 +311,6 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
             #action_trait
             #event_enum
             #state_struct
-            #state_impl
         }
     };
     println!("{}", fsm_code);
