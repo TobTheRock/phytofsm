@@ -1,7 +1,5 @@
-use derive_more::{From, Into};
 use heck::ToSnakeCase;
 use heck::ToUpperCamelCase;
-use itertools::Itertools;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
@@ -13,30 +11,8 @@ mod error;
 mod parser;
 #[cfg(test)]
 mod reference;
-#[cfg(test)]
-mod test_data;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
-struct Event(String);
-#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
-struct Action(String);
-#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
-struct State(String);
-
-struct Transition {
-    pub from_state: State,
-    pub event: Event,
-    pub to_state: State,
-    pub action: Option<Action>,
-}
-
-// TODO replace with interface
-struct ParsedFsmData {
-    pub fsm_name: String,
-    pub transitions: Vec<Transition>,
-}
-
-impl Event {
+impl parser::Event {
     pub fn params_ident(&self) -> Ident {
         format_ident!("{}Params", self.0.to_upper_camel_case())
     }
@@ -46,19 +22,19 @@ impl Event {
     }
 }
 
-impl Action {
+impl parser::Action {
     pub fn ident(&self) -> Ident {
         Ident::new(&self.0.to_snake_case(), Span::call_site())
     }
 }
 
-impl State {
+impl parser::State {
     pub fn function_ident(&self) -> Ident {
         Ident::new(&self.0.to_snake_case(), Span::call_site())
     }
 }
 
-impl ToTokens for State {
+impl ToTokens for parser::State {
     fn to_tokens(&self, tokens: &mut TokenStream2) {
         self.0.to_tokens(tokens);
     }
@@ -74,42 +50,31 @@ impl ToTokens for State {
 //     }
 // }
 
-impl ParsedFsmData {
+impl parser::FsmRepr {
     pub fn fsm_ident(&self) -> Ident {
-        Ident::new(&self.fsm_name.to_upper_camel_case(), Span::call_site())
+        Ident::new(&self.name().to_upper_camel_case(), Span::call_site())
     }
 
     pub fn module_ident(&self) -> Ident {
-        Ident::new(&self.fsm_name.to_snake_case(), Span::call_site())
+        Ident::new(&self.name().to_snake_case(), Span::call_site())
     }
 
     pub fn event_params_trait_ident(&self) -> Ident {
-        format_ident!("I{}EventParams", self.fsm_name.to_upper_camel_case())
+        format_ident!("I{}EventParams", self.name().to_upper_camel_case())
     }
 
     pub fn event_enum_ident(&self) -> Ident {
-        format_ident!("{}Event", self.fsm_name.to_upper_camel_case())
+        format_ident!("{}Event", self.name().to_upper_camel_case())
     }
     pub fn action_trait_ident(&self) -> Ident {
-        format_ident!("I{}Actions", self.fsm_name.to_upper_camel_case())
+        format_ident!("I{}Actions", self.name().to_upper_camel_case())
     }
 
     fn state_struct_ident(&self) -> Ident {
-        format_ident!("{}State", self.fsm_name.to_upper_camel_case())
+        format_ident!("{}State", self.name().to_upper_camel_case())
     }
 
     // TODO move below functions to parser mod
-    pub fn all_events(&self) -> impl Iterator<Item = &Event> {
-        self.transitions.iter().map(|t| &t.event).unique()
-    }
-
-    pub fn transitions_by_source_state(&self) -> impl Iterator<Item = (&State, Vec<&Transition>)> {
-        self.transitions
-            .iter()
-            .map(|t| (&t.from_state, t))
-            .into_group_map()
-            .into_iter()
-    }
 
     // pub fn state_idents(&self) -> Vec<Ident> {
     //     self.transitions
@@ -121,9 +86,9 @@ impl ParsedFsmData {
     // }
 }
 
-fn fsm_event_params_trait(data: &ParsedFsmData) -> TokenStream2 {
-    let trait_ident = data.event_params_trait_ident();
-    let associated_types = data.all_events().map(|event| {
+fn fsm_event_params_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
+    let trait_ident = fsm.event_params_trait_ident();
+    let associated_types = fsm.all_events().map(|event| {
         let type_ident = event.params_ident();
         quote! { type #type_ident; }
     });
@@ -135,8 +100,8 @@ fn fsm_event_params_trait(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_actions_trait(data: &ParsedFsmData) -> TokenStream2 {
-    let action_methods = data.transitions.iter().filter_map(|transition| {
+fn fsm_actions_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
+    let action_methods = fsm.transitions().filter_map(|transition| {
         if let Some(action) = &transition.action {
             let action_ident = action.ident();
             let params_ident = transition.event.params_ident();
@@ -148,8 +113,8 @@ fn fsm_actions_trait(data: &ParsedFsmData) -> TokenStream2 {
             None
         }
     });
-    let event_params_trait = data.event_params_trait_ident();
-    let trait_ident = data.action_trait_ident();
+    let event_params_trait = fsm.event_params_trait_ident();
+    let trait_ident = fsm.action_trait_ident();
 
     quote! {
         pub trait #trait_ident : #event_params_trait{
@@ -158,14 +123,14 @@ fn fsm_actions_trait(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn event_enum(data: &ParsedFsmData) -> TokenStream2 {
-    let event_variants = data.all_events().map(|event| {
+fn event_enum(fsm: &parser::FsmRepr) -> TokenStream2 {
+    let event_variants = fsm.all_events().map(|event| {
         let params_ident = event.params_ident();
         let event_ident = event.ident();
         quote! { #event_ident(P::#params_ident),}
     });
-    let event_enum_ident = data.event_enum_ident();
-    let action_ident = data.action_trait_ident();
+    let event_enum_ident = fsm.event_enum_ident();
+    let action_ident = fsm.action_trait_ident();
     quote! {
         pub enum #event_enum_ident<P: #action_ident> {
             #(#event_variants)*
@@ -173,10 +138,10 @@ fn event_enum(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_state_struct(data: &ParsedFsmData) -> TokenStream2 {
-    let state_ident = data.state_struct_ident(); // e.g., PlantFsmState
-    let actions_trait = data.action_trait_ident(); // e.g., IPlantFsmActions
-    let event_enum = data.event_enum_ident(); // e.g., PlantFsmEvent
+fn fsm_state_struct(fsm: &parser::FsmRepr) -> TokenStream2 {
+    let state_ident = fsm.state_struct_ident();
+    let actions_trait = fsm.action_trait_ident();
+    let event_enum = fsm.event_enum_ident();
 
     quote! {
         struct #state_ident<A: #actions_trait> {
@@ -186,15 +151,15 @@ fn fsm_state_struct(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
-    let lookup_states = data.transitions_by_source_state();
+fn fsm_state_impl(fsm: &parser::FsmRepr) -> TokenStream2 {
+    let lookup_states = fsm.transitions_by_source_state();
 
     let state_fns = lookup_states.map(|(state, transitions)| {
         let fn_name = state.function_ident();
         let transitions = transitions.iter().map(|t| {
             let event_ident = t.event.ident();
 
-            let event_enum = data.event_enum_ident(); // e.g., PlantFsmEvent
+            let event_enum = fsm.event_enum_ident();
             let next_state = t.to_state.function_ident();
             let action = if let Some(a) = &t.action {
                 let action_ident = a.ident();
@@ -224,8 +189,8 @@ fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
         }
     });
 
-    let struct_ident = data.state_struct_ident();
-    let actions_trait = data.action_trait_ident();
+    let struct_ident = fsm.state_struct_ident();
+    let actions_trait = fsm.action_trait_ident();
     quote! {
         impl<A: #actions_trait> #struct_ident<A> {
             #(#state_fns)*
@@ -233,7 +198,7 @@ fn fsm_state_impl(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_struct(data: &ParsedFsmData) -> TokenStream2 {
+fn fsm_struct(data: &parser::FsmRepr) -> TokenStream2 {
     let fsm = data.fsm_ident();
     let action = data.action_trait_ident();
     let state = data.state_struct_ident();
@@ -245,7 +210,7 @@ fn fsm_struct(data: &ParsedFsmData) -> TokenStream2 {
     }
 }
 
-fn fsm_impl(data: &ParsedFsmData) -> TokenStream2 {
+fn fsm_impl(data: &parser::FsmRepr) -> TokenStream2 {
     let fsm = data.fsm_ident();
     let action = data.action_trait_ident();
     let state = data.state_struct_ident();
@@ -279,10 +244,10 @@ fn fsm_impl(data: &ParsedFsmData) -> TokenStream2 {
 #[proc_macro]
 pub fn generate_fsm(input: TokenStream) -> TokenStream {
     // TODO relative path handling
-    // let span = proc_macro::Span::call_site();
+    let span = proc_macro::Span::call_site();
 
     // Use the `Span` to get the `SourceFile`
-    // let source_file = span.source_file();
+    // let source_file = span.local_file();
     // Get the path of the `SourceFile`
     // let file_path.path();
 
@@ -307,35 +272,7 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
         "TemperatureDrops",
     ];
 
-    let fsm_data = ParsedFsmData {
-        fsm_name: fsm_name.to_string(),
-        transitions: vec![
-            Transition {
-                from_state: State("Winter".to_string()),
-                event: Event("TemperatureRises".to_string()),
-                to_state: State("Spring".to_string()),
-                action: None,
-            },
-            Transition {
-                from_state: State("Spring".to_string()),
-                event: Event("DaylightIncreases".to_string()),
-                to_state: State("Summer".to_string()),
-                action: Some(Action("StartBlooming".to_string())),
-            },
-            Transition {
-                from_state: State("Summer".to_string()),
-                event: Event("DaylightDecreases".to_string()),
-                to_state: State("Autumn".to_string()),
-                action: Some(Action("RipenFruit".to_string())),
-            },
-            Transition {
-                from_state: State("Autumn".to_string()),
-                event: Event("TemperatureDrops".to_string()),
-                to_state: State("Winter".to_string()),
-                action: Some(Action("DropPetals".to_string())),
-            },
-        ],
-    };
+    let fsm_data = parser::FsmRepr::simple_four_seasons();
 
     let event_params_trait = fsm_event_params_trait(&fsm_data);
     let action_trait = fsm_actions_trait(&fsm_data);
