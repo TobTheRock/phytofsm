@@ -20,16 +20,18 @@ pub struct Event(pub String);
 #[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
 pub struct Action(pub String);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum StateType {
-    Plain,
+    Simple,
     Enter,
     Exit,
 }
 
-// TODO extend with type and parent
-#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
-pub struct State(pub String);
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct State {
+    pub name: String,
+    pub state_type: StateType,
+}
 
 pub struct Transition {
     pub source: State,
@@ -58,31 +60,47 @@ impl FsmRepr {
 
     // TODO move to test module
     pub fn simple_four_seasons() -> Self {
+        let winter = State {
+            name: "Winter".to_string(),
+            state_type: StateType::Enter,
+        };
+        let spring = State {
+            name: "Spring".to_string(),
+            state_type: StateType::Simple,
+        };
+        let summer = State {
+            name: "Summer".to_string(),
+            state_type: StateType::Simple,
+        };
+        let autumn = State {
+            name: "Autumn".to_string(),
+            state_type: StateType::Simple,
+        };
         Self {
             name: "PlantFsm".to_string(),
             transitions: vec![
                 Transition {
-                    source: State("Winter".to_string()),
+                    source: winter.clone(),
+                    destination: spring.clone(),
                     event: Event("TemperatureRises".to_string()),
-                    destination: State("Spring".to_string()),
                     action: None,
                 },
                 Transition {
-                    source: State("Spring".to_string()),
+                    source: spring.clone(),
+                    destination: summer.clone(),
                     event: Event("DaylightIncreases".to_string()),
-                    destination: State("Summer".to_string()),
                     action: Some(Action("StartBlooming".to_string())),
                 },
                 Transition {
-                    source: State("Summer".to_string()),
+                    source: summer.clone(),
+                    destination: autumn.clone(),
                     event: Event("DaylightDecreases".to_string()),
-                    destination: State("Autumn".to_string()),
                     action: Some(Action("RipenFruit".to_string())),
                 },
                 Transition {
-                    source: State("Autumn".to_string()),
+                    source: autumn.clone(),
+                    destination: winter.clone(),
                     event: Event("TemperatureDrops".to_string()),
-                    destination: State("Winter".to_string()),
                     action: Some(Action("DropPetals".to_string())),
                 },
             ],

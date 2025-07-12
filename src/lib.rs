@@ -1,5 +1,3 @@
-use heck::ToSnakeCase;
-use heck::ToUpperCamelCase;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
@@ -8,37 +6,10 @@ use quote::{format_ident, quote};
 use syn::Ident;
 
 mod error;
+mod fsm;
 mod parser;
 #[cfg(test)]
 mod reference;
-
-impl parser::Event {
-    pub fn params_ident(&self) -> Ident {
-        format_ident!("{}Params", self.0.to_upper_camel_case())
-    }
-
-    pub fn ident(&self) -> Ident {
-        Ident::new(&self.0.to_upper_camel_case(), Span::call_site())
-    }
-}
-
-impl parser::Action {
-    pub fn ident(&self) -> Ident {
-        Ident::new(&self.0.to_snake_case(), Span::call_site())
-    }
-}
-
-impl parser::State {
-    pub fn function_ident(&self) -> Ident {
-        Ident::new(&self.0.to_snake_case(), Span::call_site())
-    }
-}
-
-impl ToTokens for parser::State {
-    fn to_tokens(&self, tokens: &mut TokenStream2) {
-        self.0.to_tokens(tokens);
-    }
-}
 
 // impl Transition {
 //     // TODO
@@ -50,44 +21,8 @@ impl ToTokens for parser::State {
 //     }
 // }
 
-impl parser::FsmRepr {
-    pub fn fsm_ident(&self) -> Ident {
-        Ident::new(&self.name.to_upper_camel_case(), Span::call_site())
-    }
-
-    pub fn module_ident(&self) -> Ident {
-        Ident::new(&self.name.to_snake_case(), Span::call_site())
-    }
-
-    pub fn event_params_trait_ident(&self) -> Ident {
-        format_ident!("I{}EventParams", self.name.to_upper_camel_case())
-    }
-
-    pub fn event_enum_ident(&self) -> Ident {
-        format_ident!("{}Event", self.name.to_upper_camel_case())
-    }
-    pub fn action_trait_ident(&self) -> Ident {
-        format_ident!("I{}Actions", self.name.to_upper_camel_case())
-    }
-
-    fn state_struct_ident(&self) -> Ident {
-        format_ident!("{}State", self.name.to_upper_camel_case())
-    }
-
-    // TODO move below functions to parser mod
-
-    // pub fn state_idents(&self) -> Vec<Ident> {
-    //     self.transitions
-    //         .iter()
-    //         .flat_map(|t| [&t.from_state, &t.to_state])
-    //         .unique()
-    //         .map(|name| Ident::new(&name.to_upper_camel_case(), Span::call_site()))
-    //         .collect()
-    // }
-}
-
-fn fsm_event_params_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
-    let trait_ident = fsm.event_params_trait_ident();
+fn fsm_event_params_trait(fsm: &fsm::Fsm) -> TokenStream2 {
+    let trait_ident = &fsm.idents().event_params_trait;
     let associated_types = fsm.all_events().map(|event| {
         let type_ident = event.params_ident();
         quote! { type #type_ident; }
@@ -100,21 +35,18 @@ fn fsm_event_params_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
     }
 }
 
-fn fsm_actions_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
-    let action_methods = fsm.transitions.iter().filter_map(|transition| {
-        if let Some(action) = &transition.action {
-            let action_ident = action.ident();
-            let params_ident = transition.event.params_ident();
-            let action_method = quote! {
-                fn #action_ident(&mut self, params: Self::#params_ident);
-            };
-            Some(action_method)
-        } else {
-            None
+fn fsm_actions_trait(fsm: &fsm::Fsm) -> TokenStream2 {
+    let action_methods = fsm.actions().map(|(action, event)| {
+        let action_ident = action.ident();
+        let params_ident = event.params_ident();
+        quote! {
+            fn #action_ident(&mut self, params: Self::#params_ident);
         }
     });
-    let event_params_trait = fsm.event_params_trait_ident();
-    let trait_ident = fsm.action_trait_ident();
+
+    let idents = fsm.idents();
+    let event_params_trait = &idents.event_params_trait;
+    let trait_ident = &idents.action_trait;
 
     quote! {
         pub trait #trait_ident : #event_params_trait{
@@ -123,14 +55,16 @@ fn fsm_actions_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
     }
 }
 
-fn event_enum(fsm: &parser::FsmRepr) -> TokenStream2 {
+fn event_enum(fsm: &fsm::Fsm) -> TokenStream2 {
     let event_variants = fsm.all_events().map(|event| {
         let params_ident = event.params_ident();
         let event_ident = event.ident();
         quote! { #event_ident(P::#params_ident),}
     });
-    let event_enum_ident = fsm.event_enum_ident();
-    let action_ident = fsm.action_trait_ident();
+
+    let idents = fsm.idents();
+    let event_enum_ident = &idents.event_enum;
+    let action_ident = &idents.action_trait;
     quote! {
         pub enum #event_enum_ident<P: #action_ident> {
             #(#event_variants)*
@@ -138,10 +72,11 @@ fn event_enum(fsm: &parser::FsmRepr) -> TokenStream2 {
     }
 }
 
-fn fsm_state_struct(fsm: &parser::FsmRepr) -> TokenStream2 {
-    let state_ident = fsm.state_struct_ident();
-    let actions_trait = fsm.action_trait_ident();
-    let event_enum = fsm.event_enum_ident();
+fn fsm_state_struct(fsm: &fsm::Fsm) -> TokenStream2 {
+    let idents = fsm.idents();
+    let state_ident = &idents.state_struct;
+    let actions_trait = &idents.action_trait;
+    let event_enum = &idents.event_enum;
 
     quote! {
         struct #state_ident<A: #actions_trait> {
@@ -151,15 +86,16 @@ fn fsm_state_struct(fsm: &parser::FsmRepr) -> TokenStream2 {
     }
 }
 
-fn fsm_state_impl(fsm: &parser::FsmRepr) -> TokenStream2 {
+fn fsm_state_impl(fsm: &fsm::Fsm) -> TokenStream2 {
     let lookup_states = fsm.transitions_by_source_state();
+    let idents = fsm.idents();
 
     let state_fns = lookup_states.map(|(state, transitions)| {
         let fn_name = state.function_ident();
         let transitions = transitions.iter().map(|t| {
             let event_ident = t.event.ident();
 
-            let event_enum = fsm.event_enum_ident();
+            let event_enum = &idents.event_enum;
             let next_state = t.destination.function_ident();
             let action = if let Some(a) = &t.action {
                 let action_ident = a.ident();
@@ -189,8 +125,8 @@ fn fsm_state_impl(fsm: &parser::FsmRepr) -> TokenStream2 {
         }
     });
 
-    let struct_ident = fsm.state_struct_ident();
-    let actions_trait = fsm.action_trait_ident();
+    let struct_ident = &idents.state_struct;
+    let actions_trait = &idents.action_trait;
     quote! {
         impl<A: #actions_trait> #struct_ident<A> {
             #(#state_fns)*
@@ -198,10 +134,11 @@ fn fsm_state_impl(fsm: &parser::FsmRepr) -> TokenStream2 {
     }
 }
 
-fn fsm_struct(data: &parser::FsmRepr) -> TokenStream2 {
-    let fsm = data.fsm_ident();
-    let action = data.action_trait_ident();
-    let state = data.state_struct_ident();
+fn fsm_struct(fsm: &fsm::Fsm) -> TokenStream2 {
+    let idents = fsm.idents();
+    let fsm = &idents.fsm;
+    let action = &idents.action_trait;
+    let state = &idents.state_struct;
     quote! {
         pub struct #fsm<A: #action> {
             actions: A,
@@ -210,14 +147,14 @@ fn fsm_struct(data: &parser::FsmRepr) -> TokenStream2 {
     }
 }
 
-fn fsm_impl(data: &parser::FsmRepr) -> TokenStream2 {
-    let fsm = data.fsm_ident();
-    let action = data.action_trait_ident();
-    let state = data.state_struct_ident();
-    let event_enum = data.event_enum_ident();
+fn fsm_impl(fsm: &fsm::Fsm) -> TokenStream2 {
+    let idents = fsm.idents();
+    let entry_state = fsm.entry().function_ident();
 
-    // TODO find entry state!!!
-    let entry_state = format_ident!("winter");
+    let fsm = &idents.fsm;
+    let action = &idents.action_trait;
+    let state = &idents.state_struct;
+    let event_enum = &idents.event_enum;
 
     // TODO tracing/logging
     quote! {
@@ -256,9 +193,11 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
 
     // INPUTS: TODO from file name or from  parsed content
 
-    let fsm = parser::FsmRepr::simple_four_seasons();
+    let fsm_repr = parser::FsmRepr::simple_four_seasons();
+    let fsm = fsm::Fsm::try_from(fsm_repr).expect("Failed to create FSM from representation");
 
-    let module = fsm.module_ident();
+    let module = &fsm.idents().module;
+
     let event_params_trait = fsm_event_params_trait(&fsm);
     let action_trait = fsm_actions_trait(&fsm);
     let event_enum = event_enum(&fsm);
