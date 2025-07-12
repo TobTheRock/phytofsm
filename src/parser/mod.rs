@@ -32,32 +32,26 @@ pub enum StateType {
 pub struct State(pub String);
 
 pub struct Transition {
-    pub from_state: State,
+    pub source: State,
+    pub destination: State,
     pub event: Event,
-    pub to_state: State,
     pub action: Option<Action>,
 }
 
 pub struct FsmRepr {
-    name: String,
-    transitions: Vec<Transition>,
+    pub name: String,
+    pub transitions: Vec<Transition>,
 }
 
 impl FsmRepr {
-    pub fn name(&self) -> &str {
-        self.name.as_str()
-    }
-    pub fn transitions(&self) -> impl Iterator<Item = &Transition> {
-        self.transitions.iter()
-    }
-
     pub fn all_events(&self) -> impl Iterator<Item = &Event> {
-        self.transitions().map(|t| &t.event).unique()
+        self.transitions.iter().map(|t| &t.event).unique()
     }
 
     pub fn transitions_by_source_state(&self) -> impl Iterator<Item = (&State, Vec<&Transition>)> {
-        self.transitions()
-            .map(|t| (&t.from_state, t))
+        self.transitions
+            .iter()
+            .map(|t| (&t.source, t))
             .into_group_map()
             .into_iter()
     }
@@ -68,27 +62,27 @@ impl FsmRepr {
             name: "PlantFsm".to_string(),
             transitions: vec![
                 Transition {
-                    from_state: State("Winter".to_string()),
+                    source: State("Winter".to_string()),
                     event: Event("TemperatureRises".to_string()),
-                    to_state: State("Spring".to_string()),
+                    destination: State("Spring".to_string()),
                     action: None,
                 },
                 Transition {
-                    from_state: State("Spring".to_string()),
+                    source: State("Spring".to_string()),
                     event: Event("DaylightIncreases".to_string()),
-                    to_state: State("Summer".to_string()),
+                    destination: State("Summer".to_string()),
                     action: Some(Action("StartBlooming".to_string())),
                 },
                 Transition {
-                    from_state: State("Summer".to_string()),
+                    source: State("Summer".to_string()),
                     event: Event("DaylightDecreases".to_string()),
-                    to_state: State("Autumn".to_string()),
+                    destination: State("Autumn".to_string()),
                     action: Some(Action("RipenFruit".to_string())),
                 },
                 Transition {
-                    from_state: State("Autumn".to_string()),
+                    source: State("Autumn".to_string()),
                     event: Event("TemperatureDrops".to_string()),
-                    to_state: State("Winter".to_string()),
+                    destination: State("Winter".to_string()),
                     action: Some(Action("DropPetals".to_string())),
                 },
             ],

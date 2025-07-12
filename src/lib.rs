@@ -52,26 +52,26 @@ impl ToTokens for parser::State {
 
 impl parser::FsmRepr {
     pub fn fsm_ident(&self) -> Ident {
-        Ident::new(&self.name().to_upper_camel_case(), Span::call_site())
+        Ident::new(&self.name.to_upper_camel_case(), Span::call_site())
     }
 
     pub fn module_ident(&self) -> Ident {
-        Ident::new(&self.name().to_snake_case(), Span::call_site())
+        Ident::new(&self.name.to_snake_case(), Span::call_site())
     }
 
     pub fn event_params_trait_ident(&self) -> Ident {
-        format_ident!("I{}EventParams", self.name().to_upper_camel_case())
+        format_ident!("I{}EventParams", self.name.to_upper_camel_case())
     }
 
     pub fn event_enum_ident(&self) -> Ident {
-        format_ident!("{}Event", self.name().to_upper_camel_case())
+        format_ident!("{}Event", self.name.to_upper_camel_case())
     }
     pub fn action_trait_ident(&self) -> Ident {
-        format_ident!("I{}Actions", self.name().to_upper_camel_case())
+        format_ident!("I{}Actions", self.name.to_upper_camel_case())
     }
 
     fn state_struct_ident(&self) -> Ident {
-        format_ident!("{}State", self.name().to_upper_camel_case())
+        format_ident!("{}State", self.name.to_upper_camel_case())
     }
 
     // TODO move below functions to parser mod
@@ -101,7 +101,7 @@ fn fsm_event_params_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
 }
 
 fn fsm_actions_trait(fsm: &parser::FsmRepr) -> TokenStream2 {
-    let action_methods = fsm.transitions().filter_map(|transition| {
+    let action_methods = fsm.transitions.iter().filter_map(|transition| {
         if let Some(action) = &transition.action {
             let action_ident = action.ident();
             let params_ident = transition.event.params_ident();
@@ -160,7 +160,7 @@ fn fsm_state_impl(fsm: &parser::FsmRepr) -> TokenStream2 {
             let event_ident = t.event.ident();
 
             let event_enum = fsm.event_enum_ident();
-            let next_state = t.to_state.function_ident();
+            let next_state = t.destination.function_ident();
             let action = if let Some(a) = &t.action {
                 let action_ident = a.ident();
                 quote! { action.#action_ident(params); }
@@ -244,14 +244,7 @@ fn fsm_impl(data: &parser::FsmRepr) -> TokenStream2 {
 #[proc_macro]
 pub fn generate_fsm(input: TokenStream) -> TokenStream {
     // TODO relative path handling
-    let span = proc_macro::Span::call_site();
-
-    // Use the `Span` to get the `SourceFile`
-    // let source_file = span.local_file();
-    // Get the path of the `SourceFile`
-    // let file_path.path();
-
-    //
+    let span = proc_macro::Span::call_site(); // Use the `Span` to get the `SourceFile` let source_file = span.local_file(); Get the path of the `SourceFile` let file_path.path();
     // print!("START");
     // let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
     // dbg!(&file_path);
@@ -262,26 +255,17 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
     // let contents = std::fs::read_to_string(&abs_file_path).expect("File not found");
 
     // INPUTS: TODO from file name or from  parsed content
-    let module_name = "plant_fsm";
-    let fsm_name = "PlantFsm";
-    // TODO from parser
-    let event_names = vec![
-        "TemperatureRises",
-        "DaylightIncreases",
-        "DaylightDecreases",
-        "TemperatureDrops",
-    ];
 
-    let fsm_data = parser::FsmRepr::simple_four_seasons();
+    let fsm = parser::FsmRepr::simple_four_seasons();
 
-    let event_params_trait = fsm_event_params_trait(&fsm_data);
-    let action_trait = fsm_actions_trait(&fsm_data);
-    let event_enum = event_enum(&fsm_data);
-    let state_struct = fsm_state_struct(&fsm_data);
-    let state_impl = fsm_state_impl(&fsm_data);
-    let fsm_struct = fsm_struct(&fsm_data);
-    let fsm_impl = fsm_impl(&fsm_data);
-    let module = format_ident!("{}", module_name);
+    let module = fsm.module_ident();
+    let event_params_trait = fsm_event_params_trait(&fsm);
+    let action_trait = fsm_actions_trait(&fsm);
+    let event_enum = event_enum(&fsm);
+    let state_struct = fsm_state_struct(&fsm);
+    let state_impl = fsm_state_impl(&fsm);
+    let fsm_struct = fsm_struct(&fsm);
+    let fsm_impl = fsm_impl(&fsm);
 
     let fsm_code = quote! {
         mod #module {
