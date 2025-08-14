@@ -1,33 +1,28 @@
-use std::collections::HashSet;
 
 use nom::{
-    Err, IResult, Parser,
+    Err, Parser,
     branch::alt,
     bytes::{complete::tag, take_till1, take_until},
-    character::complete::{alphanumeric0, alphanumeric1, line_ending, multispace0, space0},
-    combinator::{cut, opt},
+    character::complete::{alphanumeric1, line_ending, space0},
+    combinator::opt,
     error::context,
     multi::many0,
     sequence::{delimited, preceded, separated_pair, terminated},
 };
-use syn::TraitItem;
+use nom_language::error::{VerboseError, convert_error};
 
 use crate::{
     error::{Error, Result},
     parser::{
         FsmRepr, State, StateType, Transition,
         context::TransitionContext,
-        nom::{multi_ws, ws},
+        nom::{multi_ws, ws, NomResult},
     },
 };
 
-fn format_parse_error<E>(_input: &str, error: Err<E>) -> String
-where
-    E: std::fmt::Debug,
-{
+fn format_verbose_parse_error(input: &str, error: Err<VerboseError<&str>>) -> String {
     match error {
-        Err::Error(e) => format!("Parse error: {:?}", e),
-        Err::Failure(e) => format!("Parse failure: {:?}", e),
+        Err::Error(e) | Err::Failure(e) => convert_error(input, e),
         Err::Incomplete(_) => "Incomplete input - more data needed".to_string(),
     }
 }
@@ -46,7 +41,7 @@ impl PlantUmlFsmParser {
 
     pub fn parse(&self, input: &str) -> Result<FsmRepr> {
         let (_, fsm_diagram) = parse_fsm_diagram(input)
-            .map_err(|e| Error::ParseError(format_parse_error(input, e)))?;
+            .map_err(|e| Error::ParseError(format_verbose_parse_error(input, e)))?;
         fsm_diagram.try_into()
     }
 }
@@ -71,7 +66,7 @@ impl State {
 impl TryFrom<FsmDiagram> for FsmRepr {
     type Error = Error;
     fn try_from(diagram: FsmDiagram) -> Result<Self> {
-        let mut transitions = diagram
+        let transitions = diagram
             .transitions
             .into_iter()
             .map(|t| t.try_into_transition(&diagram.enter_state))
@@ -131,20 +126,32 @@ impl TransitionDescription {
     }
 }
 
-fn parse_fsm_diagram(input: &str) -> IResult<&str, FsmDiagram> {
-    let (input, name) =
-        context("PlantUML start tag", multi_ws(parse_plantuml_start)).parse(input)?;
-    let (remaining, content) =
-        context("PlantUML content", multi_ws(parse_plantuml_content)).parse(input)?;
+fn parse_fsm_diagram(input: &str) -> NomResult<'_, FsmDiagram> {
+    let (input, name) = context(
+        "parsing PlantUML start tag (@startuml)",
+        multi_ws(parse_plantuml_start),
+    )
+    .parse(input)?;
+    let (remaining, content) = context(
+        "parsing PlantUML content (between @startuml and @enduml)",
+        multi_ws(parse_plantuml_content),
+    )
+    .parse(input)?;
 
     let (content_remaining, enter_state) = context(
-        "initial state transition ([*] --> State)",
+        "parsing initial state transition ([*] --> State)",
         parse_enter_transition,
     )
     .parse(content)?;
-    let single_transition = context("state transition", parse_transition);
-    let (_, transitions) = context("all state transitions", many0(multi_ws(single_transition)))
-        .parse(content_remaining)?;
+    let single_transition = context(
+        "parsing state transition (State --> State : label)",
+        parse_transition,
+    );
+    let (_, transitions) = context(
+        "parsing all state transitions",
+        many0(multi_ws(single_transition)),
+    )
+    .parse(content_remaining)?;
 
     let diagram = FsmDiagram {
         name: name.map(|s| s.to_string()),
@@ -154,11 +161,11 @@ fn parse_fsm_diagram(input: &str) -> IResult<&str, FsmDiagram> {
     Ok((remaining, diagram))
 }
 
-fn parse_plantuml_content(input: &str) -> IResult<&str, &str> {
+fn parse_plantuml_content(input: &str) -> NomResult<'_, &str> {
     terminated(take_until("@enduml"), (tag("@enduml"), space0)).parse(input)
 }
 
-fn parse_plantuml_start(input: &str) -> IResult<&str, Option<&str>> {
+fn parse_plantuml_start(input: &str) -> NomResult<'_, Option<&str>> {
     let start_tag = tag("@startuml");
     delimited(
         start_tag,
@@ -176,7 +183,7 @@ fn parse_plantuml_start(input: &str) -> IResult<&str, Option<&str>> {
 //     Ok((input, state))
 // }
 
-fn parse_state_description(input: &str) -> IResult<&str, StateDescription> {
+fn parse_state_description(input: &str) -> NomResult<'_, StateDescription> {
     let state_name_parser = ws(alphanumeric1);
     let description_parser = delimited(space0, take_till1(|c| c == '\n' || c == '\r'), line_ending);
     let (input, (name, description)) =
@@ -189,17 +196,17 @@ fn parse_state_description(input: &str) -> IResult<&str, StateDescription> {
     Ok((input, state_desc))
 }
 
-fn parse_enter_transition(input: &str) -> IResult<&str, &str> {
+fn parse_enter_transition(input: &str) -> NomResult<'_, &str> {
     let enter_tag = (space0, tag("[*]"), ws(parse_arrow));
     delimited(enter_tag, alphanumeric1, (space0, line_ending)).parse(input)
 }
 
-fn parse_exit_transition(input: &str) -> IResult<&str, &str> {
+fn parse_exit_transition(input: &str) -> NomResult<'_, &str> {
     let exit_tag = (space0, tag("[*]"), ws(parse_arrow));
     delimited(exit_tag, alphanumeric1, (space0, line_ending)).parse(input)
 }
 
-fn parse_transition(input: &str) -> IResult<&str, TransitionDescription> {
+fn parse_transition(input: &str) -> NomResult<'_, TransitionDescription> {
     let label_parser = preceded(ws(tag(":")), preceded(space0, take_until("\n")));
     let (input, (from, _, to, label)) = terminated(
         (
@@ -220,7 +227,7 @@ fn parse_transition(input: &str) -> IResult<&str, TransitionDescription> {
     Ok((input, transition))
 }
 
-fn parse_arrow(input: &str) -> IResult<&str, &str> {
+fn parse_arrow(input: &str) -> NomResult<'_, &str> {
     alt((
         tag("->"),
         tag("-->"),
@@ -337,5 +344,20 @@ mod tests {
         assert_eq!(output.name, Some("fsm name".to_string()));
         assert_eq!(output.enter_state, "A".to_string());
         assert_eq!(output.transitions.len(), 3);
+    }
+    #[test]
+    fn test_parse_fsm_diagram_with_state_descriptions() {
+        let input = r#"
+        @startuml fsm name
+        state A
+        [*] --> A
+        A --> B : label1
+        state B: some desc
+        @enduml
+        "#;
+        let (_, output) = parse_fsm_diagram(input).unwrap();
+        assert_eq!(output.name, Some("fsm name".to_string()));
+        assert_eq!(output.enter_state, "A".to_string());
+        assert_eq!(output.transitions.len(), 1);
     }
 }

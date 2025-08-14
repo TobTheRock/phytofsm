@@ -1,9 +1,12 @@
 use nom::{
-    Parser,
+    IResult, Parser,
     character::complete::{multispace0, space0},
     error::ParseError,
     sequence::delimited,
 };
+use nom_language::error::VerboseError;
+
+pub type NomResult<'a, T> = IResult<&'a str, T, VerboseError<&'a str>>;
 
 pub fn ws<'a, O, E: ParseError<&'a str>, F>(inner: F) -> impl Parser<&'a str, Output = O, Error = E>
 where

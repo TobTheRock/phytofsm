@@ -1,9 +1,6 @@
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 use proc_macro2::TokenStream as TokenStream2;
-use quote::ToTokens;
-use quote::{format_ident, quote};
-use syn::Ident;
+use quote::quote;
 
 mod error;
 mod fsm;
