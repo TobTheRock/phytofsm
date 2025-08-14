@@ -1,11 +1,10 @@
-
 use nom::{
     Err, Parser,
     branch::alt,
     bytes::{complete::tag, take_till1, take_until},
-    character::complete::{alphanumeric1, line_ending, space0},
+    character::complete::{alphanumeric1, line_ending, not_line_ending, space0},
     combinator::opt,
-    error::context,
+    error::{ParseError, context},
     multi::many0,
     sequence::{delimited, preceded, separated_pair, terminated},
 };
@@ -16,7 +15,7 @@ use crate::{
     parser::{
         FsmRepr, State, StateType, Transition,
         context::TransitionContext,
-        nom::{multi_ws, ws, NomResult},
+        nom::{NomResult, multi_ws, ws},
     },
 };
 
@@ -66,10 +65,17 @@ impl State {
 impl TryFrom<FsmDiagram> for FsmRepr {
     type Error = Error;
     fn try_from(diagram: FsmDiagram) -> Result<Self> {
+        if (diagram.enter_states.len() != 1) {
+            return Err(Error::ParseError(
+                "FSM must have exactly one enter state".to_string(),
+            ));
+        }
+        let enter_state = &diagram.enter_states[0];
+
         let transitions = diagram
             .transitions
             .into_iter()
-            .map(|t| t.try_into_transition(&diagram.enter_state))
+            .map(|t| t.try_into_transition(&enter_state))
             .collect::<Result<Vec<Transition>>>()?;
         Ok(FsmRepr {
             name: diagram.name.unwrap_or_default(),
@@ -79,9 +85,18 @@ impl TryFrom<FsmDiagram> for FsmRepr {
 }
 
 #[derive(Debug, PartialEq)]
+enum FsmContent {
+    StateDeclaration(String),
+    StateDescription(StateDescription),
+    EnterTransition(StateName),
+    Transition(TransitionDescription),
+    Unknown,
+}
+
+#[derive(Debug, PartialEq)]
 struct FsmDiagram {
     name: Option<String>,
-    enter_state: StateName,
+    enter_states: Vec<StateName>,
     //TODO support exit state
     // exit_state: Option<StateName>,
     transitions: Vec<TransitionDescription>,
@@ -103,7 +118,7 @@ struct StateDescription {
     description: String,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Clone)]
 struct TransitionDescription {
     from: StateName,
     to: StateName,
@@ -138,24 +153,36 @@ fn parse_fsm_diagram(input: &str) -> NomResult<'_, FsmDiagram> {
     )
     .parse(input)?;
 
-    let (content_remaining, enter_state) = context(
-        "parsing initial state transition ([*] --> State)",
-        parse_enter_transition,
+    let (_, parsed_content) = context(
+        "parsing all PlantUML content lines",
+        many0(multi_ws(parse_fsm_content_line)),
     )
     .parse(content)?;
-    let single_transition = context(
-        "parsing state transition (State --> State : label)",
-        parse_transition,
-    );
-    let (_, transitions) = context(
-        "parsing all state transitions",
-        many0(multi_ws(single_transition)),
-    )
-    .parse(content_remaining)?;
+
+    let enter_states = parsed_content
+        .iter()
+        .filter_map(|item| {
+            if let FsmContent::EnterTransition(state) = item {
+                Some(state.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
+    let transitions = parsed_content
+        .iter()
+        .filter_map(|item| {
+            if let FsmContent::Transition(transition) = item {
+                Some(transition.clone())
+            } else {
+                None
+            }
+        })
+        .collect();
 
     let diagram = FsmDiagram {
         name: name.map(|s| s.to_string()),
-        enter_state: enter_state.to_string(),
+        enter_states,
         transitions,
     };
     Ok((remaining, diagram))
@@ -175,13 +202,36 @@ fn parse_plantuml_start(input: &str) -> NomResult<'_, Option<&str>> {
     .parse(input)
 }
 
-// TODO this will be needed later for nested states
-// fn parse_state(input: &str) -> IResult<&str, State> {
-//     let (input, name) = delimited(
-//         ws(tag("state")),
-//         take_while(|c: char| c.is_alphanumeric()), line_ending,) .parse(input)?; let state = State { name: name.to_string(), };
-//     Ok((input, state))
-// }
+fn parse_state_declaration(input: &str) -> NomResult<'_, String> {
+    let (input, name) =
+        terminated(preceded(ws(tag("state")), ws(alphanumeric1)), line_ending).parse(input)?;
+    Ok((input, name.to_string()))
+}
+
+fn parse_unknown_line(input: &str) -> NomResult<'_, ()> {
+    let (input, _) = terminated(not_line_ending, line_ending).parse(input)?;
+    Ok((input, ()))
+}
+
+fn parse_fsm_content_line(input: &str) -> NomResult<'_, FsmContent> {
+    alt((
+        |input| {
+            parse_enter_transition(input)
+                .map(|(rest, state)| (rest, FsmContent::EnterTransition(state.to_string())))
+        },
+        |input| parse_transition(input).map(|(rest, trans)| (rest, FsmContent::Transition(trans))),
+        |input| {
+            parse_state_declaration(input)
+                .map(|(rest, name)| (rest, FsmContent::StateDeclaration(name)))
+        },
+        |input| {
+            parse_state_description(input)
+                .map(|(rest, desc)| (rest, FsmContent::StateDescription(desc)))
+        },
+        |input| parse_unknown_line(input).map(|(rest, _)| (rest, FsmContent::Unknown)),
+    ))
+    .parse(input)
+}
 
 fn parse_state_description(input: &str) -> NomResult<'_, StateDescription> {
     let state_name_parser = ws(alphanumeric1);
@@ -333,7 +383,7 @@ mod tests {
     #[test]
     fn test_parse_fsm_diagram() {
         let input = r#"
-        @startuml fsm name
+        @startuml fsm name  
         [*] --> A
         A --> B : label1
         A -u-> C : label2
@@ -342,7 +392,7 @@ mod tests {
         "#;
         let (_, output) = parse_fsm_diagram(input).unwrap();
         assert_eq!(output.name, Some("fsm name".to_string()));
-        assert_eq!(output.enter_state, "A".to_string());
+        assert_eq!(output.enter_states, ["A"]);
         assert_eq!(output.transitions.len(), 3);
     }
     #[test]
@@ -357,7 +407,7 @@ mod tests {
         "#;
         let (_, output) = parse_fsm_diagram(input).unwrap();
         assert_eq!(output.name, Some("fsm name".to_string()));
-        assert_eq!(output.enter_state, "A".to_string());
+        assert_eq!(output.enter_states, ["A"]);
         assert_eq!(output.transitions.len(), 1);
     }
 }

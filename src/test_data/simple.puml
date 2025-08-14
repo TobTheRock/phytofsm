@@ -1,4 +1,4 @@
-@startuml Plant Seasonal Lifecycle
+@startuml PlantFsm 
 
 state Winter 
 state Spring
