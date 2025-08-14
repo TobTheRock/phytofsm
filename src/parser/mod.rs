@@ -1,6 +1,7 @@
 use derive_more::{From, Into};
-use itertools::Itertools;
 
+mod context;
+mod nom;
 mod plantuml;
 
 pub struct FsmFile {}
@@ -33,31 +34,22 @@ pub struct State {
     pub state_type: StateType,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Transition {
     pub source: State,
     pub destination: State,
+    // TODO make this optional for direct transitions
     pub event: Event,
     pub action: Option<Action>,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FsmRepr {
     pub name: String,
     pub transitions: Vec<Transition>,
 }
 
 impl FsmRepr {
-    pub fn all_events(&self) -> impl Iterator<Item = &Event> {
-        self.transitions.iter().map(|t| &t.event).unique()
-    }
-
-    pub fn transitions_by_source_state(&self) -> impl Iterator<Item = (&State, Vec<&Transition>)> {
-        self.transitions
-            .iter()
-            .map(|t| (&t.source, t))
-            .into_group_map()
-            .into_iter()
-    }
-
     // TODO move to test module
     pub fn simple_four_seasons() -> Self {
         let winter = State {
@@ -110,9 +102,16 @@ impl FsmRepr {
 
 #[cfg(test)]
 mod test {
+    use crate::parser::{FsmRepr, plantuml::PlantUmlFsmParser};
 
-    // #[test]
-    // fn parse_simple_fsm() {
-    //     let test_data = TestFsm::simple_fsm();
-    // }
+    const DATA: &str = include_str!("../test_data/simple.puml");
+
+    #[test]
+    fn parse_simple_fsm() {
+        let test_data = FsmRepr::simple_four_seasons();
+        // TODO use FsmFile?
+        let mut parser = PlantUmlFsmParser::new();
+        let fsm = parser.parse(DATA).unwrap();
+        assert_eq!(test_data, fsm);
+    }
 }

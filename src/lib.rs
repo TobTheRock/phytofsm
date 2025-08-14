@@ -11,16 +11,6 @@ mod parser;
 #[cfg(test)]
 mod reference;
 
-// impl Transition {
-//     // TODO
-//     pub fn to_state_ident(&self) -> Ident {
-//         Ident::new(&self.to_state, Span::call_site())
-//     }
-//     pub fn from_state_ident(&self) -> Ident {
-//         Ident::new(&self.from_state, Span::call_site())
-//     }
-// }
-
 fn fsm_event_params_trait(fsm: &fsm::Fsm) -> TokenStream2 {
     let trait_ident = &fsm.idents().event_params_trait;
     let associated_types = fsm.all_events().map(|event| {
