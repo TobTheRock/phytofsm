@@ -180,7 +180,7 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
 
     // INPUTS: TODO from file name or from  parsed content
 
-    let fsm_repr = parser::FsmRepr::simple_four_seasons();
+    let fsm_repr = parser::Fsm::simple_four_seasons();
     let fsm = fsm::Fsm::try_from(fsm_repr).expect("Failed to create FSM from representation");
 
     let module = &fsm.idents().module;

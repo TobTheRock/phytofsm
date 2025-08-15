@@ -7,5 +7,5 @@ pub enum Error {
     #[error("Parse error: {0}")]
     ParseError(String),
     #[error("Parsed FSM representation is invalid: {0}")]
-    InvalidFsmRepr(String),
+    InvalidFsm(String),
 }

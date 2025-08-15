@@ -56,7 +56,7 @@ impl quote::ToTokens for parser::State {
 }
 
 pub struct Fsm {
-    repr: parser::FsmRepr,
+    repr: parser::Fsm,
     entry: parser::State,
     idents: Idents,
 }
@@ -100,14 +100,14 @@ impl Fsm {
     }
 }
 
-impl TryFrom<parser::FsmRepr> for Fsm {
+impl TryFrom<parser::Fsm> for Fsm {
     type Error = error::Error;
-    fn try_from(repr: parser::FsmRepr) -> Result<Self, Self::Error> {
+    fn try_from(repr: parser::Fsm) -> Result<Self, Self::Error> {
         let entry = all_states(&repr)
             .filter(|s| s.state_type == parser::StateType::Enter)
             .exactly_one()
             .map_err(|_| {
-                error::Error::InvalidFsmRepr("FSM must have exactly one enter state".to_string())
+                error::Error::InvalidFsm("FSM must have exactly one enter state".to_string())
             })?
             .clone();
         let idents = new(&repr.name);
@@ -119,7 +119,7 @@ impl TryFrom<parser::FsmRepr> for Fsm {
     }
 }
 
-fn all_states(repr: &parser::FsmRepr) -> impl Iterator<Item = &parser::State> {
+fn all_states(repr: &parser::Fsm) -> impl Iterator<Item = &parser::State> {
     repr.transitions
         .iter()
         .flat_map(|t| [&t.source, &t.destination])
