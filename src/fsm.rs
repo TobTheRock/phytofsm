@@ -57,6 +57,7 @@ impl quote::ToTokens for parser::State {
 
 pub struct Fsm {
     repr: parser::Fsm,
+    // TODO add this to parser
     entry: parser::State,
     idents: Idents,
 }

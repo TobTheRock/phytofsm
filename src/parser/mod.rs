@@ -15,10 +15,9 @@ pub struct FsmFile {
 
 impl FsmFile {
     pub fn try_open(file_path: &str) -> Result<Self> {
-        let abs_path =
-            std::fs::canonicalize(file_path).map_err(|e| Error::InvalidFile(e.to_string()))?;
-        let content =
-            std::fs::read_to_string(&abs_path).map_err(|e| Error::InvalidFile(e.to_string()))?;
+        let error = |e: std::io::Error| Error::InvalidFile(file_path.to_string(), e.to_string());
+        let abs_path = std::fs::canonicalize(file_path).map_err(error)?;
+        let content = std::fs::read_to_string(&abs_path).map_err(error)?;
 
         Ok(Self { content })
     }

@@ -7,7 +7,7 @@ mod fsm;
 mod parser;
 // #[cfg(test)]
 mod test;
-use crate::test::FsmTestData;
+use crate::{parser::FsmFile, test::FsmTestData};
 
 fn fsm_event_params_trait(fsm: &fsm::Fsm) -> TokenStream2 {
     let trait_ident = &fsm.idents().event_params_trait;
@@ -168,22 +168,27 @@ fn fsm_impl(fsm: &fsm::Fsm) -> TokenStream2 {
 
 #[proc_macro]
 pub fn generate_fsm(input: TokenStream) -> TokenStream {
-    // TODO relative path handling
+    // TODO relative path handling with error handling. Also handle abs paths
     let span = proc_macro::Span::call_site(); // Use the `Span` to get the `SourceFile` let source_file = span.local_file(); Get the path of the `SourceFile` let file_path.path();
-    // print!("START");
+    let caller_file = span.local_file().unwrap();
+    let caller_dir = caller_file.parent().unwrap();
+    let path = caller_dir.join(&input.to_string().trim_matches('"'));
+
+    print!("START");
     // let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
     // dbg!(&file_path);
-    // let abs_file_path = fs::canonicalize(file_path).unwrap();
-    //
-    // // TODO proper error formating
-    // dbg!(&abs_file_path);
+    // let abs_file_path = std::fs::canonicalize(file_path).unwrap();
+
+    // TODO proper error formating
+    // dbg!(&abs_file_path);q
     // let contents = std::fs::read_to_string(&abs_file_path).expect("File not found");
 
     // INPUTS: TODO from file name or from  parsed content
 
     // TODO rm
-    let test_data = FsmTestData::four_seasons();
-    let fsm = fsm::Fsm::try_from(test_data.fsm).expect("Failed to create FSM from representation");
+    let file = FsmFile::try_open(path.to_str().unwrap()).expect("Failed to open FSM file");
+    let parsed = file.try_parse().expect("Failed to parse FSM file");
+    let fsm = fsm::Fsm::try_from(parsed).expect("Failed to create FSM from representation");
 
     let module = &fsm.idents().module;
 
