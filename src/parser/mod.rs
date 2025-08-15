@@ -44,12 +44,12 @@ pub struct Transition {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct FsmRepr {
+pub struct Fsm {
     pub name: String,
     pub transitions: Vec<Transition>,
 }
 
-impl FsmRepr {
+impl Fsm {
     // TODO move to test module
     pub fn simple_four_seasons() -> Self {
         let winter = State {
@@ -102,13 +102,13 @@ impl FsmRepr {
 
 #[cfg(test)]
 mod test {
-    use crate::parser::{FsmRepr, plantuml::PlantUmlFsmParser};
+    use crate::parser::{Fsm, plantuml::PlantUmlFsmParser};
 
     const DATA: &str = include_str!("../test_data/simple.puml");
 
     #[test]
     fn parse_simple_fsm() {
-        let test_data = FsmRepr::simple_four_seasons();
+        let test_data = Fsm::simple_four_seasons();
         // TODO use FsmFile?
         let mut parser = PlantUmlFsmParser::new();
         let fsm = parser.parse(DATA).unwrap();

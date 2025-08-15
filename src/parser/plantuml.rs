@@ -13,7 +13,7 @@ use nom_language::error::{VerboseError, convert_error};
 use crate::{
     error::{Error, Result},
     parser::{
-        FsmRepr, State, StateType, Transition,
+        Fsm, State, StateType, Transition,
         context::TransitionContext,
         nom::{NomResult, multi_ws, ws},
     },
@@ -38,7 +38,7 @@ impl PlantUmlFsmParser {
         Self {}
     }
 
-    pub fn parse(&self, input: &str) -> Result<FsmRepr> {
+    pub fn parse(&self, input: &str) -> Result<Fsm> {
         let (_, fsm_diagram) = parse_fsm_diagram(input)
             .map_err(|e| Error::ParseError(format_verbose_parse_error(input, e)))?;
         fsm_diagram.try_into()
@@ -62,9 +62,9 @@ impl State {
     }
 }
 
-impl TryFrom<FsmDiagram> for FsmRepr {
+impl TryFrom<StateDiagram> for Fsm {
     type Error = Error;
-    fn try_from(diagram: FsmDiagram) -> Result<Self> {
+    fn try_from(diagram: StateDiagram) -> Result<Self> {
         if (diagram.enter_states.len() != 1) {
             return Err(Error::ParseError(
                 "FSM must have exactly one enter state".to_string(),
@@ -77,7 +77,7 @@ impl TryFrom<FsmDiagram> for FsmRepr {
             .into_iter()
             .map(|t| t.try_into_transition(&enter_state))
             .collect::<Result<Vec<Transition>>>()?;
-        Ok(FsmRepr {
+        Ok(Fsm {
             name: diagram.name.unwrap_or_default(),
             transitions,
         })
@@ -85,7 +85,7 @@ impl TryFrom<FsmDiagram> for FsmRepr {
 }
 
 #[derive(Debug, PartialEq)]
-enum FsmContent {
+enum StateDiagramElement {
     StateDeclaration(String),
     StateDescription(StateDescription),
     EnterTransition(StateName),
@@ -94,8 +94,9 @@ enum FsmContent {
 }
 
 #[derive(Debug, PartialEq)]
-struct FsmDiagram {
+struct StateDiagram {
     name: Option<String>,
+
     enter_states: Vec<StateName>,
     //TODO support exit state
     // exit_state: Option<StateName>,
@@ -141,7 +142,7 @@ impl TransitionDescription {
     }
 }
 
-fn parse_fsm_diagram(input: &str) -> NomResult<'_, FsmDiagram> {
+fn parse_fsm_diagram(input: &str) -> NomResult<'_, StateDiagram> {
     let (input, name) = context(
         "parsing PlantUML start tag (@startuml)",
         multi_ws(parse_plantuml_start),
@@ -153,34 +154,29 @@ fn parse_fsm_diagram(input: &str) -> NomResult<'_, FsmDiagram> {
     )
     .parse(input)?;
 
-    let (_, parsed_content) = context(
+    let (_, elements) = context(
         "parsing all PlantUML content lines",
-        many0(multi_ws(parse_fsm_content_line)),
+        many0(multi_ws(parse_state_diagram_elements)),
     )
     .parse(content)?;
 
-    let enter_states = parsed_content
-        .iter()
-        .filter_map(|item| {
-            if let FsmContent::EnterTransition(state) = item {
-                Some(state.clone())
-            } else {
-                None
+    let (enter_states, transitions) = elements.into_iter().fold(
+        (vec![], vec![]),
+        |(mut enter_states, mut transitions), element| {
+            match element {
+                StateDiagramElement::EnterTransition(state) => {
+                    enter_states.push(state);
+                }
+                StateDiagramElement::Transition(transition) => {
+                    transitions.push(transition);
+                }
+                _ => {}
             }
-        })
-        .collect();
-    let transitions = parsed_content
-        .iter()
-        .filter_map(|item| {
-            if let FsmContent::Transition(transition) = item {
-                Some(transition.clone())
-            } else {
-                None
-            }
-        })
-        .collect();
+            (enter_states, transitions)
+        },
+    );
 
-    let diagram = FsmDiagram {
+    let diagram = StateDiagram {
         name: name.map(|s| s.to_string()),
         enter_states,
         transitions,
@@ -209,22 +205,29 @@ fn parse_unknown_line(input: &str) -> NomResult<'_, ()> {
     Ok((input, ()))
 }
 
-fn parse_fsm_content_line(input: &str) -> NomResult<'_, FsmContent> {
+fn parse_state_diagram_elements(input: &str) -> NomResult<'_, StateDiagramElement> {
     alt((
         |input| {
-            parse_enter_transition(input)
-                .map(|(rest, state)| (rest, FsmContent::EnterTransition(state.to_string())))
+            parse_enter_transition(input).map(|(rest, state)| {
+                (
+                    rest,
+                    StateDiagramElement::EnterTransition(state.to_string()),
+                )
+            })
         },
-        |input| parse_transition(input).map(|(rest, trans)| (rest, FsmContent::Transition(trans))),
+        |input| {
+            parse_transition(input)
+                .map(|(rest, trans)| (rest, StateDiagramElement::Transition(trans)))
+        },
         |input| {
             parse_state_declaration(input)
-                .map(|(rest, name)| (rest, FsmContent::StateDeclaration(name)))
+                .map(|(rest, name)| (rest, StateDiagramElement::StateDeclaration(name)))
         },
         |input| {
             parse_state_description(input)
-                .map(|(rest, desc)| (rest, FsmContent::StateDescription(desc)))
+                .map(|(rest, desc)| (rest, StateDiagramElement::StateDescription(desc)))
         },
-        |input| parse_unknown_line(input).map(|(rest, _)| (rest, FsmContent::Unknown)),
+        |input| parse_unknown_line(input).map(|(rest, _)| (rest, StateDiagramElement::Unknown)),
     ))
     .parse(input)
 }
