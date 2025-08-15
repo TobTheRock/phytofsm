@@ -1,4 +1,6 @@
 pub mod reference;
+use std::path::Path;
+
 use crate::{parser, test::FsmTestData};
 
 impl FsmTestData {
@@ -49,9 +51,13 @@ impl FsmTestData {
                 },
             ],
         };
-
-        let path =
-            std::fs::canonicalize("./four_seasons.puml").expect("Failed to canonicalize path");
+        let parent_dir = Path::new(file!())
+            .parent()
+            .expect("Failed to get parent directory for test data");
+        let path = parent_dir
+            .join("./four_seasons.puml")
+            .canonicalize()
+            .expect("Failed to canonicalize path for test data");
         Self {
             content: include_str!("./four_seasons.puml"),
             fsm: expected,

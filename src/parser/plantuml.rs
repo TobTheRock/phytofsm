@@ -208,12 +208,8 @@ fn parse_unknown_line(input: &str) -> NomResult<'_, ()> {
 fn parse_state_diagram_elements(input: &str) -> NomResult<'_, StateDiagramElement<'_>> {
     alt((
         |input| {
-            parse_enter_transition(input).map(|(rest, state)| {
-                (
-                    rest,
-                    StateDiagramElement::EnterTransition(state),
-                )
-            })
+            parse_enter_transition(input)
+                .map(|(rest, state)| (rest, StateDiagramElement::EnterTransition(state)))
         },
         |input| {
             parse_transition(input)
@@ -238,10 +234,7 @@ fn parse_state_description(input: &str) -> NomResult<'_, StateDescription<'_>> {
     let (input, (name, description)) =
         separated_pair(state_name_parser, tag(":"), description_parser).parse(input)?;
 
-    let state_desc = StateDescription {
-        name,
-        description,
-    };
+    let state_desc = StateDescription { name, description };
     Ok((input, state_desc))
 }
 
@@ -290,6 +283,8 @@ fn parse_arrow(input: &str) -> NomResult<'_, &str> {
 
 #[cfg(test)]
 mod tests {
+    use crate::FsmTestData;
+
     use super::*;
 
     #[test]
@@ -408,5 +403,17 @@ mod tests {
         assert_eq!(output.name, Some("fsm name"));
         assert_eq!(output.enter_states, ["A"]);
         assert_eq!(output.transitions.len(), 1);
+    }
+
+    #[test]
+    fn test_parse_test_data() {
+        let test_data = FsmTestData::four_seasons();
+        let input = test_data.content;
+        let (_, output) = parse_fsm_diagram(input).unwrap();
+
+        let expected = test_data.fsm;
+        assert_eq!(output.name, Some(expected.name.as_str()));
+        // TODO check entry state
+        assert_eq!(output.transitions.len(), expected.transitions.len());
     }
 }

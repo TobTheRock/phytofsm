@@ -1,5 +1,5 @@
 use phyto_fsm::generate_fsm;
-generate_fsm!("../src/test_data/simple_fsm.puml");
+generate_fsm!("../src/test/four_seasons/four_seasons.puml");
 use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm, PlantFsmEvent};
 
 use mockall::{mock, predicate};

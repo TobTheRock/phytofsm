@@ -2,13 +2,12 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
-use crate::test::FsmTestData;
-
 mod error;
 mod fsm;
 mod parser;
-#[cfg(test)]
+// #[cfg(test)]
 mod test;
+use crate::test::FsmTestData;
 
 fn fsm_event_params_trait(fsm: &fsm::Fsm) -> TokenStream2 {
     let trait_ident = &fsm.idents().event_params_trait;

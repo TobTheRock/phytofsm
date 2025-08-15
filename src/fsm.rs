@@ -61,6 +61,7 @@ pub struct Fsm {
     idents: Idents,
 }
 
+// ToDO move to parser
 impl Fsm {
     pub fn all_events(&self) -> impl Iterator<Item = &parser::Event> {
         self.repr.transitions.iter().map(|t| &t.event).unique()

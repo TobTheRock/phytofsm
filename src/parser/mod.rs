@@ -1,20 +1,34 @@
+use crate::{
+    error::{Error, Result},
+    parser::plantuml::PlantUmlFsmParser,
+};
+
 use derive_more::{From, Into};
 
 mod context;
 mod nom;
 mod plantuml;
 
-pub struct FsmFile {}
+pub struct FsmFile {
+    content: String,
+}
 
-// impl FsmFile {
-//     pub fn open() -> Result<Self> {
-//         todo!()
-//     }
-//
-//     pub fn parse(&self) -> Result<FsmRepr> {
-//         todo!()
-//     }
-// }
+impl FsmFile {
+    pub fn try_open(file_path: &str) -> Result<Self> {
+        let abs_path =
+            std::fs::canonicalize(file_path).map_err(|e| Error::InvalidFile(e.to_string()))?;
+        let content =
+            std::fs::read_to_string(&abs_path).map_err(|e| Error::InvalidFile(e.to_string()))?;
+
+        Ok(Self { content })
+    }
+
+    pub fn try_parse(&self) -> Result<Fsm> {
+        // TODO maybe remove the PlantUmlParser
+        let mut parser = PlantUmlFsmParser::new();
+        parser.parse(&self.content)
+    }
+}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
 pub struct Event(pub String);
@@ -51,15 +65,15 @@ pub struct Fsm {
 
 #[cfg(test)]
 mod test {
-    use crate::parser::{Fsm, plantuml::PlantUmlFsmParser};
-    use crate::test::FsmTestData;
+    use crate::{parser::FsmFile, test::FsmTestData};
 
     #[test]
     fn parse_simple_fsm() {
         let test_data = FsmTestData::four_seasons();
-        // TODO use FsmFile?
-        let mut parser = PlantUmlFsmParser::new();
-        let fsm = parser.parse(test_data.content).unwrap();
+        let fsm = FsmFile::try_open(&test_data.path.to_string_lossy())
+            .expect("Failed to open FSM file")
+            .try_parse()
+            .expect("Failed to parse FSM");
         assert_eq!(test_data.fsm, fsm);
     }
 }
