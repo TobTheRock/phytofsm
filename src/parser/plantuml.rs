@@ -2,10 +2,10 @@ use nom::{
     Err, Parser,
     branch::alt,
     bytes::{complete::tag, take_till1, take_until},
-    character::complete::{alphanumeric1, line_ending, not_line_ending, space0},
-    combinator::opt,
+    character::complete::{alphanumeric1, line_ending, not_line_ending, space0, space1},
+    combinator::{opt, recognize},
     error::{ParseError, context},
-    multi::many0,
+    multi::{many0, separated_list1},
     sequence::{delimited, preceded, separated_pair, terminated},
 };
 use nom_language::error::{VerboseError, convert_error};
@@ -194,12 +194,8 @@ fn parse_plantuml_content(input: &str) -> NomResult<'_, &str> {
 
 fn parse_plantuml_start(input: &str) -> NomResult<'_, Option<&str>> {
     let start_tag = tag("@startuml");
-    delimited(
-        start_tag,
-        ws(opt(take_till1(|c| c == '\n' || c == '\r'))),
-        line_ending,
-    )
-    .parse(input)
+    let fsm_name = recognize(separated_list1(space1, alphanumeric1));
+    delimited(start_tag, ws(opt(fsm_name)), line_ending).parse(input)
 }
 
 fn parse_state_declaration(input: &str) -> NomResult<'_, String> {
@@ -376,8 +372,8 @@ mod tests {
         @startuml fsm name
         @enduml
         "#;
-        let result = parse_fsm_diagram(input);
-        assert!(result.is_err());
+        let (_, diagram) = parse_fsm_diagram(input).unwrap();
+        assert_eq!(diagram.name, Some("fsm name".to_string()));
     }
 
     #[test]
