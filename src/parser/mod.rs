@@ -49,69 +49,17 @@ pub struct Fsm {
     pub transitions: Vec<Transition>,
 }
 
-impl Fsm {
-    // TODO move to test module
-    pub fn simple_four_seasons() -> Self {
-        let winter = State {
-            name: "Winter".to_string(),
-            state_type: StateType::Enter,
-        };
-        let spring = State {
-            name: "Spring".to_string(),
-            state_type: StateType::Simple,
-        };
-        let summer = State {
-            name: "Summer".to_string(),
-            state_type: StateType::Simple,
-        };
-        let autumn = State {
-            name: "Autumn".to_string(),
-            state_type: StateType::Simple,
-        };
-        Self {
-            name: "PlantFsm".to_string(),
-            transitions: vec![
-                Transition {
-                    source: winter.clone(),
-                    destination: spring.clone(),
-                    event: Event("TemperatureRises".to_string()),
-                    action: None,
-                },
-                Transition {
-                    source: spring.clone(),
-                    destination: summer.clone(),
-                    event: Event("DaylightIncreases".to_string()),
-                    action: Some(Action("StartBlooming".to_string())),
-                },
-                Transition {
-                    source: summer.clone(),
-                    destination: autumn.clone(),
-                    event: Event("DaylightDecreases".to_string()),
-                    action: Some(Action("RipenFruit".to_string())),
-                },
-                Transition {
-                    source: autumn.clone(),
-                    destination: winter.clone(),
-                    event: Event("TemperatureDrops".to_string()),
-                    action: Some(Action("DropPetals".to_string())),
-                },
-            ],
-        }
-    }
-}
-
 #[cfg(test)]
 mod test {
     use crate::parser::{Fsm, plantuml::PlantUmlFsmParser};
-
-    const DATA: &str = include_str!("../test_data/simple.puml");
+    use crate::test::FsmTestData;
 
     #[test]
     fn parse_simple_fsm() {
-        let test_data = Fsm::simple_four_seasons();
+        let test_data = FsmTestData::four_seasons();
         // TODO use FsmFile?
         let mut parser = PlantUmlFsmParser::new();
-        let fsm = parser.parse(DATA).unwrap();
-        assert_eq!(test_data, fsm);
+        let fsm = parser.parse(test_data.content).unwrap();
+        assert_eq!(test_data.fsm, fsm);
     }
 }

@@ -26,6 +26,7 @@ fn setup() -> MockPlantFsmActions {
 }
 
 #[test]
+// TODO parametrize somehow so we test also the reference
 fn simple_four_seasons() {
     let lumen = 42;
     let mut actions = setup();

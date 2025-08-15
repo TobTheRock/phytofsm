@@ -2,11 +2,13 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
+use crate::test::FsmTestData;
+
 mod error;
 mod fsm;
 mod parser;
 #[cfg(test)]
-mod reference;
+mod test;
 
 fn fsm_event_params_trait(fsm: &fsm::Fsm) -> TokenStream2 {
     let trait_ident = &fsm.idents().event_params_trait;
@@ -180,8 +182,9 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
 
     // INPUTS: TODO from file name or from  parsed content
 
-    let fsm_repr = parser::Fsm::simple_four_seasons();
-    let fsm = fsm::Fsm::try_from(fsm_repr).expect("Failed to create FSM from representation");
+    // TODO rm
+    let test_data = FsmTestData::four_seasons();
+    let fsm = fsm::Fsm::try_from(test_data.fsm).expect("Failed to create FSM from representation");
 
     let module = &fsm.idents().module;
 
