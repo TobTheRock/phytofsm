@@ -4,6 +4,7 @@ use crate::{
 };
 
 use derive_more::{From, Into};
+use itertools::Itertools;
 
 mod context;
 mod nom;
@@ -13,6 +14,7 @@ pub struct FsmFile {
     content: String,
 }
 
+// TODO more abstractions: AbsPath -> FsmFile -> ParsedFsm -> generators
 impl FsmFile {
     pub fn try_open(file_path: &str) -> Result<Self> {
         let error = |e: std::io::Error| Error::InvalidFile(file_path.to_string(), e.to_string());
@@ -60,19 +62,92 @@ pub struct Transition {
 pub struct Fsm {
     name: String,
     transitions: Vec<Transition>,
+    enter: State,
 }
 
 impl Fsm {
-    pub fn new(name: String, transitions: Vec<Transition>) -> Self {
-        Self { name, transitions }
-    }
+    pub fn try_new(name: String, transitions: Vec<Transition>) -> Result<Self> {
+        let enter = transitions
+            .iter()
+            .filter_map(|t| {
+                if t.source.state_type == StateType::Enter {
+                    Some(t.source.clone())
+                } else {
+                    None
+                }
+            })
+            .exactly_one()
+            .map_err(|_| Error::ParseError("FSM must have exactly one enter state".to_string()))?;
 
+        Ok(Self {
+            name,
+            transitions,
+            enter,
+        })
+    }
     pub fn name(&self) -> &str {
         &self.name
     }
 
     pub fn transitions(&self) -> impl Iterator<Item = &Transition> {
         self.transitions.iter()
+    }
+
+    pub fn entry(&self) -> &State {
+        &self.enter
+    }
+}
+
+impl TryFrom<plantuml::StateDiagram<'_>> for Fsm {
+    type Error = Error;
+    fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
+        if (diagram.enter_states.len() != 1) {
+            return Err(Error::ParseError(
+                "FSM must have exactly one enter state".to_string(),
+            ));
+        }
+        let enter_state = diagram.enter_states[0];
+
+        let transitions = diagram
+            .transitions
+            .into_iter()
+            .map(|t| t.try_into_transition(enter_state))
+            .collect::<Result<Vec<Transition>>>()?;
+        Ok(Fsm {
+            name: diagram.name.map(|s| s.to_string()).unwrap_or_default(),
+            transitions,
+            enter: State::from(enter_state, enter_state),
+        })
+    }
+}
+
+impl plantuml::TransitionDescription<'_> {
+    fn try_into_transition(self, enter_state: plantuml::StateName<'_>) -> Result<Transition> {
+        let description = context::TransitionContext::try_from(self.description)?;
+        let source = State::from(self.from, enter_state);
+        let desination = State::from(self.to, enter_state);
+
+        Ok(Transition {
+            source,
+            destination: desination,
+            event: description.event,
+            action: description.action,
+        })
+    }
+}
+
+impl State {
+    fn from(name: plantuml::StateName<'_>, enter_state: plantuml::StateName<'_>) -> Self {
+        let state_type = if name == enter_state {
+            StateType::Enter
+        } else {
+            StateType::Simple
+        };
+
+        Self {
+            name: name.to_string(),
+            state_type,
+        }
     }
 }
 

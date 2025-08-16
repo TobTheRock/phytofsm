@@ -45,44 +45,7 @@ impl PlantUmlFsmParser {
     }
 }
 
-type StateName<'a> = &'a str;
-
-impl State {
-    fn from(name: StateName<'_>, enter_state: StateName<'_>) -> Self {
-        let state_type = if name == enter_state {
-            StateType::Enter
-        } else {
-            StateType::Simple
-        };
-
-        Self {
-            name: name.to_string(),
-            state_type,
-        }
-    }
-}
-
-impl TryFrom<StateDiagram<'_>> for Fsm {
-    type Error = Error;
-    fn try_from(diagram: StateDiagram<'_>) -> Result<Self> {
-        if (diagram.enter_states.len() != 1) {
-            return Err(Error::ParseError(
-                "FSM must have exactly one enter state".to_string(),
-            ));
-        }
-        let enter_state = diagram.enter_states[0];
-
-        let transitions = diagram
-            .transitions
-            .into_iter()
-            .map(|t| t.try_into_transition(enter_state))
-            .collect::<Result<Vec<Transition>>>()?;
-        Ok(Fsm::new(
-            diagram.name.map(|s| s.to_string()).unwrap_or_default(),
-            transitions,
-        ))
-    }
-}
+pub type StateName<'a> = &'a str;
 
 #[derive(Debug, PartialEq)]
 enum StateDiagramElement<'a> {
@@ -94,13 +57,12 @@ enum StateDiagramElement<'a> {
 }
 
 #[derive(Debug, PartialEq)]
-struct StateDiagram<'a> {
-    name: Option<&'a str>,
-
-    enter_states: Vec<StateName<'a>>,
+pub struct StateDiagram<'a> {
+    pub name: Option<&'a str>,
+    pub enter_states: Vec<StateName<'a>>,
     //TODO support exit state
     // exit_state: Option<StateName>,
-    transitions: Vec<TransitionDescription<'a>>,
+    pub transitions: Vec<TransitionDescription<'a>>,
     // TODO support nested states
     // state_contexts: Vec<StateComposite>,
 }
@@ -120,26 +82,11 @@ struct StateDescription<'a> {
 }
 
 #[derive(Debug, PartialEq, Clone)]
-struct TransitionDescription<'a> {
-    from: StateName<'a>,
-    to: StateName<'a>,
+pub struct TransitionDescription<'a> {
+    pub from: StateName<'a>,
+    pub to: StateName<'a>,
     // TODO make this optional for direct transitions
-    description: &'a str,
-}
-
-impl TransitionDescription<'_> {
-    fn try_into_transition(self, enter_state: StateName<'_>) -> Result<Transition> {
-        let description = TransitionContext::try_from(self.description)?;
-        let source = State::from(self.from, enter_state);
-        let desination = State::from(self.to, enter_state);
-
-        Ok(Transition {
-            source,
-            destination: desination,
-            event: description.event,
-            action: description.action,
-        })
-    }
+    pub description: &'a str,
 }
 
 fn parse_fsm_diagram(input: &str) -> NomResult<'_, StateDiagram<'_>> {
