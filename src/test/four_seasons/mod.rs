@@ -22,9 +22,9 @@ impl FsmTestData {
             name: "Autumn".to_string(),
             state_type: parser::StateType::Simple,
         };
-        let expected = parser::Fsm {
-            name: "PlantFsm".to_string(),
-            transitions: vec![
+        let expected = parser::Fsm::new(
+            "PlantFsm".to_string(),
+            vec![
                 parser::Transition {
                     source: winter.clone(),
                     destination: spring.clone(),
@@ -50,7 +50,7 @@ impl FsmTestData {
                     action: Some(parser::Action("DropPetals".to_string())),
                 },
             ],
-        };
+        );
         let parent_dir = Path::new(file!())
             .parent()
             .expect("Failed to get parent directory for test data");

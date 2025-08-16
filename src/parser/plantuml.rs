@@ -77,10 +77,10 @@ impl TryFrom<StateDiagram<'_>> for Fsm {
             .into_iter()
             .map(|t| t.try_into_transition(enter_state))
             .collect::<Result<Vec<Transition>>>()?;
-        Ok(Fsm {
-            name: diagram.name.map(|s| s.to_string()).unwrap_or_default(),
+        Ok(Fsm::new(
+            diagram.name.map(|s| s.to_string()).unwrap_or_default(),
             transitions,
-        })
+        ))
     }
 }
 
@@ -412,8 +412,8 @@ mod tests {
         let (_, output) = parse_fsm_diagram(input).unwrap();
 
         let expected = test_data.fsm;
-        assert_eq!(output.name, Some(expected.name.as_str()));
+        assert_eq!(output.name, Some(expected.name()));
         // TODO check entry state
-        assert_eq!(output.transitions.len(), expected.transitions.len());
+        assert_eq!(output.transitions.len(), expected.transitions().count());
     }
 }

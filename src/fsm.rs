@@ -65,13 +65,12 @@ pub struct Fsm {
 // ToDO move to parser
 impl Fsm {
     pub fn all_events(&self) -> impl Iterator<Item = &parser::Event> {
-        self.repr.transitions.iter().map(|t| &t.event).unique()
+        self.repr.transitions().map(|t| &t.event).unique()
     }
 
     pub fn actions(&self) -> impl Iterator<Item = (&parser::Action, &parser::Event)> {
         self.repr
-            .transitions
-            .iter()
+            .transitions()
             .filter_map(|t| {
                 if let Some(action) = &t.action {
                     Some((action, &t.event))
@@ -90,8 +89,7 @@ impl Fsm {
         &self,
     ) -> impl Iterator<Item = (&parser::State, Vec<&parser::Transition>)> {
         self.repr
-            .transitions
-            .iter()
+            .transitions()
             .map(|t| (&t.source, t))
             .into_group_map()
             .into_iter()
@@ -112,7 +110,7 @@ impl TryFrom<parser::Fsm> for Fsm {
                 error::Error::InvalidFsm("FSM must have exactly one enter state".to_string())
             })?
             .clone();
-        let idents = new(&repr.name);
+        let idents = new(repr.name());
         Ok(Fsm {
             repr,
             entry,
@@ -122,8 +120,7 @@ impl TryFrom<parser::Fsm> for Fsm {
 }
 
 fn all_states(repr: &parser::Fsm) -> impl Iterator<Item = &parser::State> {
-    repr.transitions
-        .iter()
+    repr.transitions()
         .flat_map(|t| [&t.source, &t.destination])
         .unique()
 }

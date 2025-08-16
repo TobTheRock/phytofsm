@@ -58,8 +58,22 @@ pub struct Transition {
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct Fsm {
-    pub name: String,
-    pub transitions: Vec<Transition>,
+    name: String,
+    transitions: Vec<Transition>,
+}
+
+impl Fsm {
+    pub fn new(name: String, transitions: Vec<Transition>) -> Self {
+        Self { name, transitions }
+    }
+
+    pub fn name(&self) -> &str {
+        &self.name
+    }
+
+    pub fn transitions(&self) -> impl Iterator<Item = &Transition> {
+        self.transitions.iter()
+    }
 }
 
 #[cfg(test)]
