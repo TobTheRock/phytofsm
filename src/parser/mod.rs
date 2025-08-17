@@ -24,7 +24,7 @@ impl FsmFile {
         Ok(Self { content })
     }
 
-    pub fn try_parse(&self) -> Result<Fsm> {
+    pub fn try_parse(&self) -> Result<ParsedFsm> {
         // TODO maybe remove the PlantUmlParser
         let mut parser = PlantUmlFsmParser::new();
         parser.parse(&self.content)
@@ -59,13 +59,13 @@ pub struct Transition {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct Fsm {
+pub struct ParsedFsm {
     name: String,
     transitions: Vec<Transition>,
-    enter: State,
+    enter_state: State,
 }
 
-impl Fsm {
+impl ParsedFsm {
     pub fn try_new(name: String, transitions: Vec<Transition>) -> Result<Self> {
         let enter = transitions
             .iter()
@@ -82,7 +82,7 @@ impl Fsm {
         Ok(Self {
             name,
             transitions,
-            enter,
+            enter_state: enter,
         })
     }
     pub fn name(&self) -> &str {
@@ -93,12 +93,33 @@ impl Fsm {
         self.transitions.iter()
     }
 
-    pub fn entry(&self) -> &State {
-        &self.enter
+    pub fn events(&self) -> impl Iterator<Item = &Event> {
+        self.transitions().map(|t| &t.event).unique()
+    }
+
+    pub fn actions(&self) -> impl Iterator<Item = (&Action, &Event)> {
+        self.transitions()
+            .filter_map(|t| {
+                if let Some(action) = &t.action {
+                    Some((action, &t.event))
+                } else {
+                    None
+                }
+            })
+            .unique()
+    }
+
+    pub fn states(&self) -> impl Iterator<Item = &State> {
+        self.transitions()
+            .flat_map(|t| [&t.source, &t.destination])
+            .unique()
+    }
+    pub fn enter_state(&self) -> &State {
+        &self.enter_state
     }
 }
 
-impl TryFrom<plantuml::StateDiagram<'_>> for Fsm {
+impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
     type Error = Error;
     fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
         if (diagram.enter_states.len() != 1) {
@@ -113,10 +134,10 @@ impl TryFrom<plantuml::StateDiagram<'_>> for Fsm {
             .into_iter()
             .map(|t| t.try_into_transition(enter_state))
             .collect::<Result<Vec<Transition>>>()?;
-        Ok(Fsm {
+        Ok(ParsedFsm {
             name: diagram.name.map(|s| s.to_string()).unwrap_or_default(),
             transitions,
-            enter: State::from(enter_state, enter_state),
+            enter_state: State::from(enter_state, enter_state),
         })
     }
 }

@@ -2,16 +2,17 @@ use proc_macro::TokenStream;
 use proc_macro2::TokenStream as TokenStream2;
 use quote::quote;
 
+mod codegen;
 mod error;
 mod fsm;
 mod parser;
-// #[cfg(test)]
+#[cfg(test)]
 mod test;
-use crate::{parser::FsmFile, test::FsmTestData};
+use crate::parser::FsmFile;
 
 fn fsm_event_params_trait(fsm: &fsm::Fsm) -> TokenStream2 {
     let trait_ident = &fsm.idents().event_params_trait;
-    let associated_types = fsm.all_events().map(|event| {
+    let associated_types = fsm.events().map(|event| {
         let type_ident = event.params_ident();
         quote! { type #type_ident; }
     });
@@ -44,7 +45,7 @@ fn fsm_actions_trait(fsm: &fsm::Fsm) -> TokenStream2 {
 }
 
 fn event_enum(fsm: &fsm::Fsm) -> TokenStream2 {
-    let event_variants = fsm.all_events().map(|event| {
+    let event_variants = fsm.events().map(|event| {
         let params_ident = event.params_ident();
         let event_ident = event.ident();
         quote! { #event_ident(P::#params_ident),}

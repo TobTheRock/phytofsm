@@ -6,5 +6,5 @@ mod four_seasons;
 pub struct FsmTestData {
     pub content: &'static str,
     pub path: PathBuf,
-    pub fsm: parser::Fsm,
+    pub fsm: parser::ParsedFsm,
 }

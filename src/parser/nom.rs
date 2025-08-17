@@ -25,4 +25,3 @@ where
 {
     delimited(multispace0, inner, multispace0)
 }
-

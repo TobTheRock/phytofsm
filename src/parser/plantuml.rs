@@ -13,7 +13,7 @@ use nom_language::error::{VerboseError, convert_error};
 use crate::{
     error::{Error, Result},
     parser::{
-        Fsm, State, StateType, Transition,
+        ParsedFsm, State, StateType, Transition,
         context::TransitionContext,
         nom::{NomResult, multi_ws, ws},
     },
@@ -38,7 +38,7 @@ impl PlantUmlFsmParser {
         Self {}
     }
 
-    pub fn parse(&self, input: &str) -> Result<Fsm> {
+    pub fn parse(&self, input: &str) -> Result<ParsedFsm> {
         let (_, fsm_diagram) = parse_fsm_diagram(input)
             .map_err(|e| Error::ParseError(format_verbose_parse_error(input, e)))?;
         fsm_diagram.try_into()
@@ -230,7 +230,7 @@ fn parse_arrow(input: &str) -> NomResult<'_, &str> {
 
 #[cfg(test)]
 mod tests {
-    use crate::FsmTestData;
+    use crate::test::FsmTestData;
 
     use super::*;
 

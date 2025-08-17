@@ -22,7 +22,7 @@ impl FsmTestData {
             name: "Autumn".to_string(),
             state_type: parser::StateType::Simple,
         };
-        let expected = parser::Fsm::try_new(
+        let expected = parser::ParsedFsm::try_new(
             "PlantFsm".to_string(),
             vec![
                 parser::Transition {
@@ -50,7 +50,8 @@ impl FsmTestData {
                     action: Some(parser::Action("DropPetals".to_string())),
                 },
             ],
-        ).expect("Failed to create expected FSM");
+        )
+        .expect("Failed to create expected FSM");
         let parent_dir = Path::new(file!())
             .parent()
             .expect("Failed to get parent directory for test data");
