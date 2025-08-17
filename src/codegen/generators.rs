@@ -217,14 +217,15 @@ mod tests {
         (fsm, idents)
     }
 
-    fn write_generator_test_file(filename: &str, generator_code: proc_macro2::TokenStream) {
+    fn write_generator_test_file(filename: &str, generator_code: proc_macro2::TokenStream) -> String {
         let complete_code = format!("{}\n\nfn main() {{}}\n", generator_code);
         std::fs::create_dir_all("target/test_files/codegen/pass").unwrap();
-        std::fs::write(format!("target/test_files/codegen/pass/{}", filename), complete_code).unwrap();
+        let file_path = format!("target/test_files/codegen/pass/{}", filename);
+        std::fs::write(&file_path, complete_code).unwrap();
+        file_path
     }
 
-    #[test]
-    fn test_event_params_trait_generator_compiles() {
+    fn create_event_params_trait_test() -> String {
         let (fsm, idents) = create_test_data();
         let ctx = GenerationContext {
             fsm: &fsm,
@@ -233,14 +234,10 @@ mod tests {
         let generator = EventParamsTraitGenerator;
         let result = generator.generate(&ctx);
 
-        write_generator_test_file("event_params_trait.rs", result);
-
-        let t = trybuild::TestCases::new();
-        t.pass("target/test_files/codegen/pass/event_params_trait.rs");
+        write_generator_test_file("event_params_trait.rs", result)
     }
 
-    #[test]
-    fn test_traits_together_compile() {
+    fn create_traits_combined_test() -> String {
         let (fsm, idents) = create_test_data();
         let ctx = GenerationContext {
             fsm: &fsm,
@@ -255,14 +252,10 @@ mod tests {
             #action_trait
         };
 
-        write_generator_test_file("traits_combined.rs", combined_code);
-
-        let t = trybuild::TestCases::new();
-        t.pass("target/test_files/codegen/pass/traits_combined.rs");
+        write_generator_test_file("traits_combined.rs", combined_code)
     }
 
-    #[test]
-    fn test_traits_and_enum_compile() {
+    fn create_traits_and_enum_test() -> String {
         let (fsm, idents) = create_test_data();
         let ctx = GenerationContext {
             fsm: &fsm,
@@ -279,14 +272,10 @@ mod tests {
             #event_enum
         };
 
-        write_generator_test_file("traits_and_enum.rs", combined_code);
-
-        let t = trybuild::TestCases::new();
-        t.pass("target/test_files/codegen/pass/traits_and_enum.rs");
+        write_generator_test_file("traits_and_enum.rs", combined_code)
     }
 
-    #[test]
-    fn test_core_types_compile() {
+    fn create_core_types_test() -> String {
         let (fsm, idents) = create_test_data();
         let ctx = GenerationContext {
             fsm: &fsm,
@@ -305,14 +294,10 @@ mod tests {
             #state_struct
         };
 
-        write_generator_test_file("core_types.rs", combined_code);
-
-        let t = trybuild::TestCases::new();
-        t.pass("target/test_files/codegen/pass/core_types.rs");
+        write_generator_test_file("core_types.rs", combined_code)
     }
 
-    #[test]
-    fn test_complete_generated_code_compiles() {
+    fn create_complete_fsm_test() -> String {
         let (fsm, idents) = create_test_data();
         let generator = FsmCodeGenerator::default();
         let module_code = fsm.generate_from(generator);
@@ -320,10 +305,25 @@ mod tests {
         let complete_code = format!("{}\n\nfn main() {{}}\n", module_code);
 
         std::fs::create_dir_all("target/test_files/codegen/pass").unwrap();
-        std::fs::write("target/test_files/codegen/pass/complete_fsm.rs", complete_code).unwrap();
+        let file_path = "target/test_files/codegen/pass/complete_fsm.rs".to_string();
+        std::fs::write(&file_path, complete_code).unwrap();
+        file_path
+    }
+
+    #[test]
+    fn test_all_generators_compile() {
+        let test_files = vec![
+            create_event_params_trait_test(),
+            create_traits_combined_test(),
+            create_traits_and_enum_test(),
+            create_core_types_test(),
+            create_complete_fsm_test(),
+        ];
 
         let t = trybuild::TestCases::new();
-        t.pass("target/test_files/codegen/pass/complete_fsm.rs");
+        for test_file in test_files {
+            t.pass(&test_file);
+        }
     }
 }
 
