@@ -1,0 +1,76 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+-*'
+
+jobs:
+  verify-tag:
+    name: Verify tag matches Cargo.toml version
+    runs-on: ubuntu-latest
+    outputs:
+      is-prerelease: ${{ steps.check-prerelease.outputs.is-prerelease }}
+    steps:
+    - uses: actions/checkout@v4
+    - name: Get version from Cargo.toml
+      id: get-version
+      run: |
+        version=$(grep '^version = ' Cargo.toml | sed 's/version = "//' | sed 's/"//')
+        echo "Version from Cargo.toml: v$version"
+        if [ "${{ github.ref_name }}" != "v$version" ]; then
+          echo "Tag ${{ github.ref_name }} does not match Cargo.toml version v$version"
+          exit 1
+        fi
+    - name: Check if prerelease
+      id: check-prerelease
+      run: |
+        if [[ "${{ github.ref_name }}" =~ -[a-zA-Z] ]]; then
+          echo "is-prerelease=true" >> $GITHUB_OUTPUT
+        else
+          echo "is-prerelease=false" >> $GITHUB_OUTPUT
+        fi
+
+  ci:
+    name: Run CI
+    needs: verify-tag
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    name: Publish to crates.io
+    runs-on: ubuntu-latest
+    needs: [verify-tag, ci]
+    environment: release
+    steps:
+    - uses: actions/checkout@v4
+    - uses: dtolnay/rust-toolchain@stable
+    - uses: katyo/publish-crates@v2
+      with:
+        registry-token: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+
+  create-release:
+    name: Create GitHub Release
+    runs-on: ubuntu-latest
+    needs: [verify-tag, publish]
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+    - name: Generate changelog
+      run: |
+        prev_tag=$(git tag --sort=-version:refname | grep -v "${{ github.ref_name }}" | head -n1)
+        if [ -z "$prev_tag" ]; then
+          echo "## Changes" > changelog.md
+          echo "- Initial release" >> changelog.md
+        else
+          echo "## Changes since $prev_tag" > changelog.md
+          git log --pretty=format:"- %s" $prev_tag..${{ github.ref_name }} >> changelog.md
+        fi
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        body_path: changelog.md
+        prerelease: ${{ needs.verify-tag.outputs.is-prerelease }}
