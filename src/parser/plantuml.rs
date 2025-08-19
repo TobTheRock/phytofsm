@@ -49,14 +49,14 @@ pub struct StateDiagram<'a> {
 impl StateDiagram<'_> {
     pub fn parse(input: &str) -> Result<StateDiagram<'_>> {
         let (_, fsm_diagram) = parse_fsm_diagram(input)
-            .map_err(|e| Error::ParseError(format_verbose_parse_error(input, e)))?;
+            .map_err(|e| Error::Parse(format_verbose_parse_error(input, e)))?;
         Ok(fsm_diagram)
     }
 
-    pub fn enter_states(&self) -> impl Iterator<Item = &StateName> {
+    pub fn enter_states(&self) -> impl Iterator<Item = &StateName<'_>> {
         self.enter_states.iter()
     }
-    pub fn transitions(&self) -> impl Iterator<Item = &TransitionDescription> {
+    pub fn transitions(&self) -> impl Iterator<Item = &TransitionDescription<'_>> {
         self.transitions.iter()
     }
     pub fn name(&self) -> Option<&str> {
@@ -64,12 +64,6 @@ impl StateDiagram<'_> {
     }
 }
 
-#[derive(Debug, PartialEq)]
-struct StateComposite<'a> {
-    name: StateName<'a>,
-    enter_state: Option<StateName<'a>>,
-    transitions: Vec<TransitionDescription<'a>>,
-}
 
 // needed later
 #[derive(Debug, PartialEq)]

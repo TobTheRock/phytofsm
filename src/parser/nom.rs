@@ -1,10 +1,8 @@
 use nom::{
     IResult, Parser,
-    character::complete::{alphanumeric1, line_ending, multispace0, space0, space1},
-    combinator::recognize,
+    character::complete::{multispace0, space0},
     error::ParseError,
-    multi::separated_list1,
-    sequence::{delimited, terminated},
+    sequence::delimited,
 };
 use nom_language::error::VerboseError;
 

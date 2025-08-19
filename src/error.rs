@@ -5,7 +5,5 @@ pub enum Error {
     #[error("Failed to open file {0}: {1}")]
     InvalidFile(String, String),
     #[error("Parse error: {0}")]
-    ParseError(String),
-    #[error("Parsed FSM representation is invalid: {0}")]
-    InvalidFsm(String),
+    Parse(String),
 }

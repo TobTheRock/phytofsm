@@ -18,7 +18,6 @@ pub struct Action(pub String);
 pub enum StateType {
     Simple,
     Enter,
-    Exit,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
@@ -64,7 +63,7 @@ impl ParsedFsm {
                 }
             })
             .exactly_one()
-            .map_err(|_| Error::ParseError("FSM must have exactly one enter state".to_string()))?;
+            .map_err(|_| Error::Parse("FSM must have exactly one enter state".to_string()))?;
 
         Ok(Self {
             name,
@@ -86,21 +85,10 @@ impl ParsedFsm {
 
     pub fn actions(&self) -> impl Iterator<Item = (&Action, &Event)> {
         self.transitions()
-            .filter_map(|t| {
-                if let Some(action) = &t.action {
-                    Some((action, &t.event))
-                } else {
-                    None
-                }
-            })
+            .filter_map(|t| t.action.as_ref().map(|action| (action, &t.event)))
             .unique()
     }
 
-    pub fn states(&self) -> impl Iterator<Item = &State> {
-        self.transitions()
-            .flat_map(|t| [&t.source, &t.destination])
-            .unique()
-    }
     pub fn enter_state(&self) -> &State {
         &self.enter_state
     }
@@ -110,7 +98,7 @@ impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
     type Error = Error;
     fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
         if diagram.enter_states().count() != 1 {
-            return Err(Error::ParseError(
+            return Err(Error::Parse(
                 "FSM must have exactly one enter state".to_string(),
             ));
         }

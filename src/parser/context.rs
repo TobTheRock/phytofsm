@@ -21,7 +21,7 @@ impl TryFrom<&str> for TransitionContext {
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         parse_transaction_description(value)
             .map(|(_, desc)| desc)
-            .map_err(|e| Error::ParseError(e.to_string()))
+            .map_err(|e| Error::Parse(e.to_string()))
     }
 }
 impl TryFrom<&String> for TransitionContext {

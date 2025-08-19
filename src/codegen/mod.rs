@@ -15,7 +15,7 @@ pub struct GenerationContext<'a> {
     pub idents: &'a Idents,
 }
 
-trait CodeGenerator {
+pub(crate) trait CodeGenerator {
     fn generate(&self, ctx: &GenerationContext) -> TokenStream2;
 }
 type CodeGeneratorPtr = Box<dyn CodeGenerator>;

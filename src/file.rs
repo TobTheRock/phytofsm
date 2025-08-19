@@ -3,9 +3,9 @@ use crate::error;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct FilePath(std::path::PathBuf);
 
-impl ToString for FilePath {
-    fn to_string(&self) -> String {
-        self.0.to_string_lossy().to_string()
+impl std::fmt::Display for FilePath {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.0.to_string_lossy())
     }
 }
 
