@@ -1,6 +1,4 @@
-use crate::{
-    error::{Error, Result},
-};
+use crate::error::{Error, Result};
 
 use derive_more::{From, Into};
 use itertools::Itertools;

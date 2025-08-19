@@ -12,9 +12,7 @@ use nom_language::error::{VerboseError, convert_error};
 
 use crate::{
     error::{Error, Result},
-    parser::{
-        nom::{NomResult, multi_ws, ws},
-    },
+    parser::nom::{NomResult, multi_ws, ws},
 };
 
 fn format_verbose_parse_error(input: &str, error: Err<VerboseError<&str>>) -> String {
@@ -63,7 +61,6 @@ impl StateDiagram<'_> {
         self.name
     }
 }
-
 
 // needed later
 #[derive(Debug, PartialEq)]
