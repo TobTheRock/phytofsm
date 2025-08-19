@@ -185,7 +185,10 @@ impl CodeGenerator for FsmImplGenerator {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::{codegen::{ident::Idents, FsmCodeGenerator}, parser::*};
+    use crate::{
+        codegen::{FsmCodeGenerator, ident::Idents},
+        parser::*,
+    };
 
     fn create_test_data() -> (ParsedFsm, Idents) {
         let winter = State {
@@ -217,7 +220,10 @@ mod tests {
         (fsm, idents)
     }
 
-    fn write_generator_test_file(filename: &str, generator_code: proc_macro2::TokenStream) -> String {
+    fn write_generator_test_file(
+        filename: &str,
+        generator_code: proc_macro2::TokenStream,
+    ) -> String {
         let complete_code = format!("{}\n\nfn main() {{}}\n", generator_code);
         std::fs::create_dir_all("target/test_files/codegen/pass").unwrap();
         let file_path = format!("target/test_files/codegen/pass/{}", filename);
@@ -243,10 +249,10 @@ mod tests {
             fsm: &fsm,
             idents: &idents,
         };
-        
+
         let event_params = EventParamsTraitGenerator.generate(&ctx);
         let action_trait = ActionTraitGenerator.generate(&ctx);
-        
+
         let combined_code = quote! {
             #event_params
             #action_trait
@@ -261,11 +267,11 @@ mod tests {
             fsm: &fsm,
             idents: &idents,
         };
-        
+
         let event_params = EventParamsTraitGenerator.generate(&ctx);
         let action_trait = ActionTraitGenerator.generate(&ctx);
         let event_enum = EventEnumGenerator.generate(&ctx);
-        
+
         let combined_code = quote! {
             #event_params
             #action_trait
@@ -281,12 +287,12 @@ mod tests {
             fsm: &fsm,
             idents: &idents,
         };
-        
+
         let event_params = EventParamsTraitGenerator.generate(&ctx);
         let action_trait = ActionTraitGenerator.generate(&ctx);
         let event_enum = EventEnumGenerator.generate(&ctx);
         let state_struct = StateStructGenerator.generate(&ctx);
-        
+
         let combined_code = quote! {
             #event_params
             #action_trait
@@ -297,10 +303,11 @@ mod tests {
         write_generator_test_file("core_types.rs", combined_code)
     }
 
+    // TODO restructure, this should go in the toplevel
     fn create_complete_fsm_test() -> String {
         let (fsm, idents) = create_test_data();
         let generator = FsmCodeGenerator::default();
-        let module_code = fsm.generate_from(generator);
+        let module_code = generator.generate(fsm);
 
         let complete_code = format!("{}\n\nfn main() {{}}\n", module_code);
 
@@ -326,4 +333,3 @@ mod tests {
         }
     }
 }
-

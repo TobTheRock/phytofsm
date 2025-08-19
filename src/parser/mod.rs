@@ -1,7 +1,5 @@
 use crate::{
     error::{Error, Result},
-    file,
-    parser::plantuml::PlantUmlFsmParser,
 };
 
 use derive_more::{From, Into};
@@ -10,15 +8,6 @@ use itertools::Itertools;
 mod context;
 mod nom;
 mod plantuml;
-
-// TODO more abstractions: AbsPath -> FsmFile -> ParsedFsm -> generators
-impl file::FsmFile {
-    pub fn try_parse(&self) -> Result<ParsedFsm> {
-        // TODO maybe remove the PlantUmlParser
-        let mut parser = PlantUmlFsmParser::new();
-        parser.parse(&self.content())
-    }
-}
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
 pub struct Event(pub String);
@@ -55,6 +44,15 @@ pub struct ParsedFsm {
 }
 
 impl ParsedFsm {
+    pub fn try_parse<C>(content: C) -> Result<ParsedFsm>
+    where
+        C: AsRef<str>,
+    {
+        let diagram = plantuml::StateDiagram::parse(content.as_ref())?;
+        diagram.try_into()
+    }
+
+    #[cfg(test)]
     pub fn try_new(name: String, transitions: Vec<Transition>) -> Result<Self> {
         let enter = transitions
             .iter()
@@ -111,20 +109,22 @@ impl ParsedFsm {
 impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
     type Error = Error;
     fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
-        if (diagram.enter_states.len() != 1) {
+        if diagram.enter_states().count() != 1 {
             return Err(Error::ParseError(
                 "FSM must have exactly one enter state".to_string(),
             ));
         }
-        let enter_state = diagram.enter_states[0];
+        let enter_state = *diagram.enter_states().next().unwrap();
 
         let transitions = diagram
-            .transitions
+            .transitions()
+            .cloned()
+            .collect::<Vec<_>>()
             .into_iter()
             .map(|t| t.try_into_transition(enter_state))
             .collect::<Result<Vec<Transition>>>()?;
         Ok(ParsedFsm {
-            name: diagram.name.map(|s| s.to_string()).unwrap_or_default(),
+            name: diagram.name().map(|s| s.to_string()).unwrap_or_default(),
             transitions,
             enter_state: State::from(enter_state, enter_state),
         })

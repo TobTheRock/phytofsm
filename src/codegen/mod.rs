@@ -18,36 +18,25 @@ pub struct GenerationContext<'a> {
 trait CodeGenerator {
     fn generate(&self, ctx: &GenerationContext) -> TokenStream2;
 }
+type CodeGeneratorPtr = Box<dyn CodeGenerator>;
 
 pub struct FsmCodeGenerator {
-    generators: Vec<Box<dyn CodeGenerator>>,
+    generators: Vec<CodeGeneratorPtr>,
 }
 
 impl FsmCodeGenerator {
-    pub fn new() -> Self {
-        Self {
-            generators: vec![
-                Box::new(EventParamsTraitGenerator),
-                Box::new(ActionTraitGenerator),
-                Box::new(EventEnumGenerator),
-                Box::new(StateStructGenerator),
-                Box::new(StateImplGenerator),
-                Box::new(FsmStructGenerator),
-                Box::new(FsmImplGenerator),
-            ],
-        }
+    pub fn new(generators: Vec<CodeGeneratorPtr>) -> Self {
+        Self { generators }
     }
-}
 
-impl parser::ParsedFsm {
-    pub fn generate_from(self, generator: FsmCodeGenerator) -> GeneratedCode {
-        let idents = Idents::new(self.name());
+    pub fn generate(&self, fsm: parser::ParsedFsm) -> GeneratedCode {
+        let idents = Idents::new(fsm.name());
         let ctx = GenerationContext {
-            fsm: &self,
+            fsm: &fsm,
             idents: &idents,
         };
 
-        let components: Vec<TokenStream2> = generator
+        let components: Vec<TokenStream2> = self
             .generators
             .iter()
             .map(|generator| generator.generate(&ctx))
@@ -65,6 +54,14 @@ impl parser::ParsedFsm {
 
 impl Default for FsmCodeGenerator {
     fn default() -> Self {
-        Self::new()
+        Self::new(vec![
+            Box::new(EventParamsTraitGenerator),
+            Box::new(ActionTraitGenerator),
+            Box::new(EventEnumGenerator),
+            Box::new(StateStructGenerator),
+            Box::new(StateImplGenerator),
+            Box::new(FsmStructGenerator),
+            Box::new(FsmImplGenerator),
+        ])
     }
 }

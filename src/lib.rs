@@ -1,5 +1,4 @@
 use proc_macro::TokenStream;
-use proc_macro2::Span;
 
 mod codegen;
 mod error;
@@ -8,7 +7,7 @@ mod parser;
 #[cfg(test)]
 mod test;
 
-use crate::codegen::{FsmCodeGenerator, ident::Idents};
+use crate::codegen::FsmCodeGenerator;
 
 #[proc_macro]
 pub fn generate_fsm(input: TokenStream) -> TokenStream {
@@ -22,10 +21,10 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
     let path = input.to_string();
     let file_path = file::FilePath::resolve(&path, proc_macro::Span::call_site());
     let file = file::FsmFile::try_open(file_path).expect("Failed to open FSM file");
-    let parsed_fsm = file.try_parse().expect("Failed to parse FSM file");
-
+    let parsed_fsm =
+        parser::ParsedFsm::try_parse(file.content()).expect("Failed to parse FSM file");
     let generator = FsmCodeGenerator::default();
-    let fsm_code = parsed_fsm.generate_from(generator);
+    let fsm_code = generator.generate(parsed_fsm);
 
     // TODO rm
     println!("{}", fsm_code);

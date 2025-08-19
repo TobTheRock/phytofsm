@@ -4,7 +4,7 @@ use nom::{
     bytes::{complete::tag, take_till1, take_until},
     character::complete::{alphanumeric1, line_ending, not_line_ending, space0, space1},
     combinator::{opt, recognize},
-    error::{ParseError, context},
+    error::context,
     multi::{many0, separated_list1},
     sequence::{delimited, preceded, separated_pair, terminated},
 };
@@ -13,8 +13,6 @@ use nom_language::error::{VerboseError, convert_error};
 use crate::{
     error::{Error, Result},
     parser::{
-        ParsedFsm, State, StateType, Transition,
-        context::TransitionContext,
         nom::{NomResult, multi_ws, ws},
     },
 };
@@ -23,25 +21,6 @@ fn format_verbose_parse_error(input: &str, error: Err<VerboseError<&str>>) -> St
     match error {
         Err::Error(e) | Err::Failure(e) => convert_error(input, e),
         Err::Incomplete(_) => "Incomplete input - more data needed".to_string(),
-    }
-}
-
-pub struct PlantUmlFsmParser {
-    // name: String,
-    // states: HashSet<StateDescription>,
-    // transitions: Vec<Transition>,
-}
-
-impl PlantUmlFsmParser {
-    // TODO pass overwrites? e.g name
-    pub fn new() -> Self {
-        Self {}
-    }
-
-    pub fn parse(&self, input: &str) -> Result<ParsedFsm> {
-        let (_, fsm_diagram) = parse_fsm_diagram(input)
-            .map_err(|e| Error::ParseError(format_verbose_parse_error(input, e)))?;
-        fsm_diagram.try_into()
     }
 }
 
@@ -58,13 +37,31 @@ enum StateDiagramElement<'a> {
 
 #[derive(Debug, PartialEq)]
 pub struct StateDiagram<'a> {
-    pub name: Option<&'a str>,
-    pub enter_states: Vec<StateName<'a>>,
+    name: Option<&'a str>,
+    enter_states: Vec<StateName<'a>>,
     //TODO support exit state
     // exit_state: Option<StateName>,
-    pub transitions: Vec<TransitionDescription<'a>>,
+    transitions: Vec<TransitionDescription<'a>>,
     // TODO support nested states
     // state_contexts: Vec<StateComposite>,
+}
+
+impl StateDiagram<'_> {
+    pub fn parse(input: &str) -> Result<StateDiagram<'_>> {
+        let (_, fsm_diagram) = parse_fsm_diagram(input)
+            .map_err(|e| Error::ParseError(format_verbose_parse_error(input, e)))?;
+        Ok(fsm_diagram)
+    }
+
+    pub fn enter_states(&self) -> impl Iterator<Item = &StateName> {
+        self.enter_states.iter()
+    }
+    pub fn transitions(&self) -> impl Iterator<Item = &TransitionDescription> {
+        self.transitions.iter()
+    }
+    pub fn name(&self) -> Option<&str> {
+        self.name
+    }
 }
 
 #[derive(Debug, PartialEq)]
