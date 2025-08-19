@@ -178,6 +178,8 @@ fn parse_enter_transition(input: &str) -> NomResult<'_, &str> {
     delimited(enter_tag, alphanumeric1, (space0, line_ending)).parse(input)
 }
 
+// TODO reenable when exit states are supported
+#[cfg(test)]
 fn parse_exit_transition(input: &str) -> NomResult<'_, &str> {
     let exit_tag = (space0, tag("[*]"), ws(parse_arrow));
     delimited(exit_tag, alphanumeric1, (space0, line_ending)).parse(input)
