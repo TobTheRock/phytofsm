@@ -1,4 +1,5 @@
 use proc_macro::TokenStream;
+use quote::quote;
 
 mod codegen;
 mod error;
@@ -11,22 +12,25 @@ use crate::codegen::FsmCodeGenerator;
 
 #[proc_macro]
 pub fn generate_fsm(input: TokenStream) -> TokenStream {
-    // let file_path = syn::parse_macro_input!(input as syn::LitStr).value();
-    // dbg!(&file_path);
-    // let abs_file_path = std::fs::canonicalize(file_path).unwrap();
+    match generate_fsm_inner(input) {
+        Ok(tokens) => tokens,
+        Err(error) => {
+            let error_msg = error.to_string();
+            quote! {
+                compile_error!(#error_msg);
+            }
+            .into()
+        }
+    }
+}
 
-    // TODO proper error formating
-    // dbg!(&abs_file_path);q
-    // let contents = std::fs::read_to_string(&abs_file_path).expect("File not found");
+fn generate_fsm_inner(input: TokenStream) -> error::Result<TokenStream> {
     let path = input.to_string();
     let file_path = file::FilePath::resolve(&path, proc_macro::Span::call_site());
-    let file = file::FsmFile::try_open(file_path).expect("Failed to open FSM file");
-    let parsed_fsm =
-        parser::ParsedFsm::try_parse(file.content()).expect("Failed to parse FSM file");
+    let file = file::FsmFile::try_open(file_path)?;
+    let parsed_fsm = parser::ParsedFsm::try_parse(file.content())?;
     let generator = FsmCodeGenerator::default();
     let fsm_code = generator.generate(parsed_fsm);
-
-    // TODO rm
-    println!("{}", fsm_code);
-    fsm_code.into()
+    
+    Ok(fsm_code.into())
 }

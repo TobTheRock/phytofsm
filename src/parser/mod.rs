@@ -95,12 +95,12 @@ impl ParsedFsm {
 impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
     type Error = Error;
     fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
-        if diagram.enter_states().count() != 1 {
-            return Err(Error::Parse(
+        let enter_state = *diagram
+            .enter_states()
+            .exactly_one()
+            .map_err(|_| Error::Parse(
                 "FSM must have exactly one enter state".to_string(),
-            ));
-        }
-        let enter_state = *diagram.enter_states().next().unwrap();
+            ))?;
 
         let transitions = diagram
             .transitions()
