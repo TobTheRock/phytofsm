@@ -2,7 +2,7 @@
 
 A Rust procedural macro for generating state machines from PlantUML diagrams.
 
-[![CI](https://github.com/your-username/phyto-sm/actions/workflows/ci.yml/badge.svg)](https://github.com/your-username/phyto-sm/actions/workflows/ci.yml)
+[![CI](https://github.com/TobTheRock/phytofsm/actions/workflows/ci.yml/badge.svg)](https://github.com/TobTheRock/phytofsm/actions/workflows/ci.yml)
 [![Crates.io](https://img.shields.io/crates/v/phyto-fsm)](https://crates.io/crates/phyto-fsm)
 [![Documentation](https://docs.rs/phyto-fsm/badge.svg)](https://docs.rs/phyto-fsm)
 
