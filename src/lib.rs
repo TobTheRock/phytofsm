@@ -15,7 +15,7 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
     match generate_fsm_inner(input) {
         Ok(tokens) => tokens,
         Err(error) => {
-            let error_msg = error.to_string();
+            let error_msg = format!("[phyto-fsm] {}", error);
             quote! {
                 compile_error!(#error_msg);
             }
