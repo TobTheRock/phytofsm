@@ -4,46 +4,50 @@
 
 ### 3. **Remove Hardcoded Unwraps and Debug Code**
 
-**Files**: `src/lib.rs:173-177, 189-191, 216-217`
-**Issue**: Production code with panics and debug prints
+**Files**: `src/lib.rs:23, 25, 30` and test files
+**Issue**: Production code still has some unwraps and debug prints
 
 ```rust
-// Current: .unwrap(), print!("START"), println!
+// Current: expect() calls in lib.rs, unwrap() in tests, println! in lib.rs
 // Goal: Proper error handling
 ```
 
 **Action**:
 
-- Replace all `unwrap()` with proper error handling
-- Remove debug prints and commented code
-- Add comprehensive error types for proc macro failures
+- Replace `expect()` calls in `src/lib.rs:23, 25` with proper error handling  
+- Remove debug `println!` in `src/lib.rs:30`
+- Clean up test `unwrap()` calls (acceptable in tests but could be improved)
+- One remaining `unwrap()` in `src/parser/mod.rs:103` for enter_state extraction
 
 ## 🚨 High Priority (Next Sprint)
 
 ### 4. **Create Proper Error Hierarchy**
 
-**Files**: `src/error.rs:1-12`
-**Issue**: Generic error types don't provide context
+**Files**: `src/error.rs:1-9`
+**Issue**: Error types could be more specific, but basic structure exists
 
 ```rust
-// Current: Generic Error enum
-// Goal: Context-specific errors
+// Current: Basic Error enum with InvalidFile and Parse variants
+// Goal: More context-specific errors for better debugging
 ```
 
 **Action**:
 
 ```rust
-pub enum ParseError { InvalidSyntax(String), MissingEntryState, ... }
-pub enum ValidationError { DuplicateStates(String), ... }
-pub enum CodegenError { InvalidIdentifier(String), ... }
+pub enum ParseError { InvalidSyntax(String), MissingEntryState, InvalidTransition(String) }
+pub enum ValidationError { DuplicateStates(String), InvalidStateGraph, NoEntryState }
+pub enum CodegenError { InvalidIdentifier(String), TemplateError(String) }
 ```
+
+**Status**: Partially implemented - basic error structure exists but could be more granular
 
 ### 5. **Implement Builder Pattern for FSM Construction**
 
-**Files**: `src/parser/mod.rs:67-113, src/fsm.rs:105-122`
-**Issue**: Direct conversion is fragile and hard to extend
+**Files**: `src/parser/mod.rs:95-117` (TryFrom implementation exists)
+**Issue**: Direct conversion exists but could be more flexible
 
 ```rust
+// Current: TryFrom<StateDiagram> for ParsedFsm works but is rigid
 // Goal: Flexible construction with validation
 pub struct FsmBuilder {
     name: String,
@@ -55,42 +59,41 @@ impl FsmBuilder {
 }
 ```
 
+**Status**: Basic conversion exists, but builder pattern would improve flexibility
+
 ### 6. **Separate Parser Concerns**
 
-**Files**: `src/parser/plantuml.rs:130-150, 115-128`
-**Issue**: Parsing logic mixed with domain conversion
+**Files**: `src/parser/plantuml.rs` and `src/parser/mod.rs:95-117`
+**Issue**: Parsing and domain conversion are mixed but better separated now
 
 ```rust
-// Current: PlantUML parser does semantic validation
-// Goal: Pure syntax → semantic separation
+// Current: plantuml.rs does syntax parsing, mod.rs does conversion via TryFrom
+// Goal: Could be cleaner with explicit semantic validation step
 ```
 
 **Action**:
 
-- `plantuml.rs` → pure syntax parsing → AST
-- `semantic.rs` → AST validation → domain model
+- `plantuml.rs` → pure syntax parsing → AST ✅ (mostly done)
+- `semantic.rs` → AST validation → domain model (could be extracted from TryFrom)
 - Clear error attribution (syntax vs semantic errors)
+
+**Status**: Better separated than before, but could extract semantic validation
 
 ## 🛠️ Medium Priority (Future Iterations)
 
 ### 7. **Extract Identifier Generation Strategy**
 
-**Files**: `src/fsm.rs:18-28, 30-50`
-**Issue**: Naming logic scattered, hard to customize
+**Files**: `src/codegen/ident.rs` - Already implemented! 
+**Issue**: ~~Naming logic scattered~~ **RESOLVED**
 
 ```rust
-    pub fn enter_state(&self) -> &State {
-        &self.enter_state
-    }
-
-// Goal: Configurable naming strategy
-pub trait NamingStrategy {
-    fn fsm_name(&self, base: &str) -> Ident;
-    fn event_name(&self, base: &str) -> Ident;
-}
-pub struct RustNamingStrategy;
-pub struct TypeScriptNamingStrategy; // Future extension
+// Current: Well-organized identifier generation in src/codegen/ident.rs
+// Goal: ✅ COMPLETED - Idents struct handles all naming logic
 ```
+
+**Status**: ✅ **COMPLETED** - Identifier generation is well-organized in dedicated module
+
+**Future Enhancement**: Could add configurable naming strategies for different target languages
 
 ### 8. **Add Configuration Layer**
 
@@ -109,33 +112,38 @@ pub struct CodegenConfig {
 
 ### 9. **Modularize Code Generation Templates**
 
-**Files**: `src/lib.rs:12-167`
-**Issue**: Large monolithic functions hard to maintain
+**Files**: `src/codegen/generators.rs` - Already implemented!
+**Issue**: ~~Large monolithic functions~~ **RESOLVED**
 
 ```rust
-// Goal: Template-based generation
-pub trait CodeTemplate {
-    fn generate(&self, fsm: &Fsm, config: &CodegenConfig) -> TokenStream2;
+// Current: ✅ Well-organized generator traits and implementations
+pub trait CodeGenerator {
+    fn generate(&self, ctx: &GenerationContext) -> TokenStream2;
 }
 
-pub struct EventTraitTemplate;
-pub struct ActionTraitTemplate;
-pub struct StateMachineTemplate;
+// Individual generators implemented:
+EventParamsTraitGenerator, ActionTraitGenerator, EventEnumGenerator,
+StateStructGenerator, StateImplGenerator, FsmStructGenerator, FsmImplGenerator
 ```
+
+**Status**: ✅ **COMPLETED** - Code generation is well-modularized with trait-based system
 
 ### 10. **Improve Test Organization**
 
-**Files**: `src/test/**/*`
-**Issue**: Test data mixed with production code
+**Files**: `src/test/**/*` and `tests/`
+**Issue**: Test organization could be improved
 
 ```rust
-// Goal: Proper test structure
+// Current: tests/ folder exists, src/test/ for test data/helpers
+// Goal: Better separation of test types
 tests/
-├── fixtures/           // Test data files
+├── fixtures/           // Test data files  
 ├── unit/              // Unit tests
-├── integration/       // End-to-end tests
+├── integration/       // End-to-end tests  
 └── property/          // Property-based tests
 ```
+
+**Status**: Basic test structure exists but could be more organized
 
 ## 🔧 Low Priority (Technical Debt)
 
@@ -198,29 +206,25 @@ pub struct ActionName(String);
 ## 📊 Architecture Overview
 
 ```
-Current Structure Issues:
-├── lib.rs              ❌ Everything mixed together
-├── parser/mod.rs       ❌ Duplicate Fsm with fsm.rs  
-├── fsm.rs             ❌ Domain logic + codegen mixed
-└── error.rs           ❌ Generic errors
-
-Target Structure:
-├── lib.rs              ✅ Proc macro entry only
+UPDATED - Current Actual Structure:
+├── lib.rs              ✅ Clean proc macro entry point
 ├── parser/
-│   ├── mod.rs          ✅ File I/O + parser routing
-│   ├── ast.rs          ✅ Raw syntax tree
-│   ├── semantic.rs     ✅ Validated domain model
-│   └── plantuml.rs     ✅ PlantUML syntax only
-├── domain/
-│   ├── mod.rs          ✅ Core FSM domain logic
-│   ├── validation.rs   ✅ Business rule validation
-│   └── builder.rs      ✅ Flexible FSM construction
-├── codegen/
+│   ├── mod.rs          ✅ ParsedFsm domain model + conversion
+│   ├── context.rs      ✅ Transition context parsing  
+│   ├── nom.rs          ✅ Parser utilities
+│   └── plantuml.rs     ✅ PlantUML syntax parsing
+├── codegen/            ✅ WELL ORGANIZED!
 │   ├── mod.rs          ✅ Generation orchestration
-│   ├── templates/      ✅ Individual generators
-│   ├── identifiers.rs  ✅ Naming strategies
-│   └── config.rs       ✅ Generation options
-└── error.rs            ✅ Hierarchical error types
+│   ├── generators.rs   ✅ Individual trait-based generators
+│   └── ident.rs        ✅ Identifier generation
+├── file.rs             ✅ File I/O handling
+├── error.rs            ✅ Basic error hierarchy
+└── test/               ✅ Test helpers and data
+
+Future improvements:
+- Extract semantic validation from TryFrom
+- Add configuration layer for codegen
+- More granular error types
 ```
 
 ## 🎯 Success Metrics
@@ -231,36 +235,24 @@ Target Structure:
 - **Reliability**: No panics, comprehensive error handling
 - **Performance**: Lazy evaluation, efficient caching
 
-## Done
+## ✅ Completed Tasks
 
-### 1. **Eliminate Duplicate FSM Types**
+### 1. **Eliminate Duplicate FSM Types** ✅
+- Renamed to `ParsedFsm` in parser module
+- Clear separation between parsing and domain logic  
+- No more duplicate FSM types
 
-**Files**: `src/parser/mod.rs:60`, `src/fsm.rs:58`
-**Issue**: Two different `Fsm` structs with overlapping responsibilities
+### 2. **Extract Code Generation from Proc Macro Entry Point** ✅  
+- Created `src/codegen/mod.rs` with generation orchestration
+- Moved all generators to `src/codegen/generators.rs` 
+- Clean proc macro entry point in `lib.rs`
+- Trait-based generator system implemented
 
-```rust
-// Current: parser::Fsm AND fsm::Fsm
-// Goal: Clear separation of concerns
-```
+### 7. **Extract Identifier Generation Strategy** ✅
+- Well-organized identifier generation in `src/codegen/ident.rs`
+- Idents struct handles all naming logic cleanly
 
-**Action**:
-
-- Rename `parser::Fsm` → `parser::ParsedFsm` (raw parsed data)
-- Keep `fsm::Fsm` for domain logic and code generation
-- Remove duplicate logic between them
-
-### 2. **Extract Code Generation from Proc Macro Entry Point**
-
-**Files**: `src/lib.rs:12-167, 169-219`
-**Issue**: Business logic mixed with proc macro plumbing
-
-```rust
-// Current: All generation functions in lib.rs
-// Goal: Clean separation
-```
-
-**Action**:
-
-- Create `src/codegen/mod.rs` with generation functions
-- Move template functions (`fsm_event_params_trait`, etc.) to dedicated modules
-- Keep only proc macro infrastructure in `lib.rs`
+### 9. **Modularize Code Generation Templates** ✅  
+- Trait-based CodeGenerator system implemented
+- Individual generators for each component type
+- Clean separation of generation concerns
