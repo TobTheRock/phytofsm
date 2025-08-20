@@ -107,11 +107,8 @@ impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
             .into_iter()
             .map(|t| t.try_into_transition(enter_state))
             .collect::<Result<Vec<Transition>>>()?;
-        let name = diagram
-            .name()
-            .map(|s| s.to_string())
-            .unwrap_or_default();
-        
+        let name = diagram.name().map(|s| s.to_string()).unwrap_or_default();
+
         if name.trim().is_empty() {
             return Err(Error::Parse("FSM name cannot be empty".to_string()));
         }
