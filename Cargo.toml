@@ -2,6 +2,14 @@
 name = "phyto-fsm"
 version = "0.1.0"
 edition = "2024"
+description = "A Rust procedural macro for generating type-safe state machines from PlantUML diagrams"
+license = "MIT"
+repository = "https://github.com/TobTheRock/phytofsm"
+documentation = "https://docs.rs/phyto-fsm"
+authors = ["Tobias Waurick"]
+keywords = ["fsm", "state-machine", "plantuml", "procedural-macro", "code-generation"]
+categories = ["development-tools", "parsing"]
+readme = "README.md"
 
 [lib]
 proc-macro = true
