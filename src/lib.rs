@@ -31,6 +31,6 @@ fn generate_fsm_inner(input: TokenStream) -> error::Result<TokenStream> {
     let parsed_fsm = parser::ParsedFsm::try_parse(file.content())?;
     let generator = FsmCodeGenerator::default();
     let fsm_code = generator.generate(parsed_fsm);
-    
+
     Ok(fsm_code.into())
 }

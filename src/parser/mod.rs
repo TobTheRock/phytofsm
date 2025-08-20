@@ -98,9 +98,7 @@ impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
         let enter_state = *diagram
             .enter_states()
             .exactly_one()
-            .map_err(|_| Error::Parse(
-                "FSM must have exactly one enter state".to_string(),
-            ))?;
+            .map_err(|_| Error::Parse("FSM must have exactly one enter state".to_string()))?;
 
         let transitions = diagram
             .transitions()
