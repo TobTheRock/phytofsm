@@ -6,10 +6,14 @@ use super::{CodeGenerator, GenerationContext};
 pub struct EventParamsTraitGenerator;
 pub struct ActionTraitGenerator;
 pub struct EventEnumGenerator;
+pub struct EventEnumDisplayImplGenerator;
 pub struct StateStructGenerator;
 pub struct StateImplGenerator;
 pub struct FsmStructGenerator;
 pub struct FsmImplGenerator;
+pub struct FsmImplGeneratorWithLogging {
+    log_level: log::Level,
+}
 
 impl CodeGenerator for EventParamsTraitGenerator {
     fn generate(&self, ctx: &GenerationContext) -> TokenStream2 {
@@ -61,6 +65,28 @@ impl CodeGenerator for EventEnumGenerator {
         quote! {
             pub enum #event_enum_ident<P: #action_ident> {
                 #(#event_variants)*
+            }
+        }
+    }
+}
+
+impl CodeGenerator for EventEnumDisplayImplGenerator {
+    fn generate(&self, ctx: &GenerationContext) -> TokenStream2 {
+        let event_enum_ident = &ctx.idents.event_enum;
+        let event_variants = ctx.fsm.events().map(|event| {
+            let event_ident = event.ident();
+            let event_name = &event.0;
+            quote! { #event_enum_ident::#event_ident(_) => write!(f, "{}", #event_name), }
+        });
+
+        let action_ident = &ctx.idents.action_trait;
+        quote! {
+            impl<P: #action_ident> std::fmt::Display for #event_enum_ident<P> {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    match self {
+                        #(#event_variants)*
+                    }
+                }
             }
         }
     }
@@ -159,7 +185,6 @@ impl CodeGenerator for FsmImplGenerator {
         let state = &ctx.idents.state_struct;
         let event_enum = &ctx.idents.event_enum;
 
-        // TODO tracing/logging
         quote! {
             impl<A> #fsm<A>
             where
@@ -182,42 +207,114 @@ impl CodeGenerator for FsmImplGenerator {
     }
 }
 
+impl CodeGenerator for FsmImplGeneratorWithLogging {
+    fn generate(&self, ctx: &GenerationContext) -> TokenStream2 {
+        let entry_state = ctx.fsm.enter_state().function_ident();
+        let fsm = &ctx.idents.fsm;
+        let action = &ctx.idents.action_trait;
+        let state = &ctx.idents.state_struct;
+        let event_enum = &ctx.idents.event_enum;
+        let level = self.log_level_token();
+        let log = format! {"{}: {{}} -[{{}}]-> {{}}", ctx.fsm.name()};
+        quote! {
+            impl<A> #fsm<A>
+            where
+                A: #action,
+            {
+                pub fn new(actions: A) -> Self {
+                    Self {
+                        actions,
+                        current_state: #state::#entry_state(),
+                    }
+                }
+                pub fn trigger_event(&mut self, event: #event_enum<A>) {
+                    let event_name = format!("{}", event);
+                    if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
+                        ::log::log!(#level, #log, self.current_state.name, event_name, new_state.name);
+                        self.current_state = new_state;
+                    }
+                }
+            }
+        }
+    }
+}
+
+impl FsmImplGeneratorWithLogging {
+    pub fn new(log_level: log::Level) -> Self {
+        Self { log_level }
+    }
+
+    fn log_level_token(&self) -> TokenStream2 {
+        match self.log_level {
+            log::Level::Error => quote! {log::Level::Error},
+            log::Level::Warn => quote! {log::Level::Warn},
+            log::Level::Info => quote! {log::Level::Info},
+            log::Level::Debug => quote! {log::Level::Debug},
+            log::Level::Trace => quote! {log::Level::Trace},
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::{
-        codegen::{FsmCodeGenerator, ident::Idents},
+        codegen::{FsmCodeGenerator, Options, ident::Idents},
         parser::*,
     };
 
-    fn create_test_data() -> (ParsedFsm, Idents) {
-        let winter = State {
-            name: "Winter".to_string(),
-            state_type: StateType::Enter,
-        };
-        let spring = State {
-            name: "Spring".to_string(),
-            state_type: StateType::Simple,
-        };
+    struct TestData {
+        fsm: ParsedFsm,
+        idents: Idents,
+        options: Options,
+    }
 
-        let transitions = vec![
-            Transition {
-                source: winter.clone(),
-                destination: spring.clone(),
-                event: Event("TemperatureRises".to_string()),
-                action: None,
-            },
-            Transition {
-                source: spring.clone(),
-                destination: winter.clone(),
-                event: Event("TemperatureDrops".to_string()),
-                action: Some(Action("PrepareForWinter".to_string())),
-            },
-        ];
+    // TODO reuse the existing module
+    impl TestData {
+        fn new() -> Self {
+            let winter = State {
+                name: "Winter".to_string(),
+                state_type: StateType::Enter,
+            };
+            let spring = State {
+                name: "Spring".to_string(),
+                state_type: StateType::Simple,
+            };
 
-        let fsm = ParsedFsm::try_new("TestFsm".to_string(), transitions).unwrap();
-        let idents = Idents::new(fsm.name());
-        (fsm, idents)
+            let transitions = vec![
+                Transition {
+                    source: winter.clone(),
+                    destination: spring.clone(),
+                    event: Event("TemperatureRises".to_string()),
+                    action: None,
+                },
+                Transition {
+                    source: spring.clone(),
+                    destination: winter.clone(),
+                    event: Event("TemperatureDrops".to_string()),
+                    action: Some(Action("PrepareForWinter".to_string())),
+                },
+            ];
+
+            let fsm = ParsedFsm::try_new("TestFsm".to_string(), transitions).unwrap();
+            let idents = Idents::new(fsm.name());
+            let options = Options {
+                // TODO tests without
+                log_level: Some(log::Level::Debug),
+            };
+            Self {
+                fsm,
+                idents,
+                options,
+            }
+        }
+
+        fn generation_context(&self) -> GenerationContext<'_> {
+            GenerationContext {
+                fsm: &self.fsm,
+                idents: &self.idents,
+            }
+        }
     }
 
     fn write_generator_test_file(
@@ -231,25 +328,14 @@ mod tests {
         file_path
     }
 
-    fn create_event_params_trait_test() -> String {
-        let (fsm, idents) = create_test_data();
-        let ctx = GenerationContext {
-            fsm: &fsm,
-            idents: &idents,
-        };
+    fn create_event_params_trait_test(ctx: &GenerationContext) -> String {
         let generator = EventParamsTraitGenerator;
         let result = generator.generate(&ctx);
 
         write_generator_test_file("event_params_trait.rs", result)
     }
 
-    fn create_traits_combined_test() -> String {
-        let (fsm, idents) = create_test_data();
-        let ctx = GenerationContext {
-            fsm: &fsm,
-            idents: &idents,
-        };
-
+    fn create_traits_combined_test(ctx: &GenerationContext) -> String {
         let event_params = EventParamsTraitGenerator.generate(&ctx);
         let action_trait = ActionTraitGenerator.generate(&ctx);
 
@@ -261,13 +347,7 @@ mod tests {
         write_generator_test_file("traits_combined.rs", combined_code)
     }
 
-    fn create_traits_and_enum_test() -> String {
-        let (fsm, idents) = create_test_data();
-        let ctx = GenerationContext {
-            fsm: &fsm,
-            idents: &idents,
-        };
-
+    fn create_traits_and_enum_test(ctx: &GenerationContext) -> String {
         let event_params = EventParamsTraitGenerator.generate(&ctx);
         let action_trait = ActionTraitGenerator.generate(&ctx);
         let event_enum = EventEnumGenerator.generate(&ctx);
@@ -281,13 +361,7 @@ mod tests {
         write_generator_test_file("traits_and_enum.rs", combined_code)
     }
 
-    fn create_core_types_test() -> String {
-        let (fsm, idents) = create_test_data();
-        let ctx = GenerationContext {
-            fsm: &fsm,
-            idents: &idents,
-        };
-
+    fn create_core_types_test(ctx: &GenerationContext) -> String {
         let event_params = EventParamsTraitGenerator.generate(&ctx);
         let action_trait = ActionTraitGenerator.generate(&ctx);
         let event_enum = EventEnumGenerator.generate(&ctx);
@@ -303,11 +377,11 @@ mod tests {
         write_generator_test_file("core_types.rs", combined_code)
     }
 
-    // TODO restructure, this should go in the toplevel
-    fn create_complete_fsm_test() -> String {
-        let (fsm, idents) = create_test_data();
-        let generator = FsmCodeGenerator::default();
-        let module_code = generator.generate(fsm);
+    // TODO move this test to top level
+    fn create_complete_fsm_test(_ctx: &GenerationContext) -> String {
+        let test_data = TestData::new();
+        let generator = FsmCodeGenerator::new(&test_data.options);
+        let module_code = generator.generate(test_data.fsm);
 
         let complete_code = format!("{}\n\nfn main() {{}}\n", module_code);
 
@@ -319,12 +393,14 @@ mod tests {
 
     #[test]
     fn test_all_generators_compile() {
+        let test_data = TestData::new();
+        let ctx = test_data.generation_context();
         let test_files = vec![
-            create_event_params_trait_test(),
-            create_traits_combined_test(),
-            create_traits_and_enum_test(),
-            create_core_types_test(),
-            create_complete_fsm_test(),
+            create_event_params_trait_test(&ctx),
+            create_traits_combined_test(&ctx),
+            create_traits_and_enum_test(&ctx),
+            create_core_types_test(&ctx),
+            create_complete_fsm_test(&ctx),
         ];
 
         let t = trybuild::TestCases::new();

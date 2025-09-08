@@ -153,7 +153,6 @@ impl State {
 
 #[cfg(test)]
 mod test {
-    use crate::{file::FsmFile, test::FsmTestData};
 
     // TODO reenable once the data conversion is refactored
     // #[test]

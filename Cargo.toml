@@ -29,4 +29,5 @@ thiserror = "2.0"
 [dev-dependencies]
 mockall = "0.13"
 stderrlog = "0.6"
+mock-logger = "0.1"
 trybuild = "1.0"

@@ -130,6 +130,7 @@ mod test {
         }
     }
 
+    // TODO add a paremeter which is a reference
     impl IPlantFsmEventParams for MockPlantFsmActions {
         type TemperatureRisesParams = NoEventData;
         type DaylightIncreasesParams = i32;

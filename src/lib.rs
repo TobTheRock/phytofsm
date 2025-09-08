@@ -21,7 +21,19 @@ use crate::codegen::FsmCodeGenerator;
 ///
 ///  # Syntax
 /// ```ignore
+/// // With default parameters:
 /// #generate_fsm!("path/to/fsm_definition.puml")
+/// // With parameters:
+/// #generate_fsm!(file_path = "path/to/fsm_definition.puml", log_level = "debug")
+///
+/// # Parameters
+///
+/// | Parameter | Description |  Default 
+/// |-----------|-------------|----------
+/// | **file_path** | Path to the FSM definition file. This parameter is required. | None
+/// | **log_level** | Optional log level for state transitions. Possible values: `error`, `warn`, `info`, `debug`, `trace`. If not set, no logging is performed. | None
+///
+///
 /// ```
 /// # Generated Code
 ///
@@ -75,11 +87,12 @@ pub fn generate_fsm(input: TokenStream) -> TokenStream {
 }
 
 fn generate_fsm_inner(input: TokenStream) -> error::Result<TokenStream> {
-    let options: options::Options = syn::parse(input).map_err(|e| error::Error::InvalidInput(e.to_string()))?;
+    let options: options::Options =
+        syn::parse(input).map_err(|e| error::Error::InvalidInput(e.to_string()))?;
     let file_path = file::FilePath::resolve(&options.file_path, proc_macro::Span::call_site());
     let file = file::FsmFile::try_open(file_path)?;
     let parsed_fsm = parser::ParsedFsm::try_parse(file.content())?;
-    let generator = FsmCodeGenerator::default();
+    let generator = FsmCodeGenerator::new(&options.codegen);
     let fsm_code = generator.generate(parsed_fsm);
 
     Ok(fsm_code.into())

@@ -10,22 +10,32 @@ use ident::Idents;
 
 type GeneratedCode = TokenStream2;
 
-pub struct GenerationContext<'a> {
-    pub fsm: &'a parser::ParsedFsm,
-    pub idents: &'a Idents,
+#[derive(Default, Debug, Copy, Clone)]
+pub struct Options {
+    pub log_level: Option<log::Level>,
 }
-
-pub(crate) trait CodeGenerator {
-    fn generate(&self, ctx: &GenerationContext) -> TokenStream2;
-}
-type CodeGeneratorPtr = Box<dyn CodeGenerator>;
 
 pub struct FsmCodeGenerator {
     generators: Vec<CodeGeneratorPtr>,
 }
 
 impl FsmCodeGenerator {
-    pub fn new(generators: Vec<CodeGeneratorPtr>) -> Self {
+    pub fn new(options: &Options) -> Self {
+        let generators: Vec<CodeGeneratorPtr> = vec![
+            Box::new(EventParamsTraitGenerator),
+            Box::new(ActionTraitGenerator),
+            Box::new(EventEnumGenerator),
+            Box::new(EventEnumDisplayImplGenerator),
+            Box::new(StateStructGenerator),
+            Box::new(StateImplGenerator),
+            Box::new(FsmStructGenerator),
+            if let Some(log_level) = options.log_level {
+                Box::new(FsmImplGeneratorWithLogging::new(log_level))
+            } else {
+                Box::new(FsmImplGenerator)
+            },
+        ];
+
         Self { generators }
     }
 
@@ -52,16 +62,12 @@ impl FsmCodeGenerator {
     }
 }
 
-impl Default for FsmCodeGenerator {
-    fn default() -> Self {
-        Self::new(vec![
-            Box::new(EventParamsTraitGenerator),
-            Box::new(ActionTraitGenerator),
-            Box::new(EventEnumGenerator),
-            Box::new(StateStructGenerator),
-            Box::new(StateImplGenerator),
-            Box::new(FsmStructGenerator),
-            Box::new(FsmImplGenerator),
-        ])
-    }
+pub(crate) struct GenerationContext<'a> {
+    pub fsm: &'a parser::ParsedFsm,
+    pub idents: &'a Idents,
 }
+
+pub(crate) trait CodeGenerator {
+    fn generate(&self, ctx: &GenerationContext) -> TokenStream2;
+}
+type CodeGeneratorPtr = Box<dyn CodeGenerator>;
