@@ -24,6 +24,7 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 - Events with custom data
 - Customizable actions
+- Optional logging with [log](https://docs.rs/log/latest/log/)
 
 Missing:
 

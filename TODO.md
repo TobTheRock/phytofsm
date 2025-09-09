@@ -2,16 +2,6 @@
 
 ## 🔥 Critical Priority (Fix Immediately)
 
-### 3. **Remove Hardcoded Unwraps and Debug Code**
-
-**Files**: `src/lib.rs:23, 25, 30` and test files
-**Issue**: Production code still has some unwraps and debug prints
-
-```rust
-// Current: expect() calls in lib.rs, unwrap() in tests, println! in lib.rs
-// Goal: Proper error handling
-```
-
 **Action**:
 
 - Replace `expect()` calls in `src/lib.rs:23, 25` with proper error handling  
@@ -80,20 +70,6 @@ impl FsmBuilder {
 **Status**: Better separated than before, but could extract semantic validation
 
 ## 🛠️ Medium Priority (Future Iterations)
-
-### 7. **Extract Identifier Generation Strategy**
-
-**Files**: `src/codegen/ident.rs` - Already implemented! 
-**Issue**: ~~Naming logic scattered~~ **RESOLVED**
-
-```rust
-// Current: Well-organized identifier generation in src/codegen/ident.rs
-// Goal: ✅ COMPLETED - Idents struct handles all naming logic
-```
-
-**Status**: ✅ **COMPLETED** - Identifier generation is well-organized in dedicated module
-
-**Future Enhancement**: Could add configurable naming strategies for different target languages
 
 ### 8. **Add Configuration Layer**
 
@@ -202,57 +178,3 @@ pub struct EventName(String);
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct ActionName(String);
 ```
-
-## 📊 Architecture Overview
-
-```
-UPDATED - Current Actual Structure:
-├── lib.rs              ✅ Clean proc macro entry point
-├── parser/
-│   ├── mod.rs          ✅ ParsedFsm domain model + conversion
-│   ├── context.rs      ✅ Transition context parsing  
-│   ├── nom.rs          ✅ Parser utilities
-│   └── plantuml.rs     ✅ PlantUML syntax parsing
-├── codegen/            ✅ WELL ORGANIZED!
-│   ├── mod.rs          ✅ Generation orchestration
-│   ├── generators.rs   ✅ Individual trait-based generators
-│   └── ident.rs        ✅ Identifier generation
-├── file.rs             ✅ File I/O handling
-├── error.rs            ✅ Basic error hierarchy
-└── test/               ✅ Test helpers and data
-
-Future improvements:
-- Extract semantic validation from TryFrom
-- Add configuration layer for codegen
-- More granular error types
-```
-
-## 🎯 Success Metrics
-
-- **Maintainability**: Each module has single responsibility
-- **Testability**: All business logic unit testable  
-- **Extensibility**: Easy to add new parsers/generators
-- **Reliability**: No panics, comprehensive error handling
-- **Performance**: Lazy evaluation, efficient caching
-
-## ✅ Completed Tasks
-
-### 1. **Eliminate Duplicate FSM Types** ✅
-- Renamed to `ParsedFsm` in parser module
-- Clear separation between parsing and domain logic  
-- No more duplicate FSM types
-
-### 2. **Extract Code Generation from Proc Macro Entry Point** ✅  
-- Created `src/codegen/mod.rs` with generation orchestration
-- Moved all generators to `src/codegen/generators.rs` 
-- Clean proc macro entry point in `lib.rs`
-- Trait-based generator system implemented
-
-### 7. **Extract Identifier Generation Strategy** ✅
-- Well-organized identifier generation in `src/codegen/ident.rs`
-- Idents struct handles all naming logic cleanly
-
-### 9. **Modularize Code Generation Templates** ✅  
-- Trait-based CodeGenerator system implemented
-- Individual generators for each component type
-- Clean separation of generation concerns
