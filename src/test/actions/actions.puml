@@ -1,0 +1,7 @@
+@startuml Actions
+
+[*] -> StateA
+StateA -> StateB : GoToB / Action1
+StateB -> StateA : GoToA / Action2
+
+@enduml

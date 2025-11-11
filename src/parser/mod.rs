@@ -153,15 +153,20 @@ impl State {
 
 #[cfg(test)]
 mod test {
+    use crate::{parser::ParsedFsm, test::FsmTestData};
 
-    // TODO reenable once the data conversion is refactored
-    // #[test]
-    // fn parse_simple_fsm() {
-    //     let test_data = FsmTestData::four_seasons();
-    //     let fsm = FsmFile::try_open(&test_data.path.to_string_lossy())
-    //         .expect("Failed to open FSM file")
-    //         .try_parse()
-    //         .expect("Failed to parse FSM");
-    //     assert_eq!(test_data.fsm, fsm);
-    // }
+    #[test]
+    fn parses_fsm() {
+        // TODO use a parameterized test framework
+        let test_data = FsmTestData::all();
+        for data in test_data {
+            let fsm = ParsedFsm::try_parse(data.content)
+                .expect(&format!("Failed to parse FSM for test data: {}", data.name));
+            assert_eq!(
+                data.parsed, fsm,
+                "Parsed FSM does not match expected for test data: {}",
+                data.name
+            );
+        }
+    }
 }

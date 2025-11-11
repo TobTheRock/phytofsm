@@ -82,7 +82,7 @@ mod tests {
     };
 
     fn create_codegen_test(test_data: FsmTestData, options: &Options) -> PathBuf {
-        let generator = FsmCodeGenerator::new(&options);
+        let generator = FsmCodeGenerator::new(options);
 
         let module_code = generator.generate(test_data.parsed);
         let complete_code = format!("{}\n\nfn main() {{}}\n", module_code);
