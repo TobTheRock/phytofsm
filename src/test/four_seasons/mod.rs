@@ -22,7 +22,7 @@ impl FsmTestData {
             name: "Autumn".to_string(),
             state_type: parser::StateType::Simple,
         };
-        let expected = parser::ParsedFsm::try_new(
+        let parsed = parser::ParsedFsm::try_new(
             "PlantFsm".to_string(),
             vec![
                 parser::Transition {
@@ -60,8 +60,9 @@ impl FsmTestData {
             .canonicalize()
             .expect("Failed to canonicalize path for test data");
         Self {
+            name: "four_seasons",
             content: include_str!("./four_seasons.puml"),
-            fsm: expected,
+            parsed,
             path,
         }
     }

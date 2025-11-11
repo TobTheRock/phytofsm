@@ -71,3 +71,47 @@ pub(crate) trait CodeGenerator {
     fn generate(&self, ctx: &GenerationContext) -> TokenStream2;
 }
 type CodeGeneratorPtr = Box<dyn CodeGenerator>;
+
+#[cfg(test)]
+mod tests {
+    use std::path::{Path, PathBuf};
+
+    use crate::{
+        codegen::{FsmCodeGenerator, Options},
+        test::FsmTestData,
+    };
+
+    fn write_test_file(filename: &str, generator_code: proc_macro2::TokenStream) -> String {
+        let complete_code = format!("{}\n\nfn main() {{}}\n", generator_code);
+        std::fs::create_dir_all("target/test_files/codegen/pass").unwrap();
+        let file_path = format!("target/test_files/codegen/pass/{}", filename);
+        std::fs::write(&file_path, complete_code).unwrap();
+        file_path
+    }
+
+    fn create_codegen_test(test_data: FsmTestData, options: Options) -> PathBuf {
+        let generator = FsmCodeGenerator::new(&options);
+
+        let module_code = generator.generate(test_data.parsed);
+        let complete_code = format!("{}\n\nfn main() {{}}\n", module_code);
+
+        std::fs::create_dir_all("target/test_files/codegen/pass").unwrap();
+        let base_path = Path::new("target/test_files/codegen/pass/");
+        let file_path = base_path.join(format!("{}.rs", test_data.name));
+        std::fs::write(&file_path, complete_code).unwrap();
+
+        file_path
+    }
+
+    #[test]
+    fn all_generators_default_options() {
+        let test_data = FsmTestData::all();
+        let options = Options::default();
+        let test_files = test_data.map(|data| create_codegen_test(data, options.clone()));
+
+        let t = trybuild::TestCases::new();
+        for test_file in test_files {
+            t.pass(&test_file);
+        }
+    }
+}

@@ -348,7 +348,7 @@ mod tests {
         let input = test_data.content;
         let (_, output) = parse_fsm_diagram(input).unwrap();
 
-        let expected = test_data.fsm;
+        let expected = test_data.parsed;
         assert_eq!(output.name, Some(expected.name()));
         // TODO check entry state
         assert_eq!(output.transitions.len(), expected.transitions().count());
