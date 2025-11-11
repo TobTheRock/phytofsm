@@ -28,7 +28,7 @@ use crate::codegen::FsmCodeGenerator;
 ///
 /// # Parameters
 ///
-/// | Parameter | Description |  Default 
+/// | Parameter | Description |  Default
 /// |-----------|-------------|----------
 /// | **file_path** | Path to the FSM definition file. This parameter is required. | None
 /// | **log_level** | Optional log level for state transitions. Possible values: `error`, `warn`, `info`, `debug`, `trace`. If not set, no logging is performed. | None
