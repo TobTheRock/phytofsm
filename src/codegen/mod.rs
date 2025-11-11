@@ -81,15 +81,7 @@ mod tests {
         test::FsmTestData,
     };
 
-    fn write_test_file(filename: &str, generator_code: proc_macro2::TokenStream) -> String {
-        let complete_code = format!("{}\n\nfn main() {{}}\n", generator_code);
-        std::fs::create_dir_all("target/test_files/codegen/pass").unwrap();
-        let file_path = format!("target/test_files/codegen/pass/{}", filename);
-        std::fs::write(&file_path, complete_code).unwrap();
-        file_path
-    }
-
-    fn create_codegen_test(test_data: FsmTestData, options: Options) -> PathBuf {
+    fn create_codegen_test(test_data: FsmTestData, options: &Options) -> PathBuf {
         let generator = FsmCodeGenerator::new(&options);
 
         let module_code = generator.generate(test_data.parsed);
@@ -103,15 +95,26 @@ mod tests {
         file_path
     }
 
-    #[test]
-    fn all_generators_default_options() {
+    fn test_all_generators_with_options(options: &Options) {
         let test_data = FsmTestData::all();
-        let options = Options::default();
-        let test_files = test_data.map(|data| create_codegen_test(data, options.clone()));
-
+        let test_files = test_data.map(|data| create_codegen_test(data, options));
         let t = trybuild::TestCases::new();
         for test_file in test_files {
             t.pass(&test_file);
         }
+    }
+
+    #[test]
+    fn all_generators_default_options() {
+        let options = Options::default();
+        test_all_generators_with_options(&options);
+    }
+
+    #[test]
+    fn all_generators_logging() {
+        let options = Options {
+            log_level: Some(log::Level::Info),
+        };
+        test_all_generators_with_options(&options);
     }
 }
