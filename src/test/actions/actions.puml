@@ -1,4 +1,4 @@
-@startuml Actions
+@startuml TestFsm
 
 [*] -> StateA
 StateA -> StateB : GoToB / Action1
