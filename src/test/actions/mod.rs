@@ -1,6 +1,9 @@
 use std::path::Path;
 
-use crate::{parser, test::FsmTestData};
+use crate::{
+    parser,
+    test::{FsmTestData, utils::get_adjacent_file_path},
+};
 
 impl FsmTestData {
     pub fn actions() -> Self {
@@ -13,7 +16,7 @@ impl FsmTestData {
             state_type: parser::StateType::Simple,
         };
         let parsed = parser::ParsedFsm::try_new(
-            "Actions".to_string(),
+            "TestFsm".to_string(),
             vec![
                 parser::Transition {
                     source: state_a.clone(),
@@ -30,13 +33,7 @@ impl FsmTestData {
             ],
         )
         .expect("Failed to create expected FSM");
-        let parent_dir = Path::new(file!())
-            .parent()
-            .expect("Failed to get parent directory for test data");
-        let path = parent_dir
-            .join("./actions.puml")
-            .canonicalize()
-            .expect("Failed to canonicalize path for test data");
+        let path = get_adjacent_file_path(file!(), "actions.puml");
         Self {
             name: "actions",
             content: include_str!("./actions.puml"),

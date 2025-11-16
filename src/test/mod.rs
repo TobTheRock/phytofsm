@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::parser;
 mod actions;
 mod four_seasons;
+mod utils;
 
 pub struct FsmTestData {
     pub name: &'static str,

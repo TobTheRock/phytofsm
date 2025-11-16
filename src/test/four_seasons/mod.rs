@@ -1,7 +1,10 @@
 pub mod reference;
 use std::path::Path;
 
-use crate::{parser, test::FsmTestData};
+use crate::{
+    parser,
+    test::{FsmTestData, utils::get_adjacent_file_path},
+};
 
 impl FsmTestData {
     /// Simple FSM with state transistions  with actions and events
@@ -52,13 +55,7 @@ impl FsmTestData {
             ],
         )
         .expect("Failed to create expected FSM");
-        let parent_dir = Path::new(file!())
-            .parent()
-            .expect("Failed to get parent directory for test data");
-        let path = parent_dir
-            .join("./four_seasons.puml")
-            .canonicalize()
-            .expect("Failed to canonicalize path for test data");
+        let path = get_adjacent_file_path(file!(), "four_seasons.puml");
         Self {
             name: "four_seasons",
             content: include_str!("./four_seasons.puml"),
