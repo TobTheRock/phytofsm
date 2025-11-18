@@ -60,8 +60,9 @@ impl ParsedFsm {
                     None
                 }
             })
+            .unique()
             .exactly_one()
-            .map_err(|_| Error::Parse("FSM must have exactly one enter state".to_string()))?;
+            .map_err(|_| Error::Parse("Test FSM must have exactly one enter state".to_string()))?;
 
         Ok(Self {
             name,

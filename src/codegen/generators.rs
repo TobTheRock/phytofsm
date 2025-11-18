@@ -109,10 +109,12 @@ impl CodeGenerator for StateStructGenerator {
 
 impl CodeGenerator for StateImplGenerator {
     fn generate(&self, ctx: &GenerationContext) -> TokenStream2 {
-        let lookup_states = ctx.fsm.transitions().map(|t| (&t.source, t)).fold(
+        let lookup_states = ctx.fsm.transitions().fold(
             std::collections::HashMap::<&crate::parser::State, Vec<&crate::parser::Transition>>::new(),
-            |mut acc, (state, transition)| {
-                acc.entry(state).or_default().push(transition);
+            |mut acc, transition| {
+                acc.entry(&transition.source).or_default().push(transition);
+                // Add also the destination state in case it is a final one
+                acc.entry(&transition.destination).or_default();
                 acc
             },
         );

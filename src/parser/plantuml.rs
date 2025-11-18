@@ -343,14 +343,15 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_test_data() {
-        let test_data = FsmTestData::four_seasons();
-        let input = test_data.content;
-        let (_, output) = parse_fsm_diagram(input).unwrap();
-
-        let expected = test_data.parsed;
-        assert_eq!(output.name, Some(expected.name()));
-        // TODO check entry state
-        assert_eq!(output.transitions.len(), expected.transitions().count());
+    fn test_parse_self_transition() {
+        let input = r#"
+        @startuml
+        [*] --> StateA
+        StateA --> StateA : SelfTransition : Action1
+        @enduml
+        "#;
+        let (_, diagram) = parse_fsm_diagram(input).unwrap();
+        assert_eq!(diagram.enter_states, ["StateA"]);
+        assert_eq!(diagram.transitions.len(), 1);
     }
 }

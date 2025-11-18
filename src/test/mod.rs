@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::parser;
 mod actions;
 mod four_seasons;
+mod self_transition;
 mod utils;
 
 pub struct FsmTestData {
@@ -14,6 +15,11 @@ pub struct FsmTestData {
 
 impl FsmTestData {
     pub fn all() -> impl Iterator<Item = Self> {
-        vec![Self::actions(), Self::four_seasons()].into_iter()
+        vec![
+            Self::actions(),
+            Self::four_seasons(),
+            Self::self_transition(),
+        ]
+        .into_iter()
     }
 }

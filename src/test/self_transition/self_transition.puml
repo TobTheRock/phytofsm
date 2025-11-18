@@ -1,0 +1,7 @@
+@startuml TestFsm
+
+StateA -> StateA : SelfTransition / Action1
+StateA -> StateB : GoToB / Action2
+[*] --> StateA
+
+@enduml
