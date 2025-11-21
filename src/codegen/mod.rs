@@ -81,23 +81,24 @@ mod tests {
         test::FsmTestData,
     };
 
-    fn create_codegen_test(test_data: FsmTestData, options: &Options) -> PathBuf {
+    fn create_codegen_test(test_data: FsmTestData, options: &Options, test_name: &str) -> PathBuf {
         let generator = FsmCodeGenerator::new(options);
 
         let module_code = generator.generate(test_data.parsed);
         let complete_code = format!("{}\n\nfn main() {{}}\n", module_code);
 
-        std::fs::create_dir_all("target/test_files/codegen/pass").unwrap();
-        let base_path = Path::new("target/test_files/codegen/pass/");
+        let base_name = format!("target/tests/data/codegen/{test_name}");
+        let base_path = Path::new(&base_name);
+        std::fs::create_dir_all(base_path).unwrap();
         let file_path = base_path.join(format!("{}.rs", test_data.name));
         std::fs::write(&file_path, complete_code).unwrap();
 
         file_path
     }
 
-    fn test_all_generators_with_options(options: &Options) {
+    fn test_all_generators_with_options(options: &Options, test_name: &str) {
         let test_data = FsmTestData::all();
-        let test_files = test_data.map(|data| create_codegen_test(data, options));
+        let test_files = test_data.map(|data| create_codegen_test(data, options, test_name));
         let t = trybuild::TestCases::new();
         for test_file in test_files {
             t.pass(&test_file);
@@ -107,7 +108,7 @@ mod tests {
     #[test]
     fn all_generators_default_options() {
         let options = Options::default();
-        test_all_generators_with_options(&options);
+        test_all_generators_with_options(&options, "default_options");
     }
 
     #[test]
@@ -115,6 +116,6 @@ mod tests {
         let options = Options {
             log_level: Some(log::Level::Info),
         };
-        test_all_generators_with_options(&options);
+        test_all_generators_with_options(&options, "logging_options");
     }
 }
