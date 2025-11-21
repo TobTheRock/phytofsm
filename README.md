@@ -24,7 +24,7 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 - Events with custom data
 - Customizable actions
-- Optional logging with [log](https://docs.rs/log/latest/log/)
+- Optional transition logging with [log](https://docs.rs/log/latest/log/)
 
 Missing:
 
@@ -32,7 +32,6 @@ Missing:
 - enter/exit actions
 - exit state
 - guards
-- transition logging
 - event deferring
 - sub state machines
 - history states
