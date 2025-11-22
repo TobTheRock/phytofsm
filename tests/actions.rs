@@ -5,7 +5,7 @@ generate_fsm!(
 );
 
 use mockall::{mock, predicate};
-use test_fsm::{ITestFsmActions, ITestFsmEventParams, TestFsm, TestFsmEvent};
+use test_fsm::{ITestFsmActions, ITestFsmEventParams, TestFsm};
 
 mock! {
     TestFsmActions {}
@@ -32,8 +32,8 @@ fn actions_are_called_when_transitioning() {
         .returning(|_| ())
         .times(1);
     let mut fsm = TestFsm::new(actions);
-    fsm.trigger_event(TestFsmEvent::GoToB(()));
-    fsm.trigger_event(TestFsmEvent::GoToA(param_for_action2));
+    fsm.go_to_b(());
+    fsm.go_to_a(param_for_action2);
 }
 
 #[test]
@@ -43,5 +43,5 @@ fn no_action_called_when_no_transition() {
     actions.expect_action2().times(0);
     let mut fsm = TestFsm::new(actions);
     // Trigger event that does not cause a transition from the initial state
-    fsm.trigger_event(TestFsmEvent::GoToA(5));
+    fsm.go_to_a(42);
 }

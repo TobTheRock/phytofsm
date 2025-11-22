@@ -16,7 +16,7 @@ pub trait IPlantFsmActions: IPlantFsmEventParams {
 }
 
 type NoEventData = ();
-pub enum PlantFsmEvent<T: IPlantFsmActions> {
+enum PlantFsmEvent<T: IPlantFsmActions> {
     TemperatureRises(T::TemperatureRisesParams),
     DaylightIncreases(T::DaylightIncreasesParams),
     TemperatureDrops(T::TemperatureDropsParams),
@@ -91,7 +91,6 @@ pub struct PlantFsm<T: IPlantFsmActions> {
     current_state: PlantFsmState<T>,
 }
 
-// TODO traces for transitions
 impl<A> PlantFsm<A>
 where
     A: IPlantFsmActions,
@@ -103,7 +102,7 @@ where
         }
     }
 
-    pub fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
+    fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
         if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
             debug!(
                 "PlantFsm: Transitioning from {} to {}",
@@ -111,6 +110,34 @@ where
             );
             self.current_state = new_state;
         }
+    }
+
+    pub fn daylight_increases(
+        &mut self,
+        params: <A as IPlantFsmEventParams>::DaylightIncreasesParams,
+    ) {
+        self.trigger_event(PlantFsmEvent::DaylightIncreases(params));
+    }
+
+    pub fn daylight_decreases(
+        &mut self,
+        params: <A as IPlantFsmEventParams>::DaylightDecreasesParams,
+    ) {
+        self.trigger_event(PlantFsmEvent::DaylightDecreases(params));
+    }
+
+    pub fn temperature_rises(
+        &mut self,
+        params: <A as IPlantFsmEventParams>::TemperatureRisesParams,
+    ) {
+        self.trigger_event(PlantFsmEvent::TemperatureRises(params));
+    }
+
+    pub fn temperature_drops(
+        &mut self,
+        params: <A as IPlantFsmEventParams>::TemperatureDropsParams,
+    ) {
+        self.trigger_event(PlantFsmEvent::TemperatureDrops(params));
     }
 }
 
@@ -157,10 +184,10 @@ mod test {
         actions.expect_drop_petals().returning(|_| ()).times(1);
 
         let mut fsm = PlantFsm::new(actions);
-        fsm.trigger_event(PlantFsmEvent::TemperatureRises(()));
-        fsm.trigger_event(PlantFsmEvent::DaylightIncreases(lumen));
-        fsm.trigger_event(PlantFsmEvent::DaylightDecreases(()));
-        fsm.trigger_event(PlantFsmEvent::TemperatureDrops(()));
+        fsm.temperature_rises(());
+        fsm.daylight_increases(lumen);
+        fsm.daylight_decreases(());
+        fsm.temperature_drops(());
     }
 
     #[test]

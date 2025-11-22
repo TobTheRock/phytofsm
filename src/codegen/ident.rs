@@ -34,6 +34,10 @@ impl parser::Event {
     pub fn ident(&self) -> proc_macro2::Ident {
         format_ident!("{}", self.0.to_upper_camel_case())
     }
+
+    pub fn method_ident(&self) -> proc_macro2::Ident {
+        format_ident!("{}", self.0.to_snake_case())
+    }
 }
 
 impl parser::Action {

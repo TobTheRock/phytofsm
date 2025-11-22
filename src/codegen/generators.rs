@@ -63,7 +63,7 @@ impl CodeGenerator for EventEnumGenerator {
         let event_enum_ident = &ctx.idents.event_enum;
         let action_ident = &ctx.idents.action_trait;
         quote! {
-            pub enum #event_enum_ident<P: #action_ident> {
+            enum #event_enum_ident<P: #action_ident> {
                 #(#event_variants)*
             }
         }
@@ -218,6 +218,19 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
         let event_enum = &ctx.idents.event_enum;
         let level = self.log_level_token();
         let log = format! {"{}: {{}} -[{{}}]-> {{}}", ctx.fsm.name()};
+
+        let event_params_trait = &ctx.idents.event_params_trait;
+        let methods = ctx.fsm.events().map(|event| {
+            let fn_ident = event.method_ident();
+            let event_ident = event.ident();
+            let params_ident = event.params_ident();
+            quote! {
+                pub fn #fn_ident(&mut self, params: <A as #event_params_trait>::#params_ident) {
+                    self.trigger_event(#event_enum::#event_ident(params));
+                }
+            }
+        });
+
         quote! {
             impl<A> #fsm<A>
             where
@@ -229,13 +242,14 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
                         current_state: #state::#entry_state(),
                     }
                 }
-                pub fn trigger_event(&mut self, event: #event_enum<A>) {
+                fn trigger_event(&mut self, event: #event_enum<A>) {
                     let event_name = format!("{}", event);
                     if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
                         ::log::log!(#level, #log, self.current_state.name, event_name, new_state.name);
                         self.current_state = new_state;
                     }
                 }
+                #(#methods)*
             }
         }
     }

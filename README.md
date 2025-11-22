@@ -57,7 +57,6 @@ The following is generated:
 | **FSM Struct** | `{DiagramName}` | Main state machine struct (UpperCamelCase) |
 | **Event Parameters Trait** | `I{DiagramName}EventParams` | Trait defining event parameter types |
 | **Actions Trait** | `I{DiagramName}Actions` | Trait defining action methods |
-| **Event Enum** | `{DiagramName}Event` | Enum containing all possible events |
 | **State Struct** | `{DiagramName}State` | Internal state representation |
 | **Module** | `{diagram_name}` | Generated module name (snake_case) |
 
@@ -75,7 +74,7 @@ StateA --> StateB : EventName / ActionName
 
 | PlantUML Element | Generated Item | Naming Pattern |
 |-----------------|----------------|----------------|
-| **Event** | Event enum variant | UpperCamelCase of event name |
+| **Event** | Method name | snake_case of event name |
 | **Event** | Parameter type | `{EventName}Params` |
 | **Action** | Method name | snake_case of action name |
 | **State** | State name | Preserved as written in PlantUML |
@@ -149,9 +148,9 @@ fn main() {
     let actions = PlantActions;
     let mut fsm = PlantFsm::new(actions);
     
-    fsm.trigger_event(PlantFsmEvent::TemperatureRises(()));
-    fsm.trigger_event(PlantFsmEvent::DaylightIncreases(1000)); 
-    fsm.trigger_event(PlantFsmEvent::DaylightDecreases(()));
-    fsm.trigger_event(PlantFsmEvent::TemperatureDrops(()));
+    fsm.temperature_rises(());
+    fsm.daylight_increases(lumen);
+    fsm.daylight_decreases(());
+    fsm.temperature_drops(());
 }
 ```

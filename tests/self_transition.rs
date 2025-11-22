@@ -5,7 +5,7 @@ generate_fsm!(
 );
 
 use mockall::mock;
-use test_fsm::{ITestFsmActions, ITestFsmEventParams, TestFsm, TestFsmEvent};
+use test_fsm::{ITestFsmActions, ITestFsmEventParams, TestFsm};
 
 mock! {
     TestFsmActions {}
@@ -27,8 +27,8 @@ fn self_transition_action_called() {
     actions.expect_action2().returning(|_| ()).times(1);
     let mut fsm = TestFsm::new(actions);
 
-    fsm.trigger_event(TestFsmEvent::SelfTransition(()));
-    fsm.trigger_event(TestFsmEvent::GoToB(()));
+    fsm.self_transition(());
+    fsm.go_to_b(());
 }
 
 #[test]
@@ -38,6 +38,6 @@ fn final_state() {
     actions.expect_action2().returning(|_| ()).times(1);
     let mut fsm = TestFsm::new(actions);
 
-    fsm.trigger_event(TestFsmEvent::GoToB(()));
-    fsm.trigger_event(TestFsmEvent::SelfTransition(()));
+    fsm.go_to_b(());
+    fsm.self_transition(());
 }

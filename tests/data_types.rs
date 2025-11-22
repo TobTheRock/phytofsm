@@ -4,7 +4,7 @@ generate_fsm!(
     log_level = "debug"
 );
 
-use test_fsm::{ITestFsmActions, ITestFsmEventParams, TestFsm, TestFsmEvent};
+use test_fsm::{ITestFsmActions, ITestFsmEventParams, TestFsm};
 
 struct ActionsWithClonableData;
 impl ITestFsmEventParams for ActionsWithClonableData {
@@ -23,8 +23,8 @@ impl ITestFsmActions for ActionsWithClonableData {
 fn actions_with_clonable_data() {
     let actions = ActionsWithClonableData;
     let mut fsm = TestFsm::new(actions);
-    fsm.trigger_event(TestFsmEvent::GoToB("Hello FSM".to_string()));
-    fsm.trigger_event(TestFsmEvent::GoToA(vec![1, 2, 3, 4, 5]));
+    fsm.go_to_b("Hello FSM".to_string());
+    fsm.go_to_a(vec![10, 20, 30]);
 }
 
 struct ActionsWithPointers<'a> {
@@ -55,9 +55,8 @@ fn actions_with_pointers() {
         phantom: std::marker::PhantomData,
     };
     let mut fsm = TestFsm::new(actions);
-    let message = "Pointer Event";
-    fsm.trigger_event(TestFsmEvent::GoToB(message));
+    fsm.go_to_b("Pointer Event");
     let number: i32 = 100;
     let number_ptr: *const i32 = &number as *const i32;
-    fsm.trigger_event(TestFsmEvent::GoToA(number_ptr));
+    fsm.go_to_a(number_ptr);
 }

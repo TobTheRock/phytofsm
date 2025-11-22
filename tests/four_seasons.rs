@@ -6,7 +6,7 @@ generate_fsm!(
     file_path = "../src/test/four_seasons/four_seasons.puml",
     log_level = "debug"
 );
-use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm, PlantFsmEvent};
+use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm};
 
 use mockall::{mock, predicate};
 
@@ -47,10 +47,10 @@ fn simple_four_seasons() {
 
     let mut fsm = PlantFsm::new(actions);
     // Trigger by reference
-    fsm.trigger_event(PlantFsmEvent::TemperatureRises(()));
-    fsm.trigger_event(PlantFsmEvent::DaylightIncreases(lumen));
-    fsm.trigger_event(PlantFsmEvent::DaylightDecreases(()));
-    fsm.trigger_event(PlantFsmEvent::TemperatureDrops(()));
+    fsm.temperature_rises(());
+    fsm.daylight_increases(lumen);
+    fsm.daylight_decreases(());
+    fsm.temperature_drops(());
 
     mock_logger::MockLogger::entries(|entries| {
         let debug_logs = entries
