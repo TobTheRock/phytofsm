@@ -2,6 +2,8 @@
 
 StateA -> StateA : SelfTransition / Action1
 StateA -> StateB : GoToB / Action2
+StateA -> StateB : GoToBDifferently / Action3
+StateA -> StateC : GoToC
 [*] --> StateA
 
 @enduml

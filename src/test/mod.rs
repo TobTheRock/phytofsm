@@ -3,7 +3,7 @@ use std::path::PathBuf;
 use crate::parser;
 mod actions;
 mod four_seasons;
-mod self_transition;
+mod transitions;
 mod utils;
 
 pub struct FsmTestData {
@@ -18,7 +18,7 @@ impl FsmTestData {
         vec![
             Self::actions(),
             Self::four_seasons(),
-            Self::self_transition(),
+            Self::transitions(),
         ]
         .into_iter()
     }

@@ -343,7 +343,7 @@ mod tests {
     }
 
     #[test]
-    fn test_parse_self_transition() {
+    fn test_parse_transitions() {
         let input = r#"
         @startuml
         [*] --> StateA
