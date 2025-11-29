@@ -17,6 +17,7 @@ proc-macro = true
 [dependencies]
 derive_more = { version = "2.0", features = ["from", "into"] }
 heck = "0.5"
+indextree = "4.7"
 itertools = "0.14"
 log = "0.4"
 pest = "2.7"

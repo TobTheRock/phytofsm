@@ -46,14 +46,14 @@ impl parser::Action {
     }
 }
 
-impl parser::State {
+impl parser::State<'_> {
     pub fn function_ident(&self) -> proc_macro2::Ident {
-        format_ident!("{}", self.name.to_snake_case())
+        format_ident!("{}", self.name().to_snake_case())
     }
 }
 
-impl quote::ToTokens for parser::State {
+impl quote::ToTokens for parser::State<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
-        self.name.to_tokens(tokens);
+        self.name().to_tokens(tokens);
     }
 }

@@ -101,7 +101,7 @@ impl CodeGenerator for StateStructGenerator {
         quote! {
             struct #state_ident<A: #actions_trait> {
                 pub name: &'static str,
-                pub transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<#state_ident<A>>,
+                pub transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<Self>,
             }
         }
     }
@@ -109,24 +109,15 @@ impl CodeGenerator for StateStructGenerator {
 
 impl CodeGenerator for StateImplGenerator {
     fn generate(&self, ctx: &GenerationContext) -> TokenStream2 {
-        let lookup_states = ctx.fsm.transitions().fold(
-            std::collections::HashMap::<&crate::parser::State, Vec<&crate::parser::Transition>>::new(),
-            |mut acc, transition| {
-                acc.entry(&transition.source).or_default().push(transition);
-                // Add also the destination state in case it is a final one
-                acc.entry(&transition.destination).or_default();
-                acc
-            },
-        );
-
-        let state_fns = lookup_states.iter().map(|(state, transitions)| {
+        let state_fns = ctx.fsm.states().map(|state| {
+            let state_name = state.name();
             let fn_name = state.function_ident();
-            let transitions = transitions.iter().map(|t| {
-                let event_ident = t.event.ident();
 
+            let transitions = state.transitions().map(|t| {
+                let event_ident = t.event.ident();
                 let event_enum = &ctx.idents.event_enum;
                 let next_state = t.destination.function_ident();
-                let action = if let Some(a) = &t.action {
+                let action = if let Some(a) = t.action {
                     let action_ident = a.ident();
                     quote! { action.#action_ident(params); }
                 } else {
@@ -144,7 +135,7 @@ impl CodeGenerator for StateImplGenerator {
             quote! {
                 fn #fn_name() -> Self {
                     Self {
-                        name: #state,
+                        name: #state_name,
                         transition: |event, action| match event {
                             #(#transitions,)*
                             _ => None,
