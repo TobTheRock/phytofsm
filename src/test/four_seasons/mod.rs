@@ -1,65 +1,29 @@
 pub mod reference;
-use std::path::Path;
 
 use crate::{
-    parser,
+    error::Result,
+    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
+fn build_four_seasons_fsm() -> Result<ParsedFsm> {
+    let mut builder = ParsedFsmBuilder::new("PlantFsm");
+    builder.add_enter_state("Winter")?;
+    builder
+        .add_transition("Winter", "Spring", Event("TemperatureRises".into()), None)?
+        .add_transition("Spring", "Summer", Event("DaylightIncreases".into()), Some(Action("StartBlooming".into())))?
+        .add_transition("Summer", "Autumn", Event("DaylightDecreases".into()), Some(Action("RipenFruit".into())))?
+        .add_transition("Autumn", "Winter", Event("TemperatureDrops".into()), Some(Action("DropPetals".into())))?;
+    builder.build()
+}
+
 impl FsmTestData {
-    /// Simple FSM with state transistions  with actions and events
     pub fn four_seasons() -> Self {
-        let winter = parser::State {
-            name: "Winter".to_string(),
-            state_type: parser::StateType::Enter,
-        };
-        let spring = parser::State {
-            name: "Spring".to_string(),
-            state_type: parser::StateType::Simple,
-        };
-        let summer = parser::State {
-            name: "Summer".to_string(),
-            state_type: parser::StateType::Simple,
-        };
-        let autumn = parser::State {
-            name: "Autumn".to_string(),
-            state_type: parser::StateType::Simple,
-        };
-        let parsed = parser::ParsedFsm::try_new(
-            "PlantFsm".to_string(),
-            vec![
-                parser::Transition {
-                    source: winter.clone(),
-                    destination: spring.clone(),
-                    event: parser::Event("TemperatureRises".to_string()),
-                    action: None,
-                },
-                parser::Transition {
-                    source: spring.clone(),
-                    destination: summer.clone(),
-                    event: parser::Event("DaylightIncreases".to_string()),
-                    action: Some(parser::Action("StartBlooming".to_string())),
-                },
-                parser::Transition {
-                    source: summer.clone(),
-                    destination: autumn.clone(),
-                    event: parser::Event("DaylightDecreases".to_string()),
-                    action: Some(parser::Action("RipenFruit".to_string())),
-                },
-                parser::Transition {
-                    source: autumn.clone(),
-                    destination: winter.clone(),
-                    event: parser::Event("TemperatureDrops".to_string()),
-                    action: Some(parser::Action("DropPetals".to_string())),
-                },
-            ],
-        )
-        .expect("Failed to create expected FSM");
         let path = get_adjacent_file_path(file!(), "four_seasons.puml");
         Self {
             name: "four_seasons",
             content: include_str!("./four_seasons.puml"),
-            parsed,
+            parsed: build_four_seasons_fsm().expect("Failed to create expected FSM"),
             path,
         }
     }
