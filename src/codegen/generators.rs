@@ -101,7 +101,7 @@ impl CodeGenerator for StateStructGenerator {
         quote! {
             struct #state_ident<A: #actions_trait> {
                 pub name: &'static str,
-                pub transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<#state_ident<A>>,
+                pub transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<Self>,
             }
         }
     }
