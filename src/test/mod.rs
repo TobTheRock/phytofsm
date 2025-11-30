@@ -15,11 +15,6 @@ pub struct FsmTestData {
 
 impl FsmTestData {
     pub fn all() -> impl Iterator<Item = Self> {
-        vec![
-            Self::actions(),
-            Self::four_seasons(),
-            Self::transitions(),
-        ]
-        .into_iter()
+        vec![Self::actions(), Self::four_seasons(), Self::transitions()].into_iter()
     }
 }
