@@ -1,0 +1,74 @@
+// PlantUML State Diagram PEG Grammar
+// This grammar parses standard PlantUML state diagram syntax
+// Custom extensions (event/action parsing) are handled separately
+
+// Main entry point - a complete PlantUML diagram
+// Diagrams start with @startuml and end with @enduml
+diagram = { SOI ~ ws* ~ startuml ~ content ~ ws* ~ enduml ~ ws* ~ EOI }
+
+// Start and end tags
+startuml = { "@startuml" ~ (sp+ ~ diagram_name)? ~ sp* ~ NEWLINE }
+enduml = { "@enduml" ~ sp* ~ NEWLINE? }
+
+// Diagram name (one or more words separated by spaces)
+diagram_name = @{ (ASCII_ALPHANUMERIC+ ~ (" " ~ ASCII_ALPHANUMERIC+)*) }
+
+// Content between tags - zero or more elements
+content = { element* }
+
+// Individual elements in the diagram
+element = {
+    ws* ~ (
+        enter_transition |
+        transition |
+        state_declaration_with_desc |
+        state_declaration |
+        state_description |
+        comment
+    )
+}
+
+// Enter transition: [*] --> StateName or [*] -> StateName
+enter_transition = { "[*]" ~ sp* ~ arrow ~ sp* ~ state_name ~ sp* ~ NEWLINE }
+
+// Regular transition: State1 --> State2 : description
+transition = {
+    state_name ~ sp* ~ arrow ~ sp* ~ state_name ~
+    (sp* ~ ":" ~ sp* ~ description)? ~
+    sp* ~ NEWLINE
+}
+
+// State declaration: state StateName
+state_declaration = { "state" ~ sp+ ~ state_name ~ sp* ~ NEWLINE }
+
+// State declaration with inline description: state StateName: description
+state_declaration_with_desc = { "state" ~ sp+ ~ state_name ~ sp* ~ ":" ~ sp* ~ description ~ NEWLINE }
+
+// State description: StateName : description (without state keyword)
+state_description = { state_name ~ sp* ~ ":" ~ sp* ~ description ~ NEWLINE }
+
+// State name - alphanumeric identifier
+state_name = @{ ASCII_ALPHANUMERIC+ }
+
+// Description text - everything until newline (kept as raw string for custom parsing)
+description = @{ (!NEWLINE ~ ANY)* }
+
+// Arrow types (directional and plain)
+arrow = @{
+    "-u->" |    // up
+    "-d->" |    // down
+    "-l->" |    // left
+    "-r->" |    // right
+    "-->" |     // long
+    "->"        // short
+}
+
+// Comment line (starts with ')
+comment = { "'" ~ (!NEWLINE ~ ANY)* ~ NEWLINE }
+
+// Whitespace helpers (explicit, not implicit)
+sp = _{ " " | "\t" }
+ws = _{ " " | "\t" | NEWLINE }
+
+// Newline
+NEWLINE = { "\r\n" | "\n" | "\r" }

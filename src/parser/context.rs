@@ -1,13 +1,8 @@
-use nom::{
-    IResult, Parser,
-    character::complete::{alphanumeric1, char},
-    combinator::opt,
-    sequence::preceded,
-};
+use regex::Regex;
 
 use crate::{
     error::Error,
-    parser::{Action, Event, nom::ws},
+    parser::{Action, Event},
 };
 
 #[derive(Clone, Debug)]
@@ -20,10 +15,9 @@ impl TryFrom<&str> for TransitionContext {
     type Error = Error;
     fn try_from(value: &str) -> Result<Self, Self::Error> {
         parse_transaction_description(value)
-            .map(|(_, desc)| desc)
-            .map_err(|e| Error::Parse(e.to_string()))
     }
 }
+
 impl TryFrom<&String> for TransitionContext {
     type Error = Error;
 
@@ -32,18 +26,25 @@ impl TryFrom<&String> for TransitionContext {
     }
 }
 
-pub fn parse_transaction_description(input: &str) -> IResult<&str, TransitionContext> {
-    let event = ws(alphanumeric1);
-    let action = preceded(char('/'), ws(alphanumeric1));
-    let (input, (event, action)) = (event, opt(action)).parse(input)?;
+pub fn parse_transaction_description(input: &str) -> Result<TransitionContext, Error> {
+    let alpha_numeric = "[a-zA-Z0-9]+";
+    let pattern = format!(r"^\s*({alpha_numeric})\s*(?:/\s*({alpha_numeric}))?\s*$");
+    let re = Regex::new(&pattern).expect("Invalid regex pattern");
 
-    Ok((
-        input,
-        TransitionContext {
-            action: action.map(|a| a.to_owned().into()),
-            event: event.to_owned().into(),
-        },
-    ))
+    let captures = re
+        .captures(input)
+        .ok_or_else(|| Error::Parse(format!("Invalid transition description: '{}'", input)))?;
+
+    let event = captures
+        .get(1)
+        .ok_or_else(|| Error::Parse("Event name is required".to_string()))?
+        .as_str()
+        .to_owned()
+        .into();
+
+    let action = captures.get(2).map(|m| m.as_str().to_owned().into());
+
+    Ok(TransitionContext { action, event })
 }
 
 #[cfg(test)]

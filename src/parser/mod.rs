@@ -4,7 +4,6 @@ use derive_more::{From, Into};
 use itertools::Itertools;
 
 mod context;
-mod nom;
 mod plantuml;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
