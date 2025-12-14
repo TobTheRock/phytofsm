@@ -21,6 +21,7 @@ element = {
     ws* ~ (
         enter_transition |
         transition |
+        composite_state |
         state_declaration_with_desc |
         state_declaration |
         state_description |
@@ -46,6 +47,13 @@ state_declaration_with_desc = { "state" ~ sp+ ~ state_name ~ sp* ~ ":" ~ sp* ~ d
 
 // State description: StateName : description (without state keyword)
 state_description = { state_name ~ sp* ~ ":" ~ sp* ~ description ~ NEWLINE }
+
+// Composite state description
+composite_state = {
+    "state" ~ sp+ ~ state_name ~ sp* ~ "{" ~ ws* ~
+    content ~
+    ws* ~ "}" ~ sp* ~ NEWLINE
+}
 
 // State name - alphanumeric identifier
 state_name = @{ ASCII_ALPHANUMERIC+ }

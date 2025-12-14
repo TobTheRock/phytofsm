@@ -16,26 +16,31 @@ pub struct StateDiagram<'a> {
     name: Option<&'a str>,
     enter_states: Vec<StateName<'a>>,
     transitions: Vec<TransitionDescription<'a>>,
+    composite_states: Vec<CompositeState<'a>>,
 }
 
 impl StateDiagram<'_> {
     pub fn parse(input: &str) -> Result<StateDiagram<'_>> {
-        let mut pairs = PlantUmlParser::parse(Rule::diagram, input)
-            .map_err(|e| Error::Parse(e.to_string()))?;
+        let mut pairs =
+            PlantUmlParser::parse(Rule::diagram, input).map_err(|e| Error::Parse(e.to_string()))?;
 
-        let diagram_pair = pairs.next().ok_or_else(|| Error::Parse("Empty input".to_string()))?;
+        let diagram_pair = pairs
+            .next()
+            .ok_or_else(|| Error::Parse("Empty input".to_string()))?;
 
         let mut name = None;
         let mut enter_states = Vec::new();
         let mut transitions = Vec::new();
+        let mut composite_states = Vec::new();
 
         for inner in diagram_pair.into_inner() {
             match inner.as_rule() {
                 Rule::startuml => name = parse_diagram_name(inner),
                 Rule::content => {
-                    let (enters, trans) = parse_content(inner)?;
+                    let (enters, trans, composites) = parse_content(inner)?;
                     enter_states = enters;
                     transitions = trans;
+                    composite_states = composites;
                 }
                 _ => {}
             }
@@ -45,6 +50,7 @@ impl StateDiagram<'_> {
             name,
             enter_states,
             transitions,
+            composite_states,
         })
     }
 
@@ -59,6 +65,10 @@ impl StateDiagram<'_> {
     pub fn name(&self) -> Option<&str> {
         self.name
     }
+
+    pub fn composite_states(&self) -> impl Iterator<Item = &CompositeState<'_>> {
+        self.composite_states.iter()
+    }
 }
 
 #[derive(Debug, PartialEq, Clone)]
@@ -69,6 +79,14 @@ pub struct TransitionDescription<'a> {
     pub description: &'a str,
 }
 
+#[derive(Debug, PartialEq, Clone, Default)]
+pub struct CompositeState<'a> {
+    pub name: StateName<'a>,
+    pub children: Vec<CompositeState<'a>>,
+    pub enter_states: Vec<StateName<'a>>,
+    pub transitions: Vec<TransitionDescription<'a>>,
+}
+
 fn parse_diagram_name(pair: Pair<'_>) -> Option<&str> {
     pair.into_inner()
         .find(|p| p.as_rule() == Rule::diagram_name)
@@ -77,9 +95,14 @@ fn parse_diagram_name(pair: Pair<'_>) -> Option<&str> {
 
 fn parse_content(
     pair: Pair<'_>,
-) -> Result<(Vec<StateName<'_>>, Vec<TransitionDescription<'_>>)> {
+) -> Result<(
+    Vec<StateName<'_>>,
+    Vec<TransitionDescription<'_>>,
+    Vec<CompositeState<'_>>,
+)> {
     let mut enter_states = Vec::new();
     let mut transitions = Vec::new();
+    let mut composite_states = Vec::new();
 
     for element in pair.into_inner() {
         if element.as_rule() != Rule::element {
@@ -96,12 +119,15 @@ fn parse_content(
                 Rule::transition => {
                     transitions.push(parse_transition(element_inner)?);
                 }
+                Rule::composite_state => {
+                    composite_states.push(parse_composite_state(element_inner)?);
+                }
                 _ => {}
             }
         }
     }
 
-    Ok((enter_states, transitions))
+    Ok((enter_states, transitions, composite_states))
 }
 
 fn parse_enter_state(pair: Pair<'_>) -> Option<StateName<'_>> {
@@ -133,8 +159,35 @@ fn parse_transition(pair: Pair<'_>) -> Result<TransitionDescription<'_>> {
 
     Ok(TransitionDescription {
         from: from.ok_or_else(|| Error::Parse("Missing source state in transition".to_string()))?,
-        to: to.ok_or_else(|| Error::Parse("Missing destination state in transition".to_string()))?,
+        to: to
+            .ok_or_else(|| Error::Parse("Missing destination state in transition".to_string()))?,
         description,
+    })
+}
+
+fn parse_composite_state(pair: Pair<'_>) -> Result<CompositeState<'_>> {
+    let mut name = None;
+    let mut children = Vec::new();
+    let mut enter_states = Vec::new();
+    let mut transitions = Vec::new();
+
+    for inner in pair.into_inner() {
+        match inner.as_rule() {
+            Rule::state_name => {
+                name = Some(inner.as_str());
+            }
+            Rule::content => {
+                (enter_states, transitions, children) = parse_content(inner)?;
+            }
+            _ => {}
+        }
+    }
+
+    Ok(CompositeState {
+        name: name.ok_or_else(|| Error::Parse("Missing name in composite state".to_string()))?,
+        children,
+        enter_states,
+        transitions,
     })
 }
 
@@ -142,28 +195,38 @@ fn parse_transition(pair: Pair<'_>) -> Result<TransitionDescription<'_>> {
 mod tests {
     use super::*;
 
-    #[test]
-    fn test_parse_uml_start() {
-        let input = "@startuml        \n";
-        let full_input = format!("{}@enduml", input);
-        let diagram = StateDiagram::parse(&full_input).unwrap();
-        assert_eq!(diagram.name, None);
-    }
+    impl CompositeState<'_> {
+        fn assert_name(&self, expected: &str) -> &Self {
+            assert_eq!(self.name, expected);
+            self
+        }
 
-    #[test]
-    fn test_parse_uml_start_with_name() {
-        let input = "@startuml fsm name\n";
-        let full_input = format!("{}@enduml", input);
-        let diagram = StateDiagram::parse(&full_input).unwrap();
-        assert_eq!(diagram.name, Some("fsm name"));
+        fn assert_children(&self, expected: usize) -> &Self {
+            assert_eq!(self.children.len(), expected, "children count for '{}'", self.name);
+            self
+        }
+
+        fn assert_enters(&self, expected: &[&str]) -> &Self {
+            assert_eq!(self.enter_states, expected, "enter_states for '{}'", self.name);
+            self
+        }
+
+        fn assert_transition(&self, idx: usize, from: &str, to: &str) -> &Self {
+            let t = &self.transitions[idx];
+            assert_eq!((t.from, t.to), (from, to), "transition[{}] for '{}'", idx, self.name);
+            self
+        }
+
+        fn child(&self, idx: usize) -> &CompositeState<'_> {
+            &self.children[idx]
+        }
     }
 
     #[test]
     fn test_parse_uml_content() {
-        // This test was checking raw content extraction - now we test via full diagram
-        let full_input = "@startuml test\n@enduml";
+        let full_input = "@startuml fsm name\n@enduml";
         let diagram = StateDiagram::parse(full_input).unwrap();
-        assert!(diagram.name.is_some());
+        assert_eq!(diagram.name, Some("fsm name"));
     }
 
     #[test]
@@ -307,5 +370,176 @@ mod tests {
         "#;
         let diagram = StateDiagram::parse(input).unwrap();
         assert_eq!(diagram.enter_states, vec!["A"]);
+    }
+
+    #[test]
+    fn test_parse_composite_states() {
+        let input = r#"
+        @startuml CompositeFSM
+        state State1 {
+            state state1A {
+                state state1B {
+                }
+            }
+        }
+        @enduml
+        "#;
+        let fsm = StateDiagram::parse(input).expect("Failed to parse FSM");
+        assert_eq!(fsm.name, Some("CompositeFSM"));
+        assert_eq!(fsm.composite_states.len(), 1);
+
+        fsm.composite_states[0]
+            .assert_name("State1")
+            .assert_children(1)
+            .child(0)
+            .assert_name("state1A")
+            .assert_children(1)
+            .child(0)
+            .assert_name("state1B")
+            .assert_children(0);
+    }
+
+    #[test]
+    fn test_parse_composite_states_with_transitions() {
+        let input = r#"
+        @startuml CompositeFSM
+        state State1 {
+            state state1A {
+                state state1B {
+                    [*] --> State1C
+                }
+                [*] --> State1B
+                State1C -> State1N : toState1B
+            }
+        }
+        @enduml
+        "#;
+        let fsm = StateDiagram::parse(input).expect("Failed to parse FSM");
+        assert_eq!(fsm.name, Some("CompositeFSM"));
+        assert_eq!(fsm.composite_states.len(), 1);
+
+        let state1a = fsm.composite_states[0]
+            .assert_name("State1")
+            .assert_children(1)
+            .child(0);
+
+        state1a
+            .assert_name("state1A")
+            .assert_children(1)
+            .assert_enters(&["State1B"])
+            .assert_transition(0, "State1C", "State1N");
+
+        state1a
+            .child(0)
+            .assert_name("state1B")
+            .assert_children(0)
+            .assert_enters(&["State1C"]);
+    }
+    #[test]
+    fn test_parse_multiple_composite_states() {
+        let input = r#"
+        @startuml CompositeFSM
+        state State1 {
+            state state1A {
+                state state1B {
+                }
+            }
+        }
+        state State2 {
+            state state2A {
+                state state2B {
+                }
+            }
+        }
+        @enduml
+        "#;
+        let fsm = StateDiagram::parse(input).expect("Failed to parse FSM");
+        assert_eq!(fsm.name, Some("CompositeFSM"));
+        assert_eq!(fsm.composite_states.len(), 2);
+
+        fsm.composite_states[0]
+            .assert_name("State1")
+            .assert_children(1)
+            .child(0)
+            .assert_name("state1A")
+            .assert_children(1)
+            .child(0)
+            .assert_name("state1B")
+            .assert_children(0);
+
+        fsm.composite_states[1]
+            .assert_name("State2")
+            .assert_children(1)
+            .child(0)
+            .assert_name("state2A")
+            .assert_children(1)
+            .child(0)
+            .assert_name("state2B")
+            .assert_children(0);
+    }
+
+    #[test]
+    fn test_parse_multiple_composite_states_with_transitions() {
+        let input = r#"
+        @startuml CompositeFSM
+        state State1 {
+            state state1A {
+                state state1B {
+                    [*] --> State1C
+                }
+                [*] --> State1B
+                State1C -> State1N : toState1B
+            }
+        }
+        state State2 {
+            state state2A {
+                state state2B {
+                    [*] --> State2C
+                }
+                [*] --> State2B
+                State2C -> State2N : toState2B
+            }
+        }
+        @enduml
+        "#;
+        let fsm = StateDiagram::parse(input).expect("Failed to parse FSM");
+        assert_eq!(fsm.name, Some("CompositeFSM"));
+        assert_eq!(fsm.composite_states.len(), 2);
+
+        // State1 hierarchy
+        let state1a = fsm.composite_states[0]
+            .assert_name("State1")
+            .assert_children(1)
+            .child(0);
+
+        state1a
+            .assert_name("state1A")
+            .assert_children(1)
+            .assert_enters(&["State1B"])
+            .assert_transition(0, "State1C", "State1N");
+
+        state1a
+            .child(0)
+            .assert_name("state1B")
+            .assert_children(0)
+            .assert_enters(&["State1C"]);
+
+        // State2 hierarchy
+        let state2a = fsm.composite_states[1]
+            .assert_name("State2")
+            .assert_children(1)
+            .child(0);
+
+        state2a
+            .assert_name("state2A")
+            .assert_children(1)
+            .assert_enters(&["State2B"])
+            .assert_transition(0, "State2C", "State2N");
+
+        state2a
+            .child(0)
+            .assert_name("state2B")
+            .assert_children(0)
+            .assert_enters(&["State2C"]);
     }
 }
