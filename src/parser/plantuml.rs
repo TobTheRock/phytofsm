@@ -20,10 +20,12 @@ pub struct StateDiagram<'a> {
 
 impl StateDiagram<'_> {
     pub fn parse(input: &str) -> Result<StateDiagram<'_>> {
-        let mut pairs = PlantUmlParser::parse(Rule::diagram, input)
-            .map_err(|e| Error::Parse(e.to_string()))?;
+        let mut pairs =
+            PlantUmlParser::parse(Rule::diagram, input).map_err(|e| Error::Parse(e.to_string()))?;
 
-        let diagram_pair = pairs.next().ok_or_else(|| Error::Parse("Empty input".to_string()))?;
+        let diagram_pair = pairs
+            .next()
+            .ok_or_else(|| Error::Parse("Empty input".to_string()))?;
 
         let mut name = None;
         let mut enter_states = Vec::new();
@@ -75,9 +77,7 @@ fn parse_diagram_name(pair: Pair<'_>) -> Option<&str> {
         .map(|p| p.as_str())
 }
 
-fn parse_content(
-    pair: Pair<'_>,
-) -> Result<(Vec<StateName<'_>>, Vec<TransitionDescription<'_>>)> {
+fn parse_content(pair: Pair<'_>) -> Result<(Vec<StateName<'_>>, Vec<TransitionDescription<'_>>)> {
     let mut enter_states = Vec::new();
     let mut transitions = Vec::new();
 
@@ -133,7 +133,8 @@ fn parse_transition(pair: Pair<'_>) -> Result<TransitionDescription<'_>> {
 
     Ok(TransitionDescription {
         from: from.ok_or_else(|| Error::Parse("Missing source state in transition".to_string()))?,
-        to: to.ok_or_else(|| Error::Parse("Missing destination state in transition".to_string()))?,
+        to: to
+            .ok_or_else(|| Error::Parse("Missing destination state in transition".to_string()))?,
         description,
     })
 }
