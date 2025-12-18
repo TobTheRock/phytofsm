@@ -69,7 +69,7 @@ mod test {
         let test_data = test::FsmTestData::four_seasons();
 
         // TODO use the actual method
-        let file_path = FilePath(std::path::PathBuf::from(test_data.path));
+        let file_path = FilePath(test_data.path);
         let fsm_file = FsmFile::try_open(file_path).expect("Failed to open FSM file");
         assert!(
             !fsm_file.content.is_empty(),

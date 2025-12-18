@@ -161,7 +161,7 @@ mod test {
         let test_data = FsmTestData::all();
         for data in test_data {
             let fsm = ParsedFsm::try_parse(data.content)
-                .expect(&format!("Failed to parse FSM for test data: {}", data.name));
+                .unwrap_or_else(|_| panic!("Failed to parse FSM for test data: {}", data.name));
             assert_eq!(
                 data.parsed, fsm,
                 "Parsed FSM does not match expected for test data: {}",

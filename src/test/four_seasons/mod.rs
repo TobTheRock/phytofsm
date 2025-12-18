@@ -1,5 +1,4 @@
 pub mod reference;
-use std::path::Path;
 
 use crate::{
     parser,
