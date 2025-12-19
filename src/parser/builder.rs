@@ -112,3 +112,99 @@ impl ParsedFsmBuilder {
         id
     }
 }
+
+#[cfg(test)]
+mod test {
+    use crate::parser::{Event, ParsedFsmBuilder, StateType};
+
+    #[test]
+    fn add_enter_state() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_enter_state("Start").unwrap();
+        let fsm = builder.build().unwrap();
+
+        let enter = fsm.enter_state();
+        assert_eq!(enter.name(), "Start");
+        assert_eq!(enter.state_type(), StateType::Enter);
+    }
+
+    #[test]
+    fn add_enter_state_twice_fails() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_enter_state("Start").unwrap();
+        let result = builder.add_enter_state("AnotherStart");
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn add_state() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_enter_state("Start").unwrap();
+        builder.add_state("State1");
+        let fsm = builder.build().unwrap();
+
+        assert_eq!(fsm.states().count(), 2);
+        let state1 = fsm.states().find(|s| s.name() == "State1").unwrap();
+        assert_eq!(state1.state_type(), StateType::Simple);
+    }
+
+    #[test]
+    fn add_transition() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_enter_state("A").unwrap();
+        builder
+            .add_transition("A", "B", "EventAB".into(), Some("ActionAB".into()))
+            .unwrap();
+        let fsm = builder.build().unwrap();
+
+        assert_eq!(fsm.states().count(), 2);
+        let transitions: Vec<_> = fsm.transitions().collect();
+        assert_eq!(transitions.len(), 1);
+        assert_eq!(transitions[0].destination.name(), "B");
+        assert_eq!(transitions[0].event, &Event::from("EventAB"));
+        assert_eq!(transitions[0].action, Some(&"ActionAB".into()));
+    }
+
+    #[test]
+    fn add_transition_creates_states() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_enter_state("Start").unwrap();
+        builder
+            .add_transition("A", "B", "Event".into(), None)
+            .unwrap();
+        let fsm = builder.build().unwrap();
+
+        let names: Vec<_> = fsm.states().map(|s| s.name().to_string()).collect();
+        assert!(names.contains(&"Start".to_string()));
+        assert!(names.contains(&"A".to_string()));
+        assert!(names.contains(&"B".to_string()));
+    }
+
+    #[test]
+    fn add_state_reuses_existing() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_enter_state("A").unwrap();
+        builder
+            .add_transition("A", "B", "E1".into(), None)
+            .unwrap();
+        builder.add_state("B"); // Should reuse B from transition
+        let fsm = builder.build().unwrap();
+
+        assert_eq!(fsm.states().count(), 2);
+    }
+
+    #[test]
+    fn build_without_enter_state_fails() {
+        let builder = ParsedFsmBuilder::new("TestFSM");
+        let result = builder.build();
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn build_with_empty_name_fails() {
+        let mut builder = ParsedFsmBuilder::new("  ");
+        builder.add_enter_state("Start").unwrap();
+        let result = builder.build();
+        assert!(result.is_err());
+    }
+}

@@ -11,3 +11,15 @@ pub enum StateType {
     Simple,
     Enter,
 }
+
+impl From<&str> for Event {
+    fn from(s: &str) -> Self {
+        Event(s.to_string())
+    }
+}
+
+impl From<&str> for Action {
+    fn from(s: &str) -> Self {
+        Action(s.to_string())
+    }
+}
