@@ -1,17 +1,16 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder},
+    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
 fn build_transitions_fsm() -> Result<ParsedFsm> {
     let mut builder = ParsedFsmBuilder::new("TestFsm");
-    builder.add_enter_state("StateA")?;
-    builder
-        .add_transition("StateA", "StateA", Event("SelfTransition".into()), Some(Action("Action1".into())))?
-        .add_transition("StateA", "StateB", Event("GoToB".into()), Some(Action("Action2".into())))?
-        .add_transition("StateA", "StateB", Event("GoToBDifferently".into()), Some(Action("Action3".into())))?
-        .add_transition("StateA", "StateC", Event("GoToC".into()), None)?;
+    builder.add_state("StateA", StateType::Enter);
+    builder.add_transition("StateA", "StateA", Event("SelfTransition".into()), Some(Action("Action1".into())));
+    builder.add_transition("StateA", "StateB", Event("GoToB".into()), Some(Action("Action2".into())));
+    builder.add_transition("StateA", "StateB", Event("GoToBDifferently".into()), Some(Action("Action3".into())));
+    builder.add_transition("StateA", "StateC", Event("GoToC".into()), None);
     builder.build()
 }
 

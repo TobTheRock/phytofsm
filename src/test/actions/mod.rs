@@ -1,15 +1,14 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder},
+    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
 fn build_actions_fsm() -> Result<ParsedFsm> {
     let mut builder = ParsedFsmBuilder::new("TestFsm");
-    builder.add_enter_state("StateA")?;
-    builder
-        .add_transition("StateA", "StateB", Event("GoToB".into()), Some(Action("Action1".into())))?
-        .add_transition("StateB", "StateA", Event("GoToA".into()), Some(Action("Action2".into())))?;
+    builder.add_state("StateA", StateType::Enter);
+    builder.add_transition("StateA", "StateB", Event("GoToB".into()), Some(Action("Action1".into())));
+    builder.add_transition("StateB", "StateA", Event("GoToA".into()), Some(Action("Action2".into())));
     builder.build()
 }
 

@@ -153,6 +153,14 @@ impl<'a> State<'a> {
     }
 }
 
+impl<'a> PartialEq for State<'a> {
+    fn eq(&self, other: &Self) -> bool {
+        self.name() == other.name()
+            && self.state_type() == other.state_type()
+            && self.parent() == other.parent()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Transition<'a> {
     pub destination: State<'a>,

@@ -33,12 +33,14 @@ impl StateData {
     }
 }
 
+type StateKey = (Option<StateId>, String);
+
 #[derive(Debug)]
 pub struct ParsedFsmBuilder {
     name: String,
     arena: Arena<StateData>,
-    state_map: HashMap<String, StateId>,
-    enter_state: Option<StateId>,
+    state_map: HashMap<StateKey, StateId>,
+    scope: Option<StateId>,
 }
 
 impl ParsedFsmBuilder {
@@ -47,35 +49,23 @@ impl ParsedFsmBuilder {
             name: name.into(),
             arena: Arena::new(),
             state_map: HashMap::new(),
-            enter_state: None,
+            scope: None,
         }
     }
 
-    pub fn add_state(&mut self, name: &str) -> StateId {
-        self.get_or_create_state(name, StateType::Simple)
+    pub fn set_scope(&mut self, scope: Option<StateId>) {
+        self.scope = scope;
     }
 
-    pub fn add_enter_state(&mut self, name: &str) -> Result<StateId> {
-        if self.enter_state.is_some() {
-            return Err(Error::Parse(
-                "FSM must have exactly one enter state".to_string(),
-            ));
-        }
-
-        let id = self.get_or_create_state(name, StateType::Enter);
-        self.enter_state = Some(id);
-        Ok(id)
+    pub fn add_state(&mut self, name: &str, state_type: StateType) -> StateId {
+        let id = self.get_or_create_scoped(self.scope, name);
+        self.arena[id].get_mut().state_type = state_type;
+        id
     }
 
-    pub fn add_transition(
-        &mut self,
-        from: &str,
-        to: &str,
-        event: Event,
-        action: Option<Action>,
-    ) -> Result<&mut Self> {
-        let from_id = self.get_or_create_state(from, StateType::Simple);
-        let to_id = self.get_or_create_state(to, StateType::Simple);
+    pub fn add_transition(&mut self, from: &str, to: &str, event: Event, action: Option<Action>) {
+        let from_id = self.get_or_create_scoped(self.scope, from);
+        let to_id = self.get_or_create_scoped(self.scope, to);
 
         let transition = TransitionData {
             destination: to_id,
@@ -84,32 +74,43 @@ impl ParsedFsmBuilder {
         };
 
         self.arena[from_id].get_mut().transitions.push(transition);
-        Ok(self)
     }
 
     pub fn build(self) -> Result<ParsedFsm> {
+        let enter_state = self.find_root_enter_state()?;
+
         let name = self.name;
         if name.trim().is_empty() {
             return Err(Error::Parse("FSM name cannot be empty".to_string()));
         }
 
-        let enter_state = self.enter_state.ok_or(Error::Parse(
-            "FSM must have exactly one enter state".to_string(),
-        ))?;
-
         Ok(ParsedFsm::new(name, enter_state, self.arena))
     }
 
-    fn get_or_create_state(&mut self, name: &str, state_type: StateType) -> StateId {
-        if let Some(&id) = self.state_map.get(name) {
-            self.arena[id].get_mut().state_type = state_type;
+    fn find_root_enter_state(&self) -> Result<StateId> {
+        use itertools::Itertools;
+        self.arena
+            .iter()
+            .filter(|node| node.parent().is_none())
+            .filter(|node| node.get().state_type == StateType::Enter)
+            .filter_map(|node| self.arena.get_node_id(node))
+            .exactly_one()
+            .map_err(|_| Error::Parse("FSM must have exactly one enter state".to_string()))
+    }
+
+    fn get_or_create_scoped(&mut self, parent: Option<StateId>, name: &str) -> StateId {
+        let key = (parent, name.to_string());
+        if let Some(&id) = self.state_map.get(&key) {
             return id;
         }
 
-        let state_data = StateData::new_without_transitions(name, state_type);
-        let id = self.arena.new_node(state_data);
-        self.state_map.insert(name.to_string(), id);
-        id
+        let state_data = StateData::new_without_transitions(name, StateType::Simple);
+        let child_id = self.arena.new_node(state_data);
+        if let Some(parent_id) = parent {
+            parent_id.append(child_id, &mut self.arena);
+        }
+        self.state_map.insert(key, child_id);
+        child_id
     }
 }
 
@@ -120,7 +121,7 @@ mod test {
     #[test]
     fn add_enter_state() {
         let mut builder = ParsedFsmBuilder::new("TestFSM");
-        builder.add_enter_state("Start").unwrap();
+        builder.add_state("Start", StateType::Enter);
         let fsm = builder.build().unwrap();
 
         let enter = fsm.enter_state();
@@ -131,16 +132,17 @@ mod test {
     #[test]
     fn add_enter_state_twice_fails() {
         let mut builder = ParsedFsmBuilder::new("TestFSM");
-        builder.add_enter_state("Start").unwrap();
-        let result = builder.add_enter_state("AnotherStart");
+        builder.add_state("Start", StateType::Enter);
+        builder.add_state("AnotherStart", StateType::Enter);
+        let result = builder.build();
         assert!(result.is_err());
     }
 
     #[test]
     fn add_state() {
         let mut builder = ParsedFsmBuilder::new("TestFSM");
-        builder.add_enter_state("Start").unwrap();
-        builder.add_state("State1");
+        builder.add_state("Start", StateType::Enter);
+        builder.add_state("State1", StateType::Simple);
         let fsm = builder.build().unwrap();
 
         assert_eq!(fsm.states().count(), 2);
@@ -151,10 +153,8 @@ mod test {
     #[test]
     fn add_transition() {
         let mut builder = ParsedFsmBuilder::new("TestFSM");
-        builder.add_enter_state("A").unwrap();
-        builder
-            .add_transition("A", "B", "EventAB".into(), Some("ActionAB".into()))
-            .unwrap();
+        builder.add_state("A", StateType::Enter);
+        builder.add_transition("A", "B", "EventAB".into(), Some("ActionAB".into()));
         let fsm = builder.build().unwrap();
 
         assert_eq!(fsm.states().count(), 2);
@@ -168,10 +168,8 @@ mod test {
     #[test]
     fn add_transition_creates_states() {
         let mut builder = ParsedFsmBuilder::new("TestFSM");
-        builder.add_enter_state("Start").unwrap();
-        builder
-            .add_transition("A", "B", "Event".into(), None)
-            .unwrap();
+        builder.add_state("Start", StateType::Enter);
+        builder.add_transition("A", "B", "Event".into(), None);
         let fsm = builder.build().unwrap();
 
         let names: Vec<_> = fsm.states().map(|s| s.name().to_string()).collect();
@@ -183,11 +181,9 @@ mod test {
     #[test]
     fn add_state_reuses_existing() {
         let mut builder = ParsedFsmBuilder::new("TestFSM");
-        builder.add_enter_state("A").unwrap();
-        builder
-            .add_transition("A", "B", "E1".into(), None)
-            .unwrap();
-        builder.add_state("B"); // Should reuse B from transition
+        builder.add_state("A", StateType::Enter);
+        builder.add_transition("A", "B", "E1".into(), None);
+        builder.add_state("B", StateType::Simple); // Should reuse B from transition
         let fsm = builder.build().unwrap();
 
         assert_eq!(fsm.states().count(), 2);
@@ -203,8 +199,165 @@ mod test {
     #[test]
     fn build_with_empty_name_fails() {
         let mut builder = ParsedFsmBuilder::new("  ");
-        builder.add_enter_state("Start").unwrap();
+        builder.add_state("Start", StateType::Enter);
         let result = builder.build();
         assert!(result.is_err());
+    }
+
+    use crate::parser::{ParsedFsm, State};
+
+    #[test]
+    fn add_substate() {
+        let mut builder = builder_with_enter();
+        add_state_with_substate(&mut builder, "Parent", "Child", StateType::Simple);
+        let fsm = builder.build().unwrap();
+
+        let parent = find_state(&fsm, "Parent");
+        assert_eq!(parent.substates().count(), 1);
+
+        let substate = parent.substates().next().unwrap();
+        assert_eq!(substate.name(), "Child");
+        assert_eq!(substate.state_type(), StateType::Simple);
+        assert_eq!(substate.parent().unwrap(), parent);
+    }
+
+    #[test]
+    fn add_substate_same_name_different_parents() {
+        let mut builder = builder_with_enter();
+        add_state_with_substate(&mut builder, "Parent1", "Child", StateType::Simple);
+        add_state_with_substate(&mut builder, "Parent2", "Child", StateType::Simple);
+        let fsm = builder.build().unwrap();
+
+        assert_n_times_state(&fsm, "Parent1", 1);
+        assert_n_times_state(&fsm, "Parent2", 1);
+        assert_n_times_state(&fsm, "Child", 2);
+    }
+
+    #[test]
+    fn add_substate_enter() {
+        let mut builder = builder_with_enter();
+        add_state_with_substate(&mut builder, "Parent", "InitialChild", StateType::Enter);
+        let fsm = builder.build().unwrap();
+
+        let parent = find_state(&fsm, "Parent");
+        let child = first_substate(&parent);
+        assert_eq!(child.name(), "InitialChild");
+        assert_eq!(child.state_type(), StateType::Enter);
+    }
+
+    #[test]
+    fn add_nested_substates() {
+        let mut builder = builder_with_enter();
+        let (_, l2) = add_state_with_substate(&mut builder, "Level1", "Level2", StateType::Simple);
+        builder.set_scope(Some(l2));
+        builder.add_state("Level3", StateType::Simple);
+        let fsm = builder.build().unwrap();
+
+        let level1 = find_state(&fsm, "Level1");
+        let level2 = first_substate(&level1);
+        let level3 = first_substate(&level2);
+        assert_eq!(level3.name(), "Level3");
+        assert_eq!(level3.parent().unwrap(), level2);
+    }
+
+    fn builder_with_enter() -> ParsedFsmBuilder {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_state("Start", StateType::Enter);
+        builder
+    }
+
+    fn find_state<'a>(fsm: &'a ParsedFsm, name: &str) -> State<'a> {
+        fsm.states().find(|s| s.name() == name).unwrap()
+    }
+
+    fn assert_n_times_state(fsm: &ParsedFsm, name: &str, n: usize) {
+        let count = fsm.states().filter(|s| s.name() == name).count();
+        assert_eq!(
+            count, n,
+            "Expected {} states named '{}' found {}",
+            n, name, count
+        );
+    }
+
+    fn add_state_with_substate(
+        builder: &mut ParsedFsmBuilder,
+        parent: &str,
+        child: &str,
+        child_type: StateType,
+    ) -> (super::StateId, super::StateId) {
+        let parent_id = builder.add_state(parent, StateType::Simple);
+        builder.set_scope(Some(parent_id));
+        let child_id = builder.add_state(child, child_type);
+        builder.set_scope(None);
+        (parent_id, child_id)
+    }
+
+    fn first_substate<'a>(state: &'a State<'a>) -> State<'a> {
+        state.substates().next().unwrap()
+    }
+
+    fn find_substate<'a>(parent: &'a State<'a>, name: &str) -> State<'a> {
+        parent.substates().find(|s| s.name() == name).unwrap()
+    }
+
+    fn assert_transition(state: &State<'_>, dest: &str, event: &str) {
+        let t = state
+            .transitions()
+            .next()
+            .expect("expected at least one transition");
+        assert_eq!(t.destination.name(), dest, "transition destination");
+        assert_eq!(t.event, &Event::from(event), "transition event");
+    }
+
+    #[test]
+    fn add_substate_transition() {
+        let mut builder = builder_with_enter();
+        let parent = builder.add_state("Parent", StateType::Simple);
+        builder.set_scope(Some(parent));
+        builder.add_state("A", StateType::Enter);
+        builder.add_state("B", StateType::Simple);
+        builder.add_transition("A", "B", "E1".into(), None);
+        let fsm = builder.build().unwrap();
+
+        let parent_state = find_state(&fsm, "Parent");
+        let a = find_substate(&parent_state, "A");
+        assert_transition(&a, "B", "E1");
+    }
+
+    #[test]
+    fn add_substate_transition_same_name_different_parents() {
+        let mut builder = builder_with_enter();
+        let p1 = builder.add_state("Parent1", StateType::Simple);
+        let p2 = builder.add_state("Parent2", StateType::Simple);
+
+        builder.set_scope(Some(p1));
+        builder.add_state("A", StateType::Enter);
+        builder.add_state("B", StateType::Simple);
+        builder.add_transition("A", "B", "E1".into(), None);
+
+        builder.set_scope(Some(p2));
+        builder.add_state("A", StateType::Enter);
+        builder.add_state("B", StateType::Simple);
+        builder.add_transition("A", "B", "E2".into(), None);
+
+        let fsm = builder.build().unwrap();
+
+        let parent1 = find_state(&fsm, "Parent1");
+        let parent2 = find_state(&fsm, "Parent2");
+        let p1_a = find_substate(&parent1, "A");
+        let p2_a = find_substate(&parent2, "A");
+        assert_transition(&p1_a, "B", "E1");
+        assert_transition(&p2_a, "B", "E2");
+    }
+
+    #[test]
+    fn add_substate_transition_creates_substates() {
+        let mut builder = builder_with_enter();
+        let parent = builder.add_state("Parent", StateType::Simple);
+        builder.set_scope(Some(parent));
+        builder.add_transition("A", "B", "E1".into(), None);
+        let fsm = builder.build().unwrap();
+
+        assert_eq!(find_state(&fsm, "Parent").substates().count(), 2);
     }
 }

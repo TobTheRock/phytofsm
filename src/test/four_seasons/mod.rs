@@ -2,18 +2,17 @@ pub mod reference;
 
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder},
+    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
 fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     let mut builder = ParsedFsmBuilder::new("PlantFsm");
-    builder.add_enter_state("Winter")?;
-    builder
-        .add_transition("Winter", "Spring", Event("TemperatureRises".into()), None)?
-        .add_transition("Spring", "Summer", Event("DaylightIncreases".into()), Some(Action("StartBlooming".into())))?
-        .add_transition("Summer", "Autumn", Event("DaylightDecreases".into()), Some(Action("RipenFruit".into())))?
-        .add_transition("Autumn", "Winter", Event("TemperatureDrops".into()), Some(Action("DropPetals".into())))?;
+    builder.add_state("Winter", StateType::Enter);
+    builder.add_transition("Winter", "Spring", Event("TemperatureRises".into()), None);
+    builder.add_transition("Spring", "Summer", Event("DaylightIncreases".into()), Some(Action("StartBlooming".into())));
+    builder.add_transition("Summer", "Autumn", Event("DaylightDecreases".into()), Some(Action("RipenFruit".into())));
+    builder.add_transition("Autumn", "Winter", Event("TemperatureDrops".into()), Some(Action("DropPetals".into())));
     builder.build()
 }
 
