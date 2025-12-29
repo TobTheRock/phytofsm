@@ -72,19 +72,14 @@ fn add_composite_states(
 #[cfg(test)]
 mod test {
     use crate::{parser::ParsedFsm, test::FsmTestData};
+    use test_casing::{cases, test_casing, TestCases};
 
-    #[test]
-    fn parses_fsm() {
-        // TODO use a parameterized test framework
-        let test_data = FsmTestData::all();
-        for data in test_data {
-            let fsm = ParsedFsm::try_parse(data.content)
-                .expect(&format!("Failed to parse FSM for test data: {}", data.name));
-            assert_eq!(
-                data.parsed, fsm,
-                "Parsed FSM does not match expected for test data: {}",
-                data.name
-            );
-        }
+    const FSM_CASES: TestCases<FsmTestData> = cases!(FsmTestData::all());
+
+    #[test_casing(4, FSM_CASES)]
+    fn parses_fsm(data: FsmTestData) {
+        let fsm = ParsedFsm::try_parse(data.content)
+            .expect(&format!("Failed to parse FSM for test data: {}", data.name));
+        assert_eq!(data.parsed, fsm);
     }
 }
