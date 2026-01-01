@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use indextree::{Arena, NodeId};
+use log::{debug, trace};
 
 use crate::error::{Error, Result};
 
@@ -11,6 +12,7 @@ pub(super) type StateId = NodeId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) struct TransitionData {
+    pub source: StateId,
     pub destination: StateId,
     pub event: Event,
     pub action: Option<Action>,
@@ -58,16 +60,36 @@ impl ParsedFsmBuilder {
     }
 
     pub fn add_state(&mut self, name: &str, state_type: StateType) -> StateId {
-        let id = self.get_or_create_scoped(self.scope, name);
-        self.arena[id].get_mut().state_type = state_type;
+        debug!("Adding state '{}' of type {:?}", name, state_type);
+        let id = self.get_or_create_scoped(name);
+
+        let current_type = self.arena[id].get().state_type;
+
+        // Only states of type Simple can be updated. Simpel can be a placeholder until a real type is set
+        if state_type != StateType::Simple && current_type == StateType::Simple {
+            self.arena[id].get_mut().state_type = state_type;
+        } else if state_type != StateType::Simple && current_type != state_type {
+            log::warn!(
+                "State '{}' already has type {:?}, ignoring {:?}",
+                name,
+                current_type,
+                state_type
+            );
+        }
         id
     }
 
     pub fn add_transition(&mut self, from: &str, to: &str, event: Event, action: Option<Action>) {
-        let from_id = self.get_or_create_scoped(self.scope, from);
-        let to_id = self.get_or_create_scoped(self.scope, to);
+        debug!(
+            "Adding transition from '{}' to '{}' on event {:?}",
+            from, to, event
+        );
+
+        let from_id = self.get_or_create_scoped(from);
+        let to_id = self.get_or_create_scoped(to);
 
         let transition = TransitionData {
+            source: from_id,
             destination: to_id,
             event,
             action,
@@ -77,7 +99,16 @@ impl ParsedFsmBuilder {
     }
 
     pub fn build(self) -> Result<ParsedFsm> {
+        trace!(
+            "All states: {:?}",
+            self.arena
+                .iter()
+                .map(|node| node.get().name.as_str())
+                .collect::<Vec<_>>()
+        );
+
         let enter_state = self.find_root_enter_state()?;
+        debug!("Found root enter state: {:?}", enter_state);
 
         let name = self.name;
         if name.trim().is_empty() {
@@ -89,24 +120,45 @@ impl ParsedFsmBuilder {
 
     fn find_root_enter_state(&self) -> Result<StateId> {
         use itertools::Itertools;
-        self.arena
+        let enter_states = self
+            .arena
             .iter()
             .filter(|node| node.parent().is_none())
-            .filter(|node| node.get().state_type == StateType::Enter)
+            .filter(|node| node.get().state_type == StateType::Enter);
+
+        trace!(
+            "Root enter states: {:?}",
+            enter_states
+                .clone()
+                .map(|node| node.get().name.as_str())
+                .collect::<Vec<_>>()
+        );
+
+        enter_states
+            .clone()
             .filter_map(|node| self.arena.get_node_id(node))
             .exactly_one()
-            .map_err(|_| Error::Parse("FSM must have exactly one enter state".to_string()))
+            .map_err(|_| {
+                let names: String = enter_states
+                    .map(|node| node.get().name.as_str())
+                    .intersperse(", ")
+                    .collect();
+                Error::Parse(format!(
+                    "FSM must have exactly one enter state, found {names}"
+                ))
+            })
     }
 
-    fn get_or_create_scoped(&mut self, parent: Option<StateId>, name: &str) -> StateId {
-        let key = (parent, name.to_string());
+    fn get_or_create_scoped(&mut self, name: &str) -> StateId {
+        let key = (self.scope, name.to_string());
         if let Some(&id) = self.state_map.get(&key) {
             return id;
         }
 
+        debug!("Creating state '{}' in scope {:?}", name, self.scope);
         let state_data = StateData::new_without_transitions(name, StateType::Simple);
         let child_id = self.arena.new_node(state_data);
-        if let Some(parent_id) = parent {
+        if let Some(parent_id) = self.scope {
             parent_id.append(child_id, &mut self.arena);
         }
         self.state_map.insert(key, child_id);
@@ -121,9 +173,10 @@ mod test {
     #[test]
     fn add_enter_state() {
         let mut builder = ParsedFsmBuilder::new("TestFSM");
-        builder.add_state("Start", StateType::Enter);
-        let fsm = builder.build().unwrap();
 
+        builder.add_state("Start", StateType::Enter);
+
+        let fsm = builder.build().unwrap();
         let enter = fsm.enter_state();
         assert_eq!(enter.name(), "Start");
         assert_eq!(enter.state_type(), StateType::Enter);
@@ -136,6 +189,32 @@ mod test {
         builder.add_state("AnotherStart", StateType::Enter);
         let result = builder.build();
         assert!(result.is_err());
+    }
+
+    #[test]
+    fn add_enter_state_after_transition() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+
+        builder.add_transition("A", "B", "Event".into(), None);
+        builder.add_state("Start", StateType::Enter);
+
+        let fsm = builder.build().unwrap();
+        let enter = fsm.enter_state();
+        assert_eq!(enter.name(), "Start");
+        assert_eq!(enter.state_type(), StateType::Enter);
+    }
+
+    #[test]
+    fn add_transition_after_enter_state() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+
+        builder.add_state("Start", StateType::Enter);
+        builder.add_transition("A", "B", "Event".into(), None);
+
+        let fsm = builder.build().unwrap();
+        let enter = fsm.enter_state();
+        assert_eq!(enter.name(), "Start");
+        assert_eq!(enter.state_type(), StateType::Enter);
     }
 
     #[test]
@@ -187,6 +266,28 @@ mod test {
         let fsm = builder.build().unwrap();
 
         assert_eq!(fsm.states().count(), 2);
+    }
+
+    #[test]
+    fn enter_state_not_overwritten_by_simple() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_state("Start", StateType::Enter);
+        builder.add_state("Start", StateType::Simple); // Should NOT overwrite Enter
+        let fsm = builder.build().unwrap();
+
+        let start = find_state(&fsm, "Start");
+        assert_eq!(start.state_type(), StateType::Enter);
+    }
+
+    #[test]
+    fn simple_state_upgraded_to_enter() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_transition("Start", "B", "E1".into(), None); // Creates Start as Simple
+        builder.add_state("Start", StateType::Enter); // Should upgrade to Enter
+        let fsm = builder.build().unwrap();
+
+        let start = find_state(&fsm, "Start");
+        assert_eq!(start.state_type(), StateType::Enter);
     }
 
     #[test]

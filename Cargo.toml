@@ -16,6 +16,7 @@ proc-macro = true
 
 [dependencies]
 derive_more = { version = "2.0", features = ["from", "into"] }
+env_logger = "0.11"
 heck = "0.5"
 indextree = "4.7"
 itertools = "0.14"
@@ -30,6 +31,7 @@ thiserror = "2.0"
 
 [dev-dependencies]
 mockall = "0.13"
+pretty_assertions = "1.4"
 stderrlog = "0.6"
 mock-logger = "0.1"
 test-casing = "0.1"
