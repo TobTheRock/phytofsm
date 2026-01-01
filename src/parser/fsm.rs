@@ -6,11 +6,56 @@ use itertools::Itertools;
 use super::builder::{StateData, StateId, TransitionData};
 use super::types::{Action, Event, StateType};
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct ParsedFsm {
     name: String,
     enter_state: StateId,
     arena: Arena<StateData>,
+}
+
+impl std::fmt::Debug for ParsedFsm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "ParsedFsm {{")?;
+        writeln!(f, "  name: {:?}", self.name)?;
+        writeln!(f, "  states:")?;
+        self.fmt_state_tree(f, self.enter_state(), 2)?;
+        writeln!(f, "  transitions:")?;
+        for t in self.transitions() {
+            let action = t
+                .action
+                .map(|a| format!(" / {}", a.0))
+                .unwrap_or_default();
+            writeln!(
+                f,
+                "    {} --[{}{}]--> {}",
+                t.source.name(),
+                t.event.0,
+                action,
+                t.destination.name()
+            )?;
+        }
+        write!(f, "}}")
+    }
+}
+
+impl ParsedFsm {
+    fn fmt_state_tree(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        state: State<'_>,
+        indent: usize,
+    ) -> std::fmt::Result {
+        let prefix = " ".repeat(indent * 2);
+        let type_marker = match state.state_type() {
+            StateType::Enter => "[*] ",
+            StateType::Simple => "",
+        };
+        writeln!(f, "{}{}{}", prefix, type_marker, state.name())?;
+        for substate in state.substates() {
+            self.fmt_state_tree(f, substate, indent + 1)?;
+        }
+        Ok(())
+    }
 }
 
 impl ParsedFsm {
@@ -163,6 +208,7 @@ impl<'a> PartialEq for State<'a> {
 
 #[derive(Debug, Clone)]
 pub struct Transition<'a> {
+    pub source: State<'a>,
     pub destination: State<'a>,
     pub event: &'a Event,
     pub action: Option<&'a Action>,
@@ -171,6 +217,7 @@ pub struct Transition<'a> {
 impl<'a> Transition<'a> {
     fn from(data: &'a TransitionData, arena: &'a Arena<StateData>) -> Transition<'a> {
         Transition {
+            source: State::new(data.source, arena),
             destination: State::new(data.destination, arena),
             event: &data.event,
             action: data.action.as_ref(),

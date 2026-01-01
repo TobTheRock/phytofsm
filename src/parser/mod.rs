@@ -36,8 +36,6 @@ impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
 
         add_composite_states(&mut builder, &diagram)?;
 
-        // BUG enter state might also be a composite state, the builder would update the type
-        // wrongly if already added. Order for now matters. need to fix the builder
         for enter_state in diagram.enter_states() {
             builder.add_state(enter_state, StateType::Enter);
         }
