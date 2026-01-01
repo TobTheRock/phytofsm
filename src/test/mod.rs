@@ -2,10 +2,12 @@ use std::path::PathBuf;
 
 use crate::parser;
 mod actions;
+mod composite_states;
 mod four_seasons;
 mod transitions;
 mod utils;
 
+#[derive(Debug)]
 pub struct FsmTestData {
     pub name: &'static str,
     pub content: &'static str,
@@ -15,6 +17,13 @@ pub struct FsmTestData {
 
 impl FsmTestData {
     pub fn all() -> impl Iterator<Item = Self> {
-        vec![Self::actions(), Self::four_seasons(), Self::transitions()].into_iter()
+        // TODO lazy iter
+        vec![
+            Self::actions(),
+            Self::composite_states(),
+            Self::four_seasons(),
+            Self::transitions(),
+        ]
+        .into_iter()
     }
 }

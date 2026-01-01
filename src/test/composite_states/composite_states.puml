@@ -1,0 +1,19 @@
+@startuml Composite States
+
+state StateA {
+    state StateAA {
+        [*] --> StateAAA
+        StateAAA --> StateAAB : toAAB / actionInAAA
+    }
+    state StateAB
+
+    [*] --> StateAA
+    StateAA --> StateAB : goToAB / actionInAA
+}
+
+state StateB
+
+[*] --> StateA
+StateA --> StateB : toB / actionInA
+
+@enduml
