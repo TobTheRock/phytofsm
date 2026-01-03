@@ -29,6 +29,7 @@ impl FsmCodeGenerator {
             Box::new(StateStructGenerator),
             Box::new(StateImplGenerator),
             Box::new(FsmStructGenerator),
+            Box::new(FsmImplGeneratorCommon),
             if let Some(log_level) = options.log_level {
                 Box::new(FsmImplGeneratorWithLogging::new(log_level))
             } else {
@@ -85,7 +86,7 @@ mod tests {
         let generator = FsmCodeGenerator::new(options);
 
         let module_code = generator.generate(test_data.parsed);
-        let complete_code = format!("{}\n\nfn main() {{}}\n", module_code);
+        let complete_code = format!("#![allow(warnings)] {module_code}\n\nfn main() {{}}\n");
 
         let base_name = format!("target/tests/data/codegen/{test_name}");
         let base_path = Path::new(&base_name);
