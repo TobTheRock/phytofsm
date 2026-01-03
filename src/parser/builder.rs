@@ -134,7 +134,7 @@ impl ParsedFsmBuilder {
                 .collect::<Vec<_>>()
         );
 
-        enter_states
+        let root_enter = enter_states
             .clone()
             .filter_map(|node| self.arena.get_node_id(node))
             .exactly_one()
@@ -146,7 +146,20 @@ impl ParsedFsmBuilder {
                 Error::Parse(format!(
                     "FSM must have exactly one enter state, found {names}"
                 ))
-            })
+            })?;
+
+        Ok(self.find_deepest_enter_state(root_enter))
+    }
+
+    fn find_deepest_enter_state(&self, state_id: StateId) -> StateId {
+        let mut current = state_id;
+        while let Some(nested_enter) = current
+            .children(&self.arena)
+            .find(|child| self.arena[*child].get().state_type == StateType::Enter)
+        {
+            current = nested_enter;
+        }
+        current
     }
 
     fn get_or_create_scoped(&mut self, name: &str) -> StateId {
@@ -460,5 +473,28 @@ mod test {
         let fsm = builder.build().unwrap();
 
         assert_eq!(find_state(&fsm, "Parent").substates().count(), 2);
+    }
+
+    #[test]
+    fn enter_state_resolves_to_deepest_nested_enter() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+
+        // Root: [*] --> RootEnter (with nested enter states)
+        let root = builder.add_state("RootEnter", StateType::Enter);
+
+        // RootEnter contains: [*] --> NestedEnter
+        builder.set_scope(Some(root));
+        let nested = builder.add_state("NestedEnter", StateType::Enter);
+        builder.add_state("NestedSimple", StateType::Simple);
+
+        // NestedEnter contains: [*] --> DeepestEnter
+        builder.set_scope(Some(nested));
+        builder.add_state("DeepestEnter", StateType::Enter);
+        builder.add_state("DeepestSimple", StateType::Simple);
+
+        let fsm = builder.build().unwrap();
+
+        // The enter_state should be the deepest nested enter state
+        assert_eq!(fsm.enter_state().name(), "DeepestEnter");
     }
 }
