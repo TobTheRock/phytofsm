@@ -89,7 +89,7 @@ impl ParsedFsm {
         let arena = &self.arena;
         self.arena.iter().map(move |node| {
             let id = arena.get_node_id(node).unwrap();
-            State::new(id.into(), arena)
+            State::new(id, arena)
         })
     }
 

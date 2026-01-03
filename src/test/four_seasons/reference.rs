@@ -230,7 +230,7 @@ where
     }
 
     fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
-        if let Some(mut new_state) = (self.current_state.transition)(event, &mut self.actions) {
+        if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
             debug!(
                 "PlantFsm: Transitioning from {} to {}",
                 self.current_state.name, new_state.name
@@ -238,9 +238,9 @@ where
 
             // TODO exit function of current state here
 
-            let new_state = self.enter_new_state(new_state);
+            let next_state = self.enter_new_state(new_state);
 
-            self.current_state = new_state;
+            self.current_state = next_state;
         }
     }
 

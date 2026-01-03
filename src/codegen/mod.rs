@@ -29,6 +29,7 @@ impl FsmCodeGenerator {
             Box::new(StateStructGenerator),
             Box::new(StateImplGenerator),
             Box::new(FsmStructGenerator),
+            Box::new(FsmImplGeneratorCommon),
             if let Some(log_level) = options.log_level {
                 Box::new(FsmImplGeneratorWithLogging::new(log_level))
             } else {

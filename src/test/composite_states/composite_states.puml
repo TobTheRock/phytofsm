@@ -8,7 +8,7 @@ state StateA {
     state StateAB
 
     [*] --> StateAA
-    StateAA --> StateAB : goToAB / actionInAA
+    StateAA --> StateAB : toAB / actionInAA
 }
 
 state StateB

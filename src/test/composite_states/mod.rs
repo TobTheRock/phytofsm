@@ -24,7 +24,7 @@ fn build_composite_states_fsm() -> Result<ParsedFsm> {
     builder.add_transition(
         "StateAA",
         "StateAB",
-        Event("goToAB".into()),
+        Event("toAB".into()),
         Some(Action("actionInAA".into())),
     );
     // StateAA children
