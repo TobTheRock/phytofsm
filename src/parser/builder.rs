@@ -139,11 +139,9 @@ impl ParsedFsmBuilder {
             .filter_map(|node| self.arena.get_node_id(node))
             .exactly_one()
             .map_err(|_| {
-                let names: String = Itertools::intersperse(
-                    enter_states.map(|node| node.get().name.as_str()),
-                    ", ",
-                )
-                .collect();
+                let names: String =
+                    Itertools::intersperse(enter_states.map(|node| node.get().name.as_str()), ", ")
+                        .collect();
                 Error::Parse(format!(
                     "FSM must have exactly one enter state, found {names}"
                 ))
