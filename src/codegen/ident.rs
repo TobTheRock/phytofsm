@@ -1,6 +1,4 @@
 use heck::{ToSnakeCase, ToUpperCamelCase};
-use itertools::Itertools;
-use quote::format_ident;
 
 use crate::parser;
 
@@ -17,39 +15,39 @@ impl Idents {
     pub fn new(name: &str) -> Idents {
         let name = name.to_string();
         Idents {
-            fsm: format_ident!("{}", name.to_upper_camel_case()),
-            module: format_ident!("{}", name.to_snake_case()),
-            event_params_trait: format_ident!("I{}EventParams", name.to_upper_camel_case()),
-            event_enum: format_ident!("{}Event", name.to_upper_camel_case()),
-            action_trait: format_ident!("I{}Actions", name.to_upper_camel_case()),
-            state_struct: format_ident!("{}State", name.to_upper_camel_case()),
+            fsm: quote::format_ident!("{}", name.to_upper_camel_case()),
+            module: quote::format_ident!("{}", name.to_snake_case()),
+            event_params_trait: quote::format_ident!("I{}EventParams", name.to_upper_camel_case()),
+            event_enum: quote::format_ident!("{}Event", name.to_upper_camel_case()),
+            action_trait: quote::format_ident!("I{}Actions", name.to_upper_camel_case()),
+            state_struct: quote::format_ident!("{}State", name.to_upper_camel_case()),
         }
     }
 }
 
 impl parser::Event {
     pub fn params_ident(&self) -> proc_macro2::Ident {
-        format_ident!("{}Params", self.0.to_upper_camel_case())
+        quote::format_ident!("{}Params", self.0.to_upper_camel_case())
     }
 
     pub fn ident(&self) -> proc_macro2::Ident {
-        format_ident!("{}", self.0.to_upper_camel_case())
+        quote::format_ident!("{}", self.0.to_upper_camel_case())
     }
 
     pub fn method_ident(&self) -> proc_macro2::Ident {
-        format_ident!("{}", self.0.to_snake_case())
+        quote::format_ident!("{}", self.0.to_snake_case())
     }
 }
 
 impl parser::Action {
     pub fn ident(&self) -> proc_macro2::Ident {
-        format_ident!("{}", self.0.to_snake_case())
+        quote::format_ident!("{}", self.0.to_snake_case())
     }
 }
 
 impl parser::State<'_> {
     pub fn function_ident(&self) -> proc_macro2::Ident {
-        format_ident!("{}", self.qualified_name("_").to_snake_case())
+        quote::format_ident!("{}", self.qualified_name("_").to_snake_case())
     }
 
     pub fn name_literal(&self) -> proc_macro2::Literal {
@@ -57,15 +55,11 @@ impl parser::State<'_> {
     }
 
     fn qualified_name(&self, separator: impl Into<String>) -> String {
-        let states = std::iter::successors(Some(self.clone()), |next| next.parent());
-        let names = states.map(|s| s.name().to_string()).collect_vec();
-
-        let qualified_name = names
-            .into_iter()
-            .rev()
-            .intersperse(separator.into())
+        use itertools::Itertools;
+        let names: Vec<_> = std::iter::successors(Some(self.clone()), |next| next.parent())
+            .map(|s| s.name().to_string())
             .collect();
-        qualified_name
+        Itertools::intersperse(names.into_iter().rev(), separator.into()).collect()
     }
 }
 

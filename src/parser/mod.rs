@@ -7,8 +7,7 @@ mod plantuml;
 mod types;
 
 pub use builder::ParsedFsmBuilder;
-pub use fsm::{ParsedFsm, State, Transition};
-use itertools::Itertools;
+pub use fsm::{ParsedFsm, State};
 use log::trace;
 pub use types::{Action, Event, StateType};
 
@@ -48,7 +47,7 @@ fn add_composite_states(
     builder: &mut ParsedFsmBuilder,
     diagram: &plantuml::StateDiagram<'_>,
 ) -> Result<()> {
-    let mut queue = diagram.composite_states().map(|c| (None, c)).collect_vec();
+    let mut queue: Vec<_> = diagram.composite_states().map(|c| (None, c)).collect();
     while let Some((parent, composite)) = queue.pop() {
         builder.set_scope(parent);
         let state_id = builder.add_state(composite.name, StateType::Simple);
@@ -83,7 +82,7 @@ mod test {
     #[test_casing(4, FSM_CASES)]
     fn parses_fsm(data: FsmTestData) {
         let fsm = ParsedFsm::try_parse(data.content)
-            .expect(&format!("Failed to parse FSM for: {}", data.name));
+            .unwrap_or_else(|_| panic!("Failed to parse FSM for: {}", data.name));
         assert_eq!(data.parsed, fsm);
     }
 }

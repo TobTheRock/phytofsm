@@ -278,7 +278,7 @@ where
 mod test {
     use mockall::{mock, predicate};
 
-    use super::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm, PlantFsmEvent};
+    use super::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm};
 
     mock! {
         PlantFsmActions {}

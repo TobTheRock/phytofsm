@@ -1,14 +1,9 @@
 pub mod generators;
 pub mod ident;
 
-use proc_macro2::TokenStream as TokenStream2;
-use quote::quote;
-
 use crate::parser;
-use generators::*;
-use ident::Idents;
 
-type GeneratedCode = TokenStream2;
+type GeneratedCode = proc_macro2::TokenStream;
 
 #[derive(Default, Debug, Copy, Clone)]
 pub struct Options {
@@ -22,18 +17,18 @@ pub struct FsmCodeGenerator {
 impl FsmCodeGenerator {
     pub fn new(options: &Options) -> Self {
         let generators: Vec<CodeGeneratorPtr> = vec![
-            Box::new(EventParamsTraitGenerator),
-            Box::new(ActionTraitGenerator),
-            Box::new(EventEnumGenerator),
-            Box::new(EventEnumDisplayImplGenerator),
-            Box::new(StateStructGenerator),
-            Box::new(StateImplGenerator),
-            Box::new(FsmStructGenerator),
-            Box::new(FsmImplGeneratorCommon),
+            Box::new(generators::EventParamsTraitGenerator),
+            Box::new(generators::ActionTraitGenerator),
+            Box::new(generators::EventEnumGenerator),
+            Box::new(generators::EventEnumDisplayImplGenerator),
+            Box::new(generators::StateStructGenerator),
+            Box::new(generators::StateImplGenerator),
+            Box::new(generators::FsmStructGenerator),
+            Box::new(generators::FsmImplGeneratorCommon),
             if let Some(log_level) = options.log_level {
-                Box::new(FsmImplGeneratorWithLogging::new(log_level))
+                Box::new(generators::FsmImplGeneratorWithLogging::new(log_level))
             } else {
-                Box::new(FsmImplGenerator)
+                Box::new(generators::FsmImplGenerator)
             },
         ];
 
@@ -41,20 +36,20 @@ impl FsmCodeGenerator {
     }
 
     pub fn generate(&self, fsm: parser::ParsedFsm) -> GeneratedCode {
-        let idents = Idents::new(fsm.name());
+        let idents = ident::Idents::new(fsm.name());
         let ctx = GenerationContext {
             fsm: &fsm,
             idents: &idents,
         };
 
-        let components: Vec<TokenStream2> = self
+        let components: Vec<proc_macro2::TokenStream> = self
             .generators
             .iter()
             .map(|generator| generator.generate(&ctx))
             .collect();
 
         let module_name = &idents.module;
-        quote! {
+        quote::quote! {
             mod #module_name {
                 pub type NoEventData = ();
                 #(#components)*
@@ -65,24 +60,28 @@ impl FsmCodeGenerator {
 
 pub(crate) struct GenerationContext<'a> {
     pub fsm: &'a parser::ParsedFsm,
-    pub idents: &'a Idents,
+    pub idents: &'a ident::Idents,
 }
 
 pub(crate) trait CodeGenerator {
-    fn generate(&self, ctx: &GenerationContext) -> TokenStream2;
+    fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream;
 }
 type CodeGeneratorPtr = Box<dyn CodeGenerator>;
 
 #[cfg(test)]
 mod tests {
-    use std::path::{Path, PathBuf};
+    use std::path::Path;
 
     use crate::{
         codegen::{FsmCodeGenerator, Options},
         test::FsmTestData,
     };
 
-    fn create_codegen_test(test_data: FsmTestData, options: &Options, test_name: &str) -> PathBuf {
+    fn create_codegen_test(
+        test_data: FsmTestData,
+        options: &Options,
+        test_name: &str,
+    ) -> std::path::PathBuf {
         let generator = FsmCodeGenerator::new(options);
 
         let module_code = generator.generate(test_data.parsed);
