@@ -7,8 +7,18 @@ use crate::{
 fn build_actions_fsm() -> Result<ParsedFsm> {
     let mut builder = ParsedFsmBuilder::new("TestFsm");
     builder.add_state("StateA", StateType::Enter);
-    builder.add_transition("StateA", "StateB", Event("GoToB".into()), Some(Action("Action1".into())));
-    builder.add_transition("StateB", "StateA", Event("GoToA".into()), Some(Action("Action2".into())));
+    builder.add_transition(
+        "StateA",
+        "StateB",
+        Event("GoToB".into()),
+        Some(Action("Action1".into())),
+    );
+    builder.add_transition(
+        "StateB",
+        "StateA",
+        Event("GoToA".into()),
+        Some(Action("Action2".into())),
+    );
     builder.build()
 }
 

@@ -202,18 +202,33 @@ mod tests {
         }
 
         fn assert_children(&self, expected: usize) -> &Self {
-            assert_eq!(self.children.len(), expected, "children count for '{}'", self.name);
+            assert_eq!(
+                self.children.len(),
+                expected,
+                "children count for '{}'",
+                self.name
+            );
             self
         }
 
         fn assert_enters(&self, expected: &[&str]) -> &Self {
-            assert_eq!(self.enter_states, expected, "enter_states for '{}'", self.name);
+            assert_eq!(
+                self.enter_states, expected,
+                "enter_states for '{}'",
+                self.name
+            );
             self
         }
 
         fn assert_transition(&self, idx: usize, from: &str, to: &str) -> &Self {
             let t = &self.transitions[idx];
-            assert_eq!((t.from, t.to), (from, to), "transition[{}] for '{}'", idx, self.name);
+            assert_eq!(
+                (t.from, t.to),
+                (from, to),
+                "transition[{}] for '{}'",
+                idx,
+                self.name
+            );
             self
         }
 

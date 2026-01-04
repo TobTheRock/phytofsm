@@ -21,10 +21,7 @@ impl std::fmt::Debug for ParsedFsm {
         self.fmt_state_tree(f, self.enter_state(), 2)?;
         writeln!(f, "  transitions:")?;
         for t in self.transitions() {
-            let action = t
-                .action
-                .map(|a| format!(" / {}", a.0))
-                .unwrap_or_default();
+            let action = t.action.map(|a| format!(" / {}", a.0)).unwrap_or_default();
             writeln!(
                 f,
                 "    {} --[{}{}]--> {}",
