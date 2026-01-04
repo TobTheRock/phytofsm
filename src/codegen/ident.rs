@@ -1,4 +1,5 @@
 use heck::{ToSnakeCase, ToUpperCamelCase};
+use itertools::Itertools;
 use quote::format_ident;
 
 use crate::parser;
@@ -48,7 +49,23 @@ impl parser::Action {
 
 impl parser::State<'_> {
     pub fn function_ident(&self) -> proc_macro2::Ident {
-        format_ident!("{}", self.name().to_snake_case())
+        format_ident!("{}", self.qualified_name("_").to_snake_case())
+    }
+
+    pub fn name_literal(&self) -> proc_macro2::Literal {
+        proc_macro2::Literal::string(&self.qualified_name("::"))
+    }
+
+    fn qualified_name(&self, separator: impl Into<String>) -> String {
+        let states = std::iter::successors(Some(self.clone()), |next| next.parent());
+        let names = states.map(|s| s.name().to_string()).collect_vec();
+
+        let qualified_name = names
+            .into_iter()
+            .rev()
+            .intersperse(separator.into())
+            .collect();
+        qualified_name
     }
 }
 

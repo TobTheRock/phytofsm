@@ -1,0 +1,16 @@
+@startuml Same Name Substates
+
+state ParentA {
+    [*] --> Inner
+    Inner --> Other : toOther
+}
+
+state ParentB {
+    [*] --> Inner
+    Inner --> Other : toOther
+}
+
+[*] --> ParentA
+ParentA --> ParentB : toB
+
+@enduml

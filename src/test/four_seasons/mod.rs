@@ -8,11 +8,62 @@ use crate::{
 
 fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     let mut builder = ParsedFsmBuilder::new("PlantFsm");
-    builder.add_state("Winter", StateType::Enter);
-    builder.add_transition("Winter", "Spring", Event("TemperatureRises".into()), None);
-    builder.add_transition("Spring", "Summer", Event("DaylightIncreases".into()), Some(Action("StartBlooming".into())));
-    builder.add_transition("Summer", "Autumn", Event("DaylightDecreases".into()), Some(Action("RipenFruit".into())));
-    builder.add_transition("Autumn", "Winter", Event("TemperatureDrops".into()), Some(Action("DropPetals".into())));
+
+    // Root level states
+    let winter = builder.add_state("Winter", StateType::Enter);
+    let spring = builder.add_state("Spring", StateType::Simple);
+    let summer = builder.add_state("Summer", StateType::Simple);
+    let autumn = builder.add_state("Autumn", StateType::Simple);
+
+    // Root level transitions
+    builder.add_transition("Winter", "Spring", Event("TimeAdvances".into()), None);
+    builder.add_transition(
+        "Spring",
+        "Summer",
+        Event("TimeAdvances".into()),
+        Some(Action("StartBlooming".into())),
+    );
+    builder.add_transition(
+        "Summer",
+        "Autumn",
+        Event("TimeAdvances".into()),
+        Some(Action("RipenFruit".into())),
+    );
+    builder.add_transition(
+        "Autumn",
+        "Winter",
+        Event("TimeAdvances".into()),
+        Some(Action("DropPetals".into())),
+    );
+
+    // Winter substates
+    builder.set_scope(Some(winter));
+    builder.add_state("Freezing", StateType::Enter);
+    builder.add_state("Mild", StateType::Simple);
+    builder.add_transition("Freezing", "Mild", Event("TemperatureRises".into()), None);
+    builder.add_transition("Mild", "Freezing", Event("TemperatureDrops".into()), None);
+
+    // Spring substates
+    builder.set_scope(Some(spring));
+    builder.add_state("Chilly", StateType::Enter);
+    builder.add_state("Warm", StateType::Simple);
+    builder.add_transition("Chilly", "Warm", Event("TemperatureRises".into()), None);
+    builder.add_transition("Warm", "Chilly", Event("TemperatureDrops".into()), None);
+
+    // Summer substates
+    builder.set_scope(Some(summer));
+    builder.add_state("Warm", StateType::Enter);
+    builder.add_state("Hot", StateType::Simple);
+    builder.add_transition("Warm", "Hot", Event("TemperatureRises".into()), None);
+    builder.add_transition("Hot", "Warm", Event("TemperatureDrops".into()), None);
+
+    // Autumn substates
+    builder.set_scope(Some(autumn));
+    builder.add_state("Chilly", StateType::Enter);
+    builder.add_state("Warm", StateType::Simple);
+    builder.add_transition("Chilly", "Warm", Event("TemperatureRises".into()), None);
+    builder.add_transition("Warm", "Chilly", Event("TemperatureDrops".into()), None);
+
     builder.build()
 }
 

@@ -125,7 +125,7 @@ impl CodeGenerator for StateStructGenerator {
 impl CodeGenerator for StateImplGenerator {
     fn generate(&self, ctx: &GenerationContext) -> TokenStream2 {
         let state_fns = ctx.fsm.states().map(|state| {
-            let state_name = state.name();
+            let state_name = state.name_literal();
             let fn_name = state.function_ident();
 
             let transitions = state.transitions().map(|t| {
