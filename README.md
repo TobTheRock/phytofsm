@@ -22,13 +22,18 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 ## State Machine Features
 
-- Events with custom data
-- Customizable actions
-- Optional transition logging with [log](https://docs.rs/log/latest/log/)
+| Feature | Description | Example |
+|---------|-------------|---------|
+| Events with custom data | Trigger transitions with typed event parameters | [actions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/actions.rs) |
+| Custom data types | Use any type (primitives, structs, references, pointers) as event data | [data_types.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/data_types.rs) |
+| Actions on transitions | Execute custom code when transitions occur | [actions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/actions.rs) |
+| Composite states | Nested/hierarchical states with automatic enter state resolution | [composite_states.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/composite_states.rs) |
+| Self-transitions | States that transition to themselves | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
+| Alternative transitions | Multiple transitions from the same state with different events | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
+| Transition logging | Optional logging via [log](https://docs.rs/log/latest/log/) crate | [four_seasons.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/four_seasons.rs) |
 
-Missing:
+### Missing Features
 
-- composite states
 - enter/exit actions
 - exit state
 - guards
@@ -85,18 +90,30 @@ StateA --> StateB : EventName / ActionName
 ### 1. Create a PlantUML state diagram
 
 ```puml
-@startuml PlantFsm 
+@startuml PlantFsm
 
-state Winter 
-state Spring
-state Summer
-state Autumn
+state Winter {
+  state Freezing
+  state Mild
+
+  [*] --> Freezing
+  Freezing -> Mild: TemperatureRises
+  Mild -> Freezing: TemperatureDrops
+}
+
+state Spring {
+  state Chilly
+  state Warm
+  [*] --> Chilly
+  Chilly -> Warm: TemperatureRises
+  Warm -> Chilly: TemperatureDrops
+}
 
 [*] --> Winter
-Winter --> Spring : TemperatureRises
-Spring --> Summer : DaylightIncreases / StartBlooming
-Summer --> Autumn : DaylightDecreases / RipenFruit
-Autumn --> Winter : TemperatureDrops / DropPetals 
+Winter --> Spring : TimeAdvances
+Spring --> Summer : TimeAdvances / StartBlooming
+Summer --> Autumn : TimeAdvances / RipenFruit
+Autumn --> Winter : TimeAdvances / DropPetals
 
 @enduml
 ```
@@ -107,7 +124,10 @@ Autumn --> Winter : TemperatureDrops / DropPetals
 use phyto_fsm::generate_fsm;
 
 // Generate FSM from PlantUML file
-generate_fsm!("path/to/your/diagram.puml");
+generate_fsm!(
+    file_path = "path/to/your/diagram.puml",
+    log_level = "debug"  // Optional: enables transition logging
+);
 ```
 
 ### 3. Implement your actions
@@ -118,23 +138,22 @@ use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData};
 struct PlantActions;
 
 impl IPlantFsmEventParams for PlantActions {
+    type TimeAdvancesParams = std::time::SystemTime;
     type TemperatureRisesParams = NoEventData;
-    type DaylightIncreasesParams = i32;  // Lumens
-    type DaylightDecreasesParams = NoEventData;
     type TemperatureDropsParams = NoEventData;
 }
 
 impl IPlantFsmActions for PlantActions {
-    fn start_blooming(&mut self, lumens: Self::DaylightIncreasesParams) {
-        println!("🌸 Blooming with {} lumens!", lumens);
+    fn start_blooming(&mut self, time: Self::TimeAdvancesParams) {
+        println!("Started blooming at {:?}", time);
     }
-    
-    fn ripen_fruit(&mut self, _: Self::DaylightDecreasesParams) {
-        println!("🍎 Fruit is ripening");
+
+    fn ripen_fruit(&mut self, _: Self::TimeAdvancesParams) {
+        println!("Fruit is ripening");
     }
-    
-    fn drop_petals(&mut self, _: Self::TemperatureDropsParams) {
-        println!("🍂 Dropping petals");
+
+    fn drop_petals(&mut self, _: Self::TimeAdvancesParams) {
+        println!("Dropping petals");
     }
 }
 ```
@@ -142,15 +161,16 @@ impl IPlantFsmActions for PlantActions {
 ### 4. Use your state machine
 
 ```rust
-use plant_fsm::{PlantFsm, PlantFsmEvent};
+use plant_fsm::PlantFsm;
 
 fn main() {
     let actions = PlantActions;
     let mut fsm = PlantFsm::new(actions);
-    
+
+    // Transition within Winter: Freezing -> Mild
     fsm.temperature_rises(());
-    fsm.daylight_increases(lumen);
-    fsm.daylight_decreases(());
-    fsm.temperature_drops(());
+
+    // Transition to next season: Winter -> Spring (enters Spring::Chilly)
+    fsm.time_advances(std::time::SystemTime::now());
 }
 ```
