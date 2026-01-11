@@ -22,21 +22,23 @@ impl ParsedFsm {
     }
 }
 
+// TODO order matters here. there might be a mismatch on how plantuml processes this (line by line
+// vs element by element), need to verify
 impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
     type Error = Error;
     fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
         let name = diagram.name().map(|s| s.to_string()).unwrap_or_default();
         let mut builder = ParsedFsmBuilder::new(name);
 
+        add_composite_states(&mut builder, &diagram)?;
+        for enter_state in diagram.enter_states() {
+            builder.add_state(enter_state, StateType::Enter);
+        }
+
+        // Add transitions last, as they can create new states
         for transition in diagram.transitions() {
             let ctx = context::TransitionContext::try_from(transition.description)?;
             builder.add_transition(transition.from, transition.to, ctx.event, ctx.action);
-        }
-
-        add_composite_states(&mut builder, &diagram)?;
-
-        for enter_state in diagram.enter_states() {
-            builder.add_state(enter_state, StateType::Enter);
         }
 
         builder.build()
@@ -58,6 +60,7 @@ fn add_composite_states(
             builder.add_state(enter_state, StateType::Enter);
         }
 
+        // Add transitions last, as they can create new states
         for transition in &composite.transitions {
             let ctx = context::TransitionContext::try_from(transition.description)?;
             builder.add_transition(transition.from, transition.to, ctx.event, ctx.action);

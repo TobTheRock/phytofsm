@@ -1,0 +1,15 @@
+@startuml Substate To Substate
+state A {
+ 'implicit definition of a substate' 
+  [*] --> AA
+}
+
+state B {
+ 'implicit definition of substates' 
+  BA --> BB: toBB / actionInBA
+}
+
+[*] --> A
+' substate to substate transition '
+AA -> BA: toBA / actionInAA
+@enduml

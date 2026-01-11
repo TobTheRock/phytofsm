@@ -61,22 +61,13 @@ impl ParsedFsmBuilder {
 
     pub fn add_state(&mut self, name: &str, state_type: StateType) -> StateId {
         debug!("Adding state '{}' of type {:?}", name, state_type);
-        let id = self.get_or_create_scoped(name);
 
-        let current_type = self.arena[id].get().state_type;
-
-        // Only states of type Simple can be updated. Simpel can be a placeholder until a real type is set
-        if state_type != StateType::Simple && current_type == StateType::Simple {
-            self.arena[id].get_mut().state_type = state_type;
-        } else if state_type != StateType::Simple && current_type != state_type {
-            log::warn!(
-                "State '{}' already has type {:?}, ignoring {:?}",
-                name,
-                current_type,
-                state_type
-            );
+        if let Some(id) = self.get_state(name) {
+            self.update_non_simple_state_type(id, state_type, name);
+            return id;
         }
-        id
+
+        self.create_scoped_state(name, state_type)
     }
 
     pub fn add_transition(&mut self, from: &str, to: &str, event: Event, action: Option<Action>) {
@@ -85,8 +76,16 @@ impl ParsedFsmBuilder {
             from, to, event
         );
 
-        let from_id = self.get_or_create_scoped(from);
-        let to_id = self.get_or_create_scoped(to);
+        let mut get_or_create = |name: &str| {
+            if let Some(id) = self.get_state_within_scope(name) {
+                id
+            } else {
+                self.create_scoped_state(name, StateType::Simple)
+            }
+        };
+
+        let from_id = get_or_create(from);
+        let to_id = get_or_create(to);
 
         let transition = TransitionData {
             source: from_id,
@@ -121,9 +120,7 @@ impl ParsedFsmBuilder {
     fn find_root_enter_state(&self) -> Result<StateId> {
         use itertools::Itertools;
         let enter_states = self
-            .arena
-            .iter()
-            .filter(|node| node.parent().is_none())
+            .get_root_nodes()
             .filter(|node| node.get().state_type == StateType::Enter);
 
         trace!(
@@ -161,20 +158,69 @@ impl ParsedFsmBuilder {
         current
     }
 
-    fn get_or_create_scoped(&mut self, name: &str) -> StateId {
-        let key = (self.scope, name.to_string());
-        if let Some(&id) = self.state_map.get(&key) {
-            return id;
-        }
+    fn key_from_name(&self, name: &str) -> StateKey {
+        (self.scope, name.to_string())
+    }
 
+    fn get_state(&self, name: &str) -> Option<StateId> {
+        let key = self.key_from_name(name);
+        self.state_map.get(&key).copied()
+    }
+
+    fn get_state_within_scope(&self, name: &str) -> Option<StateId> {
+        use itertools::Either;
+
+        let scopes = match self.scope {
+            Some(scope_id) => Either::Left(scope_id.descendants(&self.arena).map(Some)),
+            None => Either::Right(
+                std::iter::once(None).chain(
+                    self.get_root_nodes()
+                        .filter_map(|node| self.arena.get_node_id(node))
+                        .flat_map(|node| node.descendants(&self.arena))
+                        .map(Some),
+                ),
+            ),
+        };
+
+        scopes
+            .filter_map(|scope| {
+                let key = (scope, name.to_string());
+                self.state_map.get(&key).copied()
+            })
+            // return the first found state in the nearest scope
+            .next()
+    }
+
+    fn get_root_nodes(&self) -> impl Iterator<Item = &indextree::Node<StateData>> + Clone {
+        self.arena.iter().filter(|node| node.parent().is_none())
+    }
+
+    fn create_scoped_state(&mut self, name: &str, state_type: StateType) -> StateId {
         debug!("Creating state '{}' in scope {:?}", name, self.scope);
-        let state_data = StateData::new_without_transitions(name, StateType::Simple);
+        let state_data = StateData::new_without_transitions(name, state_type);
         let child_id = self.arena.new_node(state_data);
         if let Some(parent_id) = self.scope {
             parent_id.append(child_id, &mut self.arena);
         }
+
+        let key = (self.scope, name.to_string());
         self.state_map.insert(key, child_id);
         child_id
+    }
+
+    fn update_non_simple_state_type(&mut self, id: NodeId, state_type: StateType, name: &str) {
+        let current_type = self.arena[id].get().state_type;
+        // Only states of type Simple can be updated. Simple can be a placeholder until a real type is set
+        if state_type != StateType::Simple && current_type == StateType::Simple {
+            self.arena[id].get_mut().state_type = state_type;
+        } else if state_type != StateType::Simple && current_type != state_type {
+            log::warn!(
+                "State '{}' already has type {:?}, ignoring {:?}",
+                name,
+                current_type,
+                state_type
+            );
+        }
     }
 }
 
@@ -472,6 +518,31 @@ mod test {
         let fsm = builder.build().unwrap();
 
         assert_eq!(find_state(&fsm, "Parent").substates().count(), 2);
+    }
+
+    #[test]
+    fn add_transition_finds_existing_substate_from_root_scope() {
+        crate::logging::init();
+        let mut builder = builder_with_enter();
+
+        // Create parent with substate
+        let parent = builder.add_state("Parent", StateType::Simple);
+        builder.set_scope(Some(parent));
+        builder.add_state("Child", StateType::Simple);
+
+        // Back to root - add transition referencing the substate
+        builder.set_scope(None);
+        builder.add_transition("Child", "Other", "toOther".into(), None);
+
+        let fsm = builder.build().unwrap();
+
+        // Child should only exist once (as substate), not duplicated at root
+        assert_n_times_state(&fsm, "Child", 1);
+
+        // The transition should be on Parent's substate
+        let parent_state = find_state(&fsm, "Parent");
+        let child = find_substate(&parent_state, "Child");
+        assert_transition(&child, "Other", "toOther");
     }
 
     #[test]

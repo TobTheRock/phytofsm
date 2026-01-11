@@ -39,7 +39,6 @@ fn should_change_between_substates() {
     // This guaranteses we can exit nested substates, if the parent has a respective transition for
     // the event
     actions.expect_action_in_aa().returning(|_| ()).times(1);
-
     let mut fsm = CompositeStates::new(actions);
     fsm.to_ab(());
 }

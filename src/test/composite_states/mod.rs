@@ -41,6 +41,40 @@ fn build_composite_states_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
+fn build_substate_to_substate_fsm() -> Result<ParsedFsm> {
+    let mut builder = ParsedFsmBuilder::new("Substate To Substate");
+
+    // Root level
+    let state_a = builder.add_state("A", StateType::Enter);
+    let state_b = builder.add_state("B", StateType::Simple);
+
+    // A's children
+    builder.set_scope(Some(state_a));
+    builder.add_state("AA", StateType::Enter);
+
+    // B's children
+    builder.set_scope(Some(state_b));
+    builder.add_state("BA", StateType::Simple);
+    builder.add_state("BB", StateType::Simple);
+    builder.add_transition(
+        "BA",
+        "BB",
+        Event("toBB".into()),
+        Some(Action("actionInBA".into())),
+    );
+
+    // Substate to substate transition (defined at root level but references substates)
+    builder.set_scope(None);
+    builder.add_transition(
+        "AA",
+        "BA",
+        Event("toBA".into()),
+        Some(Action("actionInAA".into())),
+    );
+
+    builder.build()
+}
+
 fn build_same_name_substates_fsm() -> Result<ParsedFsm> {
     let mut builder = ParsedFsmBuilder::new("Same Name Substates");
 
@@ -81,6 +115,16 @@ impl FsmTestData {
             name: "same_name_substates",
             content: include_str!("./same_name_substates.puml"),
             parsed: build_same_name_substates_fsm().expect("Failed to create FSM for testing"),
+            path,
+        }
+    }
+
+    pub fn substate_to_substate() -> Self {
+        let path = get_adjacent_file_path(file!(), "substate_to_substate.puml");
+        Self {
+            name: "substate_to_substate",
+            content: include_str!("./substate_to_substate.puml"),
+            parsed: build_substate_to_substate_fsm().expect("Failed to create FSM for testing"),
             path,
         }
     }

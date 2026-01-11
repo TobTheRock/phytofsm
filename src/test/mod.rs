@@ -23,6 +23,7 @@ impl FsmTestData {
             Self::composite_states(),
             Self::four_seasons(),
             Self::same_name_substates(),
+            Self::substate_to_substate(),
             Self::transitions(),
         ]
         .into_iter()

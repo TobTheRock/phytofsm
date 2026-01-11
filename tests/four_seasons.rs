@@ -28,7 +28,7 @@ impl IPlantFsmEventParams for MockPlantFsmActions {
 /// This test covers:
 /// - state transitions associated with only one event with and without actions
 fn test_transitions() {
-    let _ = stderrlog::new().verbosity(log::Level::Debug).init();
+    // let _ = stderrlog::new().verbosity(log::Level::Debug).init();
     let time = std::time::SystemTime::now();
     let mut actions = MockPlantFsmActions::new();
 
