@@ -1,5 +1,3 @@
-use std::collections::HashMap;
-
 use indextree::{Arena, NodeId};
 use log::{debug, trace};
 
@@ -35,13 +33,10 @@ impl StateData {
     }
 }
 
-type StateKey = (Option<StateId>, String);
-
 #[derive(Debug)]
 pub struct ParsedFsmBuilder {
     name: String,
     arena: Arena<StateData>,
-    state_map: HashMap<StateKey, StateId>,
     scope: Option<StateId>,
 }
 
@@ -50,7 +45,6 @@ impl ParsedFsmBuilder {
         Self {
             name: name.into(),
             arena: Arena::new(),
-            state_map: HashMap::new(),
             scope: None,
         }
     }
@@ -62,12 +56,12 @@ impl ParsedFsmBuilder {
     pub fn add_state(&mut self, name: &str, state_type: StateType) -> StateId {
         debug!("Adding state '{}' of type {:?}", name, state_type);
 
-        if let Some(id) = self.get_state(name) {
+        if let Some(id) = self.find_state(name) {
             self.update_non_simple_state_type(id, state_type, name);
             return id;
         }
 
-        self.create_scoped_state(name, state_type)
+        self.create_state_in_scope(name, state_type)
     }
 
     pub fn add_transition(&mut self, from: &str, to: &str, event: Event, action: Option<Action>) {
@@ -77,10 +71,10 @@ impl ParsedFsmBuilder {
         );
 
         let mut get_or_create = |name: &str| {
-            if let Some(id) = self.get_state_within_scope(name) {
+            if let Some(id) = self.find_descendant_state(name) {
                 id
             } else {
-                self.create_scoped_state(name, StateType::Simple)
+                self.create_state_in_scope(name, StateType::Simple)
             }
         };
 
@@ -120,25 +114,18 @@ impl ParsedFsmBuilder {
     fn find_root_enter_state(&self) -> Result<StateId> {
         use itertools::Itertools;
         let enter_states = self
-            .get_root_nodes()
+            .root_nodes()
             .filter(|node| node.get().state_type == StateType::Enter);
+        let enter_state_names = || enter_states.clone().map(|node| node.get().name.as_str());
 
-        trace!(
-            "Root enter states: {:?}",
-            enter_states
-                .clone()
-                .map(|node| node.get().name.as_str())
-                .collect::<Vec<_>>()
-        );
+        trace!("Root enter states: {:?}", enter_state_names().collect_vec());
 
         let root_enter = enter_states
             .clone()
             .filter_map(|node| self.arena.get_node_id(node))
             .exactly_one()
             .map_err(|_| {
-                let names: String =
-                    Itertools::intersperse(enter_states.map(|node| node.get().name.as_str()), ", ")
-                        .collect();
+                let names: String = Itertools::intersperse(enter_state_names(), ", ").collect();
                 Error::Parse(format!(
                     "FSM must have exactly one enter state, found {names}"
                 ))
@@ -158,44 +145,49 @@ impl ParsedFsmBuilder {
         current
     }
 
-    fn key_from_name(&self, name: &str) -> StateKey {
-        (self.scope, name.to_string())
+    fn find_state(&self, name: &str) -> Option<StateId> {
+        self.nodes_in_scope()
+            .find(|node| node.get().name == name)
+            .and_then(|node| self.arena.get_node_id(node))
     }
 
-    fn get_state(&self, name: &str) -> Option<StateId> {
-        let key = self.key_from_name(name);
-        self.state_map.get(&key).copied()
-    }
-
-    fn get_state_within_scope(&self, name: &str) -> Option<StateId> {
+    fn find_descendant_state(&self, name: &str) -> Option<StateId> {
         use itertools::Either;
 
         let scopes = match self.scope {
-            Some(scope_id) => Either::Left(scope_id.descendants(&self.arena).map(Some)),
-            None => Either::Right(
-                std::iter::once(None).chain(
-                    self.get_root_nodes()
-                        .filter_map(|node| self.arena.get_node_id(node))
-                        .flat_map(|node| node.descendants(&self.arena))
-                        .map(Some),
-                ),
-            ),
+            Some(scope_id) => Either::Left(std::iter::once(scope_id)),
+            None => Either::Right(self.root_node_ids()),
         };
 
-        scopes
-            .filter_map(|scope| {
-                let key = (scope, name.to_string());
-                self.state_map.get(&key).copied()
-            })
-            // return the first found state in the nearest scope
-            .next()
+        let mut nodes = scopes
+            .flat_map(|id| id.descendants(&self.arena))
+            .map(|node_id| &self.arena[node_id]);
+
+        nodes
+            .find(|node| node.get().name == name)
+            .and_then(|node| self.arena.get_node_id(node))
     }
 
-    fn get_root_nodes(&self) -> impl Iterator<Item = &indextree::Node<StateData>> + Clone {
+    fn nodes_in_scope(&self) -> impl Iterator<Item = &indextree::Node<StateData>> + Clone {
+        use itertools::Either;
+        match self.scope {
+            Some(scope_id) => {
+                Either::Left(scope_id.children(&self.arena).map(|id| &self.arena[id]))
+            }
+            None => Either::Right(self.root_nodes()),
+        }
+    }
+
+    fn root_nodes(&self) -> impl Iterator<Item = &indextree::Node<StateData>> + Clone {
         self.arena.iter().filter(|node| node.parent().is_none())
     }
 
-    fn create_scoped_state(&mut self, name: &str, state_type: StateType) -> StateId {
+    fn root_node_ids(&self) -> impl Iterator<Item = StateId> + '_ {
+        self.root_nodes()
+            .filter_map(|node| self.arena.get_node_id(node))
+    }
+
+    fn create_state_in_scope(&mut self, name: &str, state_type: StateType) -> StateId {
         debug!("Creating state '{}' in scope {:?}", name, self.scope);
         let state_data = StateData::new_without_transitions(name, state_type);
         let child_id = self.arena.new_node(state_data);
@@ -203,8 +195,6 @@ impl ParsedFsmBuilder {
             parent_id.append(child_id, &mut self.arena);
         }
 
-        let key = (self.scope, name.to_string());
-        self.state_map.insert(key, child_id);
         child_id
     }
 
