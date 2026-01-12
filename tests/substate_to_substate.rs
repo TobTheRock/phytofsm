@@ -5,7 +5,9 @@ generate_fsm!(
 );
 
 use mockall::mock;
-use substate_to_substate::{ISubstateToSubstateActions, ISubstateToSubstateEventParams, SubstateToSubstate};
+use substate_to_substate::{
+    ISubstateToSubstateActions, ISubstateToSubstateEventParams, SubstateToSubstate,
+};
 
 mock! {
     SubstateToSubstateActions {}
