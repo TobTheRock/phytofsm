@@ -95,15 +95,15 @@ where
                 }
                 _ => None,
             },
-            direct_enter: Some(Self::spring_chilly),
+            direct_enter: Some(Self::spring_brisk),
         }
     }
 
-    fn spring_chilly() -> Self {
+    fn spring_brisk() -> Self {
         Self {
-            name: "Spring::Chilly",
+            name: "Spring::Brisk",
             transition: |event, action| match event {
-                PlantFsmEvent::TemperatureRises(_) => Some(Self::spring_warm()),
+                PlantFsmEvent::TemperatureRises(_) => Some(Self::spring_temperate()),
                 _ => {
                     let parent = Self::spring();
                     (parent.transition)(event, action)
@@ -113,11 +113,11 @@ where
         }
     }
 
-    fn spring_warm() -> Self {
+    fn spring_temperate() -> Self {
         Self {
-            name: "Spring",
+            name: "Spring::Temperate",
             transition: |event, action| match event {
-                PlantFsmEvent::TemperatureDrops(_) => Some(Self::spring_chilly()),
+                PlantFsmEvent::TemperatureDrops(_) => Some(Self::spring_brisk()),
                 _ => {
                     let parent = Self::spring();
                     (parent.transition)(event, action)
@@ -137,15 +137,15 @@ where
                 }
                 _ => None,
             },
-            direct_enter: Some(Self::summer_warm),
+            direct_enter: Some(Self::summer_balmy),
         }
     }
 
-    fn summer_warm() -> Self {
+    fn summer_balmy() -> Self {
         Self {
-            name: "Summer::Warm",
+            name: "Summer::Balmy",
             transition: |event, action| match event {
-                PlantFsmEvent::TemperatureDrops(_) => Some(Self::summer_cool()),
+                PlantFsmEvent::TemperatureRises(_) => Some(Self::summer_scorching()),
                 _ => {
                     let parent = Self::summer();
                     (parent.transition)(event, action)
@@ -155,11 +155,11 @@ where
         }
     }
 
-    fn summer_cool() -> Self {
+    fn summer_scorching() -> Self {
         Self {
-            name: "Summer::Cool",
+            name: "Summer::Scorching",
             transition: |event, action| match event {
-                PlantFsmEvent::TemperatureRises(_) => Some(Self::summer_warm()),
+                PlantFsmEvent::TemperatureDrops(_) => Some(Self::summer_balmy()),
                 _ => {
                     let parent = Self::summer();
                     (parent.transition)(event, action)
@@ -179,15 +179,15 @@ where
                 }
                 _ => None,
             },
-            direct_enter: Some(Self::autumn_chilly),
+            direct_enter: Some(Self::autumn_crisp),
         }
     }
 
-    fn autumn_chilly() -> Self {
+    fn autumn_crisp() -> Self {
         Self {
-            name: "Autumn::Chilly",
+            name: "Autumn::Crisp",
             transition: |event, action| match event {
-                PlantFsmEvent::TemperatureRises(_) => Some(Self::autumn_cool()),
+                PlantFsmEvent::TemperatureRises(_) => Some(Self::autumn_pleasant()),
                 _ => {
                     let parent = Self::autumn();
                     (parent.transition)(event, action)
@@ -197,11 +197,11 @@ where
         }
     }
 
-    fn autumn_cool() -> Self {
+    fn autumn_pleasant() -> Self {
         Self {
-            name: "Autumn::Cool",
+            name: "Autumn::Pleasant",
             transition: |event, action| match event {
-                PlantFsmEvent::TemperatureDrops(_) => Some(Self::autumn_chilly()),
+                PlantFsmEvent::TemperatureDrops(_) => Some(Self::autumn_crisp()),
                 _ => {
                     let parent = Self::autumn();
                     (parent.transition)(event, action)

@@ -10,28 +10,28 @@ state Winter {
 } 
 
 state Spring {
-  state Chilly
-  state Warmh
-  [*] --> Chilly
-  Chilly -> Warm: TemperatureRises
-  Warm -> Chilly: TemperatureDrops
+  state Brisk
+  state Temperate
+  [*] --> Brisk
+  Brisk -> Temperate: TemperatureRises
+  Temperate -> Brisk: TemperatureDrops
 }
 
 state Summer {
-  state Warm
-  state Hot
+  state Balmy
+  state Scorching
 
-  [*] --> Warm
-  Warm -> Hot: TemperatureRises
-  Hot -> Warm: TemperatureDrops
+  [*] --> Balmy
+  Balmy -> Scorching: TemperatureRises
+  Scorching -> Balmy: TemperatureDrops
 }
 state Autumn {
-  state Warm
-  state Chilly
+  state Pleasant
+  state Crisp
 
-  [*] --> Chilly
-  Chilly -> Warm: TemperatureRises
-  Warm -> Chilly: TemperatureDrops
+  [*] --> Crisp
+  Crisp -> Pleasant: TemperatureRises
+  Pleasant -> Crisp: TemperatureDrops
 }
 
 [*] --> Winter
