@@ -40,17 +40,17 @@ transition = {
 }
 
 // State declaration: state StateName
-state_declaration = { "state" ~ sp+ ~ state_name ~ sp* ~ NEWLINE }
+state_declaration = { ^"state" ~ sp+ ~ state_name ~ sp* ~ NEWLINE }
 
 // State declaration with inline description: state StateName: description
-state_declaration_with_desc = { "state" ~ sp+ ~ state_name ~ sp* ~ ":" ~ sp* ~ description ~ NEWLINE }
+state_declaration_with_desc = { ^"state" ~ sp+ ~ state_name ~ sp* ~ ":" ~ sp* ~ description ~ NEWLINE }
 
 // State description: StateName : description (without state keyword)
 state_description = { state_name ~ sp* ~ ":" ~ sp* ~ description ~ NEWLINE }
 
 // Composite state description
 composite_state = {
-    "state" ~ sp+ ~ state_name ~ sp* ~ "{" ~ ws* ~
+    ^"state" ~ sp+ ~ state_name ~ sp* ~ "{" ~ ws* ~
     content ~
     ws* ~ "}" ~ sp* ~ NEWLINE
 }

@@ -1,4 +1,7 @@
-use crate::error::{Error, Result};
+use crate::{
+    error::{Error, Result},
+    parser::builder::StateId,
+};
 
 mod builder;
 mod context;
@@ -22,55 +25,53 @@ impl ParsedFsm {
     }
 }
 
-// TODO order matters here. there might be a mismatch on how plantuml processes this (line by line
-// vs element by element), need to verify
 impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
     type Error = Error;
     fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
         let name = diagram.name().map(|s| s.to_string()).unwrap_or_default();
         let mut builder = ParsedFsmBuilder::new(name);
 
-        add_composite_states(&mut builder, &diagram)?;
-        for enter_state in diagram.enter_states() {
-            builder.add_state(enter_state, StateType::Enter);
-        }
-
-        // Add transitions last, as they can create new states
-        for transition in diagram.transitions() {
-            let ctx = context::TransitionContext::try_from(transition.description)?;
-            builder.add_transition(transition.from, transition.to, ctx.event, ctx.action);
-        }
+        add_fsm_elements(&mut builder, diagram.elements(), None)?;
 
         builder.build()
     }
 }
 
-fn add_composite_states(
+// TODO order matters here. there might be a mismatch on how plantuml processes this (line by line
+// vs element by element), need to verify
+fn add_fsm_elements(
     builder: &mut ParsedFsmBuilder,
-    diagram: &plantuml::StateDiagram<'_>,
+    elements: &plantuml::StateElements<'_>,
+    scope: Option<StateId>,
 ) -> Result<()> {
-    let mut queue: Vec<_> = diagram.composite_states().map(|c| (None, c)).collect();
-    while let Some((parent, composite)) = queue.pop() {
-        builder.set_scope(parent);
-        let state_id = builder.add_state(composite.name, StateType::Simple);
+    let previous_scope = builder.set_scope(scope);
 
-        builder.set_scope(Some(state_id));
+    for composite in &elements.composite_states {
+        let state = builder.add_state(composite.name, StateType::Simple);
+        add_fsm_elements(builder, &composite.elements, Some(state))?;
+    }
 
-        for enter_state in &composite.enter_states {
-            builder.add_state(enter_state, StateType::Enter);
-        }
+    for enter_state in &elements.enter_states {
+        builder.add_state(enter_state, StateType::Enter);
+    }
+    // Add transitions last, as they can create new states
+    for transition in &elements.transitions {
+        let ctx = context::TransitionContext::try_from(transition.description)?;
+        builder.add_transition(transition.from, transition.to, ctx.event, ctx.action);
+    }
 
-        // Add transitions last, as they can create new states
-        for transition in &composite.transitions {
-            let ctx = context::TransitionContext::try_from(transition.description)?;
-            builder.add_transition(transition.from, transition.to, ctx.event, ctx.action);
-        }
-
-        for child in &composite.children {
-            queue.push((Some(state_id), child));
+    for desc in &elements.state_descriptions {
+        if let Ok(ctx) = context::StateContext::try_from(desc.description) {
+            if let Some(action) = ctx.enter_action {
+                builder.set_state_enter_action(desc.name, action);
+            }
+            if let Some(action) = ctx.exit_action {
+                builder.set_state_exit_action(desc.name, action);
+            }
         }
     }
-    builder.set_scope(None);
+
+    builder.set_scope(previous_scope);
     Ok(())
 }
 
@@ -82,10 +83,10 @@ mod test {
 
     const FSM_CASES: TestCases<FsmTestData> = cases!(FsmTestData::all());
 
-    #[test_casing(4, FSM_CASES)]
+    #[test_casing(7, FSM_CASES)]
     fn parses_fsm(data: FsmTestData) {
-        let fsm = ParsedFsm::try_parse(data.content)
-            .unwrap_or_else(|_| panic!("Failed to parse FSM for: {}", data.name));
+        crate::logging::init();
+        let fsm = ParsedFsm::try_parse(data.content).unwrap();
         assert_eq!(data.parsed, fsm);
     }
 }

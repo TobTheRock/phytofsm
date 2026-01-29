@@ -1,0 +1,26 @@
+@startuml EnterExitActions
+
+[*] --> A
+
+State A : > EnterA
+State A : < ExitA
+
+A -> B : GoToB 
+B -> A : GoToAFromB
+
+' Composite state 
+state C {
+  C: > EnterC
+  C: < ExitC
+
+  '  parent enter/exit are overwritten by substates
+  State C1 : > EnterC1
+  State C1 : < ExitC1
+
+  [*] --> C1
+  C1 -> C2 : GoToC2
+}
+A -> C : GoToC
+C -> A : GoToAFromC
+
+@enduml

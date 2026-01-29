@@ -45,24 +45,24 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
 
     // Spring substates
     builder.set_scope(Some(spring));
-    builder.add_state("Chilly", StateType::Enter);
-    builder.add_state("Warm", StateType::Simple);
-    builder.add_transition("Chilly", "Warm", Event("TemperatureRises".into()), None);
-    builder.add_transition("Warm", "Chilly", Event("TemperatureDrops".into()), None);
+    builder.add_state("Brisk", StateType::Enter);
+    builder.add_state("Temperate", StateType::Simple);
+    builder.add_transition("Brisk", "Temperate", Event("TemperatureRises".into()), None);
+    builder.add_transition("Temperate", "Brisk", Event("TemperatureDrops".into()), None);
 
     // Summer substates
     builder.set_scope(Some(summer));
-    builder.add_state("Warm", StateType::Enter);
-    builder.add_state("Hot", StateType::Simple);
-    builder.add_transition("Warm", "Hot", Event("TemperatureRises".into()), None);
-    builder.add_transition("Hot", "Warm", Event("TemperatureDrops".into()), None);
+    builder.add_state("Balmy", StateType::Enter);
+    builder.add_state("Scorching", StateType::Simple);
+    builder.add_transition("Balmy", "Scorching", Event("TemperatureRises".into()), None);
+    builder.add_transition("Scorching", "Balmy", Event("TemperatureDrops".into()), None);
 
     // Autumn substates
     builder.set_scope(Some(autumn));
-    builder.add_state("Chilly", StateType::Enter);
-    builder.add_state("Warm", StateType::Simple);
-    builder.add_transition("Chilly", "Warm", Event("TemperatureRises".into()), None);
-    builder.add_transition("Warm", "Chilly", Event("TemperatureDrops".into()), None);
+    builder.add_state("Crisp", StateType::Enter);
+    builder.add_state("Pleasant", StateType::Simple);
+    builder.add_transition("Crisp", "Pleasant", Event("TemperatureRises".into()), None);
+    builder.add_transition("Pleasant", "Crisp", Event("TemperatureDrops".into()), None);
 
     builder.build()
 }

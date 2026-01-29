@@ -7,12 +7,21 @@ mod four_seasons;
 mod transitions;
 mod utils;
 
-#[derive(Debug)]
 pub struct FsmTestData {
     pub name: &'static str,
     pub content: &'static str,
     pub parsed: parser::ParsedFsm,
     pub path: PathBuf,
+}
+
+impl std::fmt::Debug for FsmTestData {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("FsmTestData")
+            .field("name", &self.name)
+            .field("path", &self.path)
+            .field("parsed", &self.parsed)
+            .finish()
+    }
 }
 
 impl FsmTestData {
@@ -21,6 +30,7 @@ impl FsmTestData {
         vec![
             Self::actions(),
             Self::composite_states(),
+            Self::enter_exit(),
             Self::four_seasons(),
             Self::same_name_substates(),
             Self::substate_to_substate(),

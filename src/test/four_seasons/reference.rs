@@ -9,9 +9,15 @@ pub trait IPlantFsmEventParams {
 // TODO
 // - action results
 pub trait IPlantFsmActions: IPlantFsmEventParams {
+    // transition actions
     fn start_blooming(&mut self, event: Self::TimeAdvancesParams);
     fn ripen_fruit(&mut self, event: Self::TimeAdvancesParams);
     fn drop_petals(&mut self, event: Self::TimeAdvancesParams);
+    // enter actions
+    fn start_heat_wave(&mut self);
+    fn winter_is_coming(&mut self);
+    // exit actions
+    fn end_heat_wave(&mut self);
 }
 
 type NoEventData = ();
@@ -27,8 +33,12 @@ struct PlantFsmState<T: IPlantFsmActions> {
     name: &'static str,
     // Transition based on an event, depending on the state
     transition: fn(event: PlantFsmEvent<T>, actions: &mut T) -> Option<Self>,
-    // next state to enter directly (substate or direct transition)
-    direct_enter: Option<fn() -> Self>,
+    // initial substate if any
+    initial_sub_state: Option<fn() -> Self>,
+    // enter action
+    enter: fn(actions: &mut T) -> (),
+    // exit action
+    exit: fn(actions: &mut T) -> (),
 }
 
 impl<T: IPlantFsmActions> Clone for PlantFsmState<T> {
@@ -36,7 +46,9 @@ impl<T: IPlantFsmActions> Clone for PlantFsmState<T> {
         Self {
             name: self.name,
             transition: self.transition,
-            direct_enter: self.direct_enter,
+            initial_sub_state: self.initial_sub_state,
+            enter: self.enter,
+            exit: self.exit,
         }
     }
 }
@@ -52,7 +64,11 @@ where
                 PlantFsmEvent::TimeAdvances(_) => Some(Self::spring()),
                 _ => None,
             },
-            direct_enter: Some(Self::winter_freezing),
+            initial_sub_state: Some(Self::winter_freezing),
+            enter: |actions| {
+                actions.winter_is_coming();
+            },
+            exit: |_| {},
         }
     }
 
@@ -67,7 +83,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| (Self::winter().enter)(actions),
+            exit: |actions| (Self::winter().exit)(actions),
         }
     }
 
@@ -81,7 +99,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| (Self::winter().enter)(actions),
+            exit: |actions| (Self::winter().exit)(actions),
         }
     }
 
@@ -95,7 +115,9 @@ where
                 }
                 _ => None,
             },
-            direct_enter: Some(Self::spring_brisk),
+            initial_sub_state: Some(Self::spring_brisk),
+            enter: |_| {},
+            exit: |_| {},
         }
     }
 
@@ -109,7 +131,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| (Self::spring().enter)(actions),
+            exit: |actions| (Self::spring().exit)(actions),
         }
     }
 
@@ -123,7 +147,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| (Self::spring().enter)(actions),
+            exit: |actions| (Self::spring().exit)(actions),
         }
     }
 
@@ -137,7 +163,9 @@ where
                 }
                 _ => None,
             },
-            direct_enter: Some(Self::summer_balmy),
+            initial_sub_state: Some(Self::summer_balmy),
+            enter: |_| {},
+            exit: |_| {},
         }
     }
 
@@ -151,7 +179,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| (Self::summer().enter)(actions),
+            exit: |actions| (Self::summer().exit)(actions),
         }
     }
 
@@ -165,7 +195,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| actions.start_heat_wave(),
+            exit: |actions| actions.end_heat_wave(),
         }
     }
 
@@ -179,7 +211,9 @@ where
                 }
                 _ => None,
             },
-            direct_enter: Some(Self::autumn_crisp),
+            initial_sub_state: Some(Self::autumn_crisp),
+            enter: |_| {},
+            exit: |_| {},
         }
     }
 
@@ -193,7 +227,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| (Self::autumn().enter)(actions),
+            exit: |actions| (Self::autumn().exit)(actions),
         }
     }
 
@@ -207,7 +243,9 @@ where
                     (parent.transition)(event, action)
                 }
             },
-            direct_enter: None,
+            initial_sub_state: None,
+            enter: |actions| (Self::autumn().enter)(actions),
+            exit: |actions| (Self::autumn().exit)(actions),
         }
     }
 }
@@ -236,22 +274,20 @@ where
                 self.current_state.name, new_state.name
             );
 
-            // TODO exit function of current state here
-
             let next_state = self.enter_new_state(new_state);
-
+            (self.current_state.exit)(&mut self.actions);
             self.current_state = next_state;
         }
     }
 
-    fn enter_new_state(&self, mut new_state: PlantFsmState<A>) -> PlantFsmState<A> {
-        // TODO loop over on enter functions here..
-        while let Some(direct_enter_fn) = new_state.direct_enter {
-            let direct_state = direct_enter_fn();
-            debug!("PlantFsm: Directly entering {}", direct_state.name);
-            new_state = direct_state;
+    fn enter_new_state(&mut self, mut new_state: PlantFsmState<A>) -> PlantFsmState<A> {
+        if let Some(initial_state_fn) = new_state.initial_sub_state {
+            let initial_state = initial_state_fn();
+            debug!("PlantFsm: Initally entering {}", initial_state.name);
+            new_state = initial_state;
         }
 
+        (new_state.enter)(&mut self.actions);
         new_state
     }
 
@@ -286,6 +322,11 @@ mod test {
             fn start_blooming(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
             fn ripen_fruit(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
             fn drop_petals(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
+
+            fn start_heat_wave(&mut self);
+            fn winter_is_coming(&mut self);
+
+            fn end_heat_wave(&mut self);
         }
     }
 
@@ -293,7 +334,7 @@ mod test {
     impl IPlantFsmEventParams for MockPlantFsmActions {
         type TemperatureRisesParams = NoEventData;
         type TemperatureDropsParams = NoEventData;
-        type TimeAdvancesParams = std::time::SystemTime;
+        type TimeAdvancesParams = u32;
     }
 
     fn setup() -> MockPlantFsmActions {
@@ -303,7 +344,7 @@ mod test {
 
     #[test]
     fn test_transitions() {
-        let time = std::time::SystemTime::now();
+        let time = 42;
         let mut actions = setup();
 
         actions
@@ -313,6 +354,7 @@ mod test {
             .times(1);
         actions.expect_ripen_fruit().returning(|_| ()).times(1);
         actions.expect_drop_petals().returning(|_| ()).times(1);
+        actions.expect_winter_is_coming().returning(|| ()).times(1);
 
         let mut fsm = PlantFsm::new(actions);
         fsm.temperature_rises(());
@@ -321,5 +363,23 @@ mod test {
         fsm.temperature_drops(());
         fsm.time_advances(time);
         fsm.time_advances(time);
+    }
+
+    #[test]
+    fn test_substate_enter_exit_actions() {
+        let time = 42;
+        let mut actions = setup();
+
+        actions.expect_start_blooming().returning(|_| ()).times(1);
+        actions.expect_start_heat_wave().returning(|| ()).times(1);
+        actions.expect_end_heat_wave().returning(|| ()).times(1);
+
+        let mut fsm = PlantFsm::new(actions);
+        // To Summer
+        fsm.time_advances(time);
+        fsm.time_advances(time);
+        // To/Out Scorching
+        fsm.temperature_rises(());
+        fsm.temperature_drops(());
     }
 }

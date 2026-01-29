@@ -21,6 +21,8 @@ pub(super) struct StateData {
     pub name: String,
     pub state_type: StateType,
     pub transitions: Vec<TransitionData>,
+    pub enter_action: Option<Action>,
+    pub exit_action: Option<Action>,
 }
 
 impl StateData {
@@ -29,6 +31,8 @@ impl StateData {
             name: name.to_string(),
             state_type,
             transitions: vec![],
+            enter_action: None,
+            exit_action: None,
         }
     }
 }
@@ -49,8 +53,8 @@ impl ParsedFsmBuilder {
         }
     }
 
-    pub fn set_scope(&mut self, scope: Option<StateId>) {
-        self.scope = scope;
+    pub fn set_scope(&mut self, scope: Option<StateId>) -> Option<StateId> {
+        std::mem::replace(&mut self.scope, scope)
     }
 
     pub fn add_state(&mut self, name: &str, state_type: StateType) -> StateId {
@@ -89,6 +93,18 @@ impl ParsedFsmBuilder {
         };
 
         self.arena[from_id].get_mut().transitions.push(transition);
+    }
+
+    pub fn set_state_enter_action(&mut self, name: &str, action: Action) {
+        if let Some(id) = self.find_descendant_state(name) {
+            self.arena[id].get_mut().enter_action = Some(action);
+        }
+    }
+
+    pub fn set_state_exit_action(&mut self, name: &str, action: Action) {
+        if let Some(id) = self.find_descendant_state(name) {
+            self.arena[id].get_mut().exit_action = Some(action);
+        }
     }
 
     pub fn build(self) -> Result<ParsedFsm> {
@@ -202,6 +218,12 @@ impl ParsedFsmBuilder {
         let current_type = self.arena[id].get().state_type;
         // Only states of type Simple can be updated. Simple can be a placeholder until a real type is set
         if state_type != StateType::Simple && current_type == StateType::Simple {
+            log::debug!(
+                "Updating Type of state '{}' from {:?} to {:?}",
+                name,
+                current_type,
+                state_type
+            );
             self.arena[id].get_mut().state_type = state_type;
         } else if state_type != StateType::Simple && current_type != state_type {
             log::warn!(
@@ -216,7 +238,7 @@ impl ParsedFsmBuilder {
 
 #[cfg(test)]
 mod test {
-    use crate::parser::{Event, ParsedFsmBuilder, StateType};
+    use crate::parser::{Action, Event, ParsedFsmBuilder, StateType};
 
     #[test]
     fn add_enter_state() {
@@ -556,5 +578,46 @@ mod test {
 
         // The enter_state should be the deepest nested enter state
         assert_eq!(fsm.enter_state().name(), "DeepestEnter");
+    }
+
+    #[test]
+    fn set_state_enter_and_exit_actions() {
+        let mut builder = builder_with_enter();
+        builder.set_state_enter_action("Start", Action::from("OnEnter"));
+        builder.set_state_exit_action("Start", Action::from("OnExit"));
+        let fsm = builder.build().unwrap();
+
+        let start = find_state(&fsm, "Start");
+        assert_eq!(start.enter_action(), Some(&Action::from("OnEnter")));
+        assert_eq!(start.exit_action(), Some(&Action::from("OnExit")));
+    }
+
+    #[test]
+    fn set_actions_on_state_created_by_transition() {
+        let mut builder = builder_with_enter();
+        builder.add_transition("Start", "Other", "GoToOther".into(), None);
+        builder.set_state_enter_action("Other", Action::from("OnEnterOther"));
+        builder.set_state_exit_action("Other", Action::from("OnExitOther"));
+        let fsm = builder.build().unwrap();
+
+        let other = find_state(&fsm, "Other");
+        assert_eq!(other.enter_action(), Some(&Action::from("OnEnterOther")));
+        assert_eq!(other.exit_action(), Some(&Action::from("OnExitOther")));
+    }
+
+    #[test]
+    fn set_substate_actions() {
+        let mut builder = builder_with_enter();
+        let parent = builder.add_state("Parent", StateType::Simple);
+        builder.set_scope(Some(parent));
+        builder.add_state("Child", StateType::Enter);
+        builder.set_state_enter_action("Child", Action::from("OnEnterChild"));
+        builder.set_state_exit_action("Child", Action::from("OnExitChild"));
+        let fsm = builder.build().unwrap();
+
+        let parent_state = find_state(&fsm, "Parent");
+        let child = find_substate(&parent_state, "Child");
+        assert_eq!(child.enter_action(), Some(&Action::from("OnEnterChild")));
+        assert_eq!(child.exit_action(), Some(&Action::from("OnExitChild")));
     }
 }

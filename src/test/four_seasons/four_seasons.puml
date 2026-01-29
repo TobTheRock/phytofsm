@@ -1,6 +1,7 @@
 @startuml PlantFsm 
 
 state Winter {
+  Winter: > WinterIsComing
   state Freezing
   state Mild
   
@@ -19,7 +20,8 @@ state Spring {
 
 state Summer {
   state Balmy
-  state Scorching
+  state Scorching: >StartHeatWave 
+  state Scorching: <EndHeatWave
 
   [*] --> Balmy
   Balmy -> Scorching: TemperatureRises
