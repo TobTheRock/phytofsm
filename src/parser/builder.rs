@@ -1,4 +1,5 @@
 use indextree::{Arena, NodeId};
+use itertools::Itertools;
 use log::{debug, trace};
 
 use crate::error::{Error, Result};
@@ -23,6 +24,7 @@ pub(super) struct StateData {
     pub transitions: Vec<TransitionData>,
     pub enter_action: Option<Action>,
     pub exit_action: Option<Action>,
+    pub enter_state: Option<StateId>,
 }
 
 impl StateData {
@@ -33,6 +35,7 @@ impl StateData {
             transitions: vec![],
             enter_action: None,
             exit_action: None,
+            enter_state: None,
         }
     }
 }
@@ -107,7 +110,7 @@ impl ParsedFsmBuilder {
         }
     }
 
-    pub fn build(self) -> Result<ParsedFsm> {
+    pub fn build(mut self) -> Result<ParsedFsm> {
         trace!(
             "All states: {:?}",
             self.arena
@@ -115,6 +118,8 @@ impl ParsedFsmBuilder {
                 .map(|node| node.get().name.as_str())
                 .collect::<Vec<_>>()
         );
+
+        self.link_enter_states();
 
         let enter_state = self.find_root_enter_state()?;
         debug!("Found root enter state: {:?}", enter_state);
@@ -125,6 +130,19 @@ impl ParsedFsmBuilder {
         }
 
         Ok(ParsedFsm::new(name, enter_state, self.arena))
+    }
+
+    fn link_enter_states(&mut self) {
+        let node_ids = self
+            .arena
+            .iter()
+            .filter_map(|node| self.arena.get_node_id(node))
+            .collect_vec();
+
+        for id in node_ids {
+            let deepest_enter = self.find_deepest_enter_state(id);
+            self.arena[id].get_mut().enter_state = Some(deepest_enter);
+        }
     }
 
     fn find_root_enter_state(&self) -> Result<StateId> {
@@ -619,5 +637,20 @@ mod test {
         let child = find_substate(&parent_state, "Child");
         assert_eq!(child.enter_action(), Some(&Action::from("OnEnterChild")));
         assert_eq!(child.exit_action(), Some(&Action::from("OnExitChild")));
+    }
+
+    #[test]
+    fn sets_deepest_enter_state() {
+        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        builder.add_state("RootEnter", StateType::Enter);
+        let root = builder.add_state("Composite", StateType::Simple);
+        builder.set_scope(Some(root));
+        let nested = builder.add_state("NestedEnter", StateType::Enter);
+        builder.set_scope(Some(nested));
+        builder.add_state("DeepestEnter", StateType::Enter);
+        let fsm = builder.build().unwrap();
+
+        let root_enter = find_state(&fsm, "Composite");
+        assert_eq!(root_enter.enter_state().name(), "DeepestEnter");
     }
 }

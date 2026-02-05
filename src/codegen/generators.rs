@@ -1,5 +1,3 @@
-use crate::parser;
-
 use super::{CodeGenerator, GenerationContext};
 
 pub struct EventParamsTraitGenerator;
@@ -76,16 +74,17 @@ impl CodeGenerator for EventEnumDisplayImplGenerator {
         let event_variants = ctx.fsm.events().map(|event| {
             let event_ident = event.ident();
             let event_name = &event.0;
-            quote::quote! { #event_enum_ident::#event_ident(_) => write!(f, "{}", #event_name), }
+            quote::quote! { #event_enum_ident::#event_ident(_) => #event_name, }
         });
 
         let action_ident = &ctx.idents.action_trait;
         quote::quote! {
             impl<P: #action_ident> std::fmt::Display for #event_enum_ident<P> {
                 fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-                    match self {
+                    let name = match self {
                         #(#event_variants)*
-                    }
+                    };
+                    write!(f, "{}", name)
                 }
             }
         }
@@ -102,7 +101,7 @@ impl CodeGenerator for StateStructGenerator {
             struct #state_ident<A: #actions_trait> {
                 name: &'static str,
                 transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<Self>,
-                direct_enter: Option<fn() -> Self>,
+                enter_state: fn() -> Self,
             }
 
 
@@ -111,7 +110,7 @@ impl CodeGenerator for StateStructGenerator {
                     Self {
                         name: self.name,
                         transition: self.transition,
-                        direct_enter: self.direct_enter,
+                        enter_state: self.enter_state,
                     }
                 }
             }
@@ -144,20 +143,6 @@ impl CodeGenerator for StateImplGenerator {
                 }
             });
 
-            let enter_state = state
-                .substates()
-                .find(|substate| substate.state_type() == parser::StateType::Enter);
-            let direct_enter = if let Some(enter_state) = enter_state {
-                let enter_fn = enter_state.function_ident();
-                quote::quote! {
-                    Some(Self::#enter_fn)
-                }
-            } else {
-                quote::quote! {
-                    None
-                }
-            };
-
             let parent_transition = if let Some(parent) = state.parent() {
                 let parent_fn = parent.function_ident();
                 quote::quote! {
@@ -172,15 +157,20 @@ impl CodeGenerator for StateImplGenerator {
                 }
             };
 
+            let enter_state = state.enter_state();
+            let enter_fn = enter_state.function_ident();
+
             quote::quote! {
                     fn #fn_name() -> Self {
                         Self {
                             name: #state_name,
                             transition: |event, action| match event {
+
                                 #(#transitions,)*
                                 _ => #parent_transition,
                             },
-                            direct_enter: #direct_enter,
+                            enter_state: Self::#enter_fn
+
                     }
                 }
             }
@@ -215,7 +205,6 @@ impl CodeGenerator for FsmImplGenerator {
         let fsm = &ctx.idents.fsm;
         let action = &ctx.idents.action_trait;
         let event_enum = &ctx.idents.event_enum;
-        let state = &ctx.idents.state_struct;
 
         quote::quote! {
             impl<A> #fsm<A>
@@ -229,14 +218,6 @@ impl CodeGenerator for FsmImplGenerator {
                     }
                 }
 
-                fn enter_new_state(&self, mut new_state: #state<A>) -> #state<A> {
-                    while let Some(direct_enter_fn) = new_state.direct_enter {
-                        let direct_state = direct_enter_fn();
-                        new_state = direct_state;
-                    }
-
-                    new_state
-                }
             }
         }
     }
@@ -248,10 +229,8 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
         let action = &ctx.idents.action_trait;
         let event_enum = &ctx.idents.event_enum;
         let level = self.log_level_token();
-        let state = &ctx.idents.state_struct;
 
-        let log_transition = format! {"{}: {{}} -[{{}}]-> {{}}", ctx.fsm.name()};
-        let log_direct_enter = format! {"{}: Directly entering {{}}", ctx.fsm.name()};
+        let log_transition = format! {"{}: {{}} -[{{}}]-> {{}}, entering {{}}", ctx.fsm.name()};
         quote::quote! {
             impl<A> #fsm<A>
             where
@@ -260,20 +239,18 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
                 fn trigger_event(&mut self, event: #event_enum<A>) {
                     let event_name = format!("{}", event);
                     if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
-                        ::log::log!(#level, #log_transition, self.current_state.name, event_name, new_state.name);
-                        let next_state = self.enter_new_state(new_state);
-                        self.current_state = next_state;
-                    }
-                }
+                        let new_state_name = new_state.name;
+                        let enter_state = self.enter_new_state(new_state);
 
-                fn enter_new_state(&self, mut new_state: #state<A>) -> #state<A> {
-                    while let Some(direct_enter_fn) = new_state.direct_enter {
-                        let direct_state = direct_enter_fn();
-                        ::log::log!(#level, #log_direct_enter, direct_state.name);
-                        new_state = direct_state;
-                    }
+                        ::log::log!(#level, #log_transition,
+                            self.current_state.name,
+                            event_name,
+                            new_state_name,
+                            enter_state.name
+                        );
 
-                    new_state
+                        self.current_state = enter_state;
+                    }
                 }
             }
         }
@@ -310,6 +287,13 @@ impl CodeGenerator for FsmImplGeneratorCommon {
                         actions,
                         current_state: #state::#entry_state(),
                     }
+                }
+
+                fn enter_new_state(&self, mut new_state: #state<A>) -> #state<A> {
+                    let enter_state = (new_state.enter_state)();
+
+                    //(enter_state.enter)(&mut self.actions);
+                    enter_state
                 }
 
 

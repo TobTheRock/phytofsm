@@ -57,7 +57,15 @@ impl ParsedFsm {
             .exit_action()
             .map(|a| format!(" < {}", a.0))
             .unwrap_or_default();
-        writeln!(f, "{}{}{}{}{}", prefix, type_marker, state.name(), enter, exit)?;
+        writeln!(
+            f,
+            "{}{}{}{}{}",
+            prefix,
+            type_marker,
+            state.name(),
+            enter,
+            exit
+        )?;
         for substate in state.substates() {
             self.fmt_state_tree(f, substate, indent + 1)?;
         }
@@ -202,6 +210,15 @@ impl<'a> State<'a> {
         self.id
             .children(self.arena)
             .map(move |child_id| State::new(child_id, self.arena))
+    }
+
+    pub fn enter_state(&self) -> State<'a> {
+        let data = self.node_data();
+        if let Some(enter_id) = data.enter_state {
+            State::new(enter_id, self.arena)
+        } else {
+            State::new(self.id, self.arena)
+        }
     }
 
     fn node(&self) -> &indextree::Node<StateData> {
