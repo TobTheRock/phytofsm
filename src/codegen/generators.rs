@@ -39,12 +39,28 @@ impl CodeGenerator for ActionTraitGenerator {
             }
         });
 
+        let enter_methods = ctx.fsm.enter_actions().map(|action| {
+            let action_ident = action.ident();
+            quote::quote! {
+                fn #action_ident(&mut self);
+            }
+        });
+
+        let exit_methods = ctx.fsm.exit_actions().map(|action| {
+            let action_ident = action.ident();
+            quote::quote! {
+                fn #action_ident(&mut self);
+            }
+        });
+
         let event_params_trait = &ctx.idents.event_params_trait;
         let trait_ident = &ctx.idents.action_trait;
 
         quote::quote! {
             pub trait #trait_ident : #event_params_trait{
                 #(#action_methods)*
+                #(#enter_methods)*
+                #(#exit_methods)*
             }
         }
     }
@@ -102,6 +118,8 @@ impl CodeGenerator for StateStructGenerator {
                 name: &'static str,
                 transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<Self>,
                 enter_state: fn() -> Self,
+                enter: fn(&mut A),
+                exit: fn(&mut A),
             }
 
 
@@ -111,9 +129,37 @@ impl CodeGenerator for StateStructGenerator {
                         name: self.name,
                         transition: self.transition,
                         enter_state: self.enter_state,
+                        enter: self.enter,
+                        exit: self.exit,
                     }
                 }
             }
+        }
+    }
+}
+
+impl StateImplGenerator {
+    fn generate_enter_action(state: &crate::parser::State<'_>) -> proc_macro2::TokenStream {
+        if let Some(action) = state.enter_action() {
+            let action_ident = action.ident();
+            quote::quote! { |actions| actions.#action_ident() }
+        } else if let Some(parent) = state.parent() {
+            let parent_fn = parent.function_ident();
+            quote::quote! { |actions| (Self::#parent_fn().enter)(actions) }
+        } else {
+            quote::quote! { |_| {} }
+        }
+    }
+
+    fn generate_exit_action(state: &crate::parser::State<'_>) -> proc_macro2::TokenStream {
+        if let Some(action) = state.exit_action() {
+            let action_ident = action.ident();
+            quote::quote! { |actions| actions.#action_ident() }
+        } else if let Some(parent) = state.parent() {
+            let parent_fn = parent.function_ident();
+            quote::quote! { |actions| (Self::#parent_fn().exit)(actions) }
+        } else {
+            quote::quote! { |_| {} }
         }
     }
 }
@@ -159,6 +205,8 @@ impl CodeGenerator for StateImplGenerator {
 
             let enter_state = state.enter_state();
             let enter_fn = enter_state.function_ident();
+            let enter_action = Self::generate_enter_action(&state);
+            let exit_action = Self::generate_exit_action(&state);
 
             quote::quote! {
                     fn #fn_name() -> Self {
@@ -169,7 +217,9 @@ impl CodeGenerator for StateImplGenerator {
                                 #(#transitions,)*
                                 _ => #parent_transition,
                             },
-                            enter_state: Self::#enter_fn
+                            enter_state: Self::#enter_fn,
+                            enter: #enter_action,
+                            exit: #exit_action,
 
                     }
                 }
@@ -213,8 +263,8 @@ impl CodeGenerator for FsmImplGenerator {
             {
                 pub fn trigger_event(&mut self, event: #event_enum<A>) {
                     if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
-                        let next_state = self.enter_new_state(new_state);
-                        self.current_state = next_state;
+                        self.exit_current_state();
+                        self.enter_new_state(new_state);
                     }
                 }
 
@@ -240,16 +290,17 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
                     let event_name = format!("{}", event);
                     if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
                         let new_state_name = new_state.name;
+                        let from_state_name = self.current_state.name;
+
+                        self.exit_current_state();
                         let enter_state = self.enter_new_state(new_state);
 
                         ::log::log!(#level, #log_transition,
-                            self.current_state.name,
+                            from_state_name,
                             event_name,
                             new_state_name,
                             enter_state.name
                         );
-
-                        self.current_state = enter_state;
                     }
                 }
             }
@@ -282,20 +333,25 @@ impl CodeGenerator for FsmImplGeneratorCommon {
             where
                 A: #action,
             {
-                pub fn new(actions: A) -> Self {
+                pub fn new(mut actions: A) -> Self {
+                    let initial_state = #state::#entry_state();
+                    (initial_state.enter)(&mut actions);
                     Self {
                         actions,
-                        current_state: #state::#entry_state(),
+                        current_state: initial_state,
                     }
                 }
 
-                fn enter_new_state(&self, mut new_state: #state<A>) -> #state<A> {
+                fn enter_new_state(&mut self, new_state: #state<A>) -> #state<A> {
                     let enter_state = (new_state.enter_state)();
-
-                    //(enter_state.enter)(&mut self.actions);
+                    (enter_state.enter)(&mut self.actions);
+                    self.current_state = enter_state.clone();
                     enter_state
                 }
 
+                fn exit_current_state(&mut self) {
+                    (self.current_state.exit)(&mut self.actions);
+                }
 
                 #(#methods)*
             }

@@ -11,6 +11,7 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
 
     // Root level states
     let winter = builder.add_state("Winter", StateType::Enter);
+    builder.set_state_enter_action("Winter", Action::from("WinterIsComing"));
     let spring = builder.add_state("Spring", StateType::Simple);
     let summer = builder.add_state("Summer", StateType::Simple);
     let autumn = builder.add_state("Autumn", StateType::Simple);
@@ -54,6 +55,8 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     builder.set_scope(Some(summer));
     builder.add_state("Balmy", StateType::Enter);
     builder.add_state("Scorching", StateType::Simple);
+    builder.set_state_enter_action("Scorching", Action::from("StartHeatWave"));
+    builder.set_state_exit_action("Scorching", Action::from("EndHeatWave"));
     builder.add_transition("Balmy", "Scorching", Event("TemperatureRises".into()), None);
     builder.add_transition("Scorching", "Balmy", Event("TemperatureDrops".into()), None);
 

@@ -96,6 +96,18 @@ impl ParsedFsm {
             .unique()
     }
 
+    pub fn enter_actions(&self) -> impl Iterator<Item = Action> + '_ {
+        self.states()
+            .filter_map(|s| s.enter_action().cloned())
+            .unique()
+    }
+
+    pub fn exit_actions(&self) -> impl Iterator<Item = Action> + '_ {
+        self.states()
+            .filter_map(|s| s.exit_action().cloned())
+            .unique()
+    }
+
     pub fn enter_state(&self) -> State<'_> {
         State::new(self.enter_state, &self.arena)
     }

@@ -51,6 +51,8 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     // Root level transitions involving C
     builder.set_scope(None);
     builder.add_transition("A", "C", Event::from("GoToC"), None);
+    builder.add_transition("A", "C1", Event::from("GoToC1FromA"), None);
+    builder.add_transition("A", "C2", Event::from("GoToC2FromA"), None);
     builder.add_transition("C", "A", Event::from("GoToAFromC"), None);
 
     builder.build()

@@ -21,6 +21,8 @@ state C {
   C1 -> C2 : GoToC2
 }
 A -> C : GoToC
+A -> C1 : GoToC1FromA
+A -> C2 : GoToC2FromA
 C -> A : GoToAFromC
 
 @enduml
