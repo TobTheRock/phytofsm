@@ -13,65 +13,6 @@ pub struct ParsedFsm {
     arena: Arena<StateData>,
 }
 
-impl std::fmt::Debug for ParsedFsm {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "ParsedFsm {{")?;
-        writeln!(f, "  name: {:?}", self.name)?;
-        writeln!(f, "  states:")?;
-        self.fmt_state_tree(f, self.enter_state(), 2)?;
-        writeln!(f, "  transitions:")?;
-        let mut transitions: Vec<_> = self.transitions().collect();
-        transitions.sort();
-        for t in transitions {
-            let action = t.action.map(|a| format!(" / {}", a.0)).unwrap_or_default();
-            writeln!(
-                f,
-                "    {} --[{}{}]--> {}",
-                t.source.name(),
-                t.event.0,
-                action,
-                t.destination.name()
-            )?;
-        }
-        write!(f, "}}")
-    }
-}
-
-impl ParsedFsm {
-    fn fmt_state_tree(
-        &self,
-        f: &mut std::fmt::Formatter<'_>,
-        state: State<'_>,
-        indent: usize,
-    ) -> std::fmt::Result {
-        let prefix = " ".repeat(indent * 2);
-        let type_marker = match state.state_type() {
-            StateType::Enter => "[*] ",
-            StateType::Simple => "",
-        };
-        let enter = state
-            .enter_action()
-            .map(|a| format!(" > {}", a.0))
-            .unwrap_or_default();
-        let exit = state
-            .exit_action()
-            .map(|a| format!(" < {}", a.0))
-            .unwrap_or_default();
-        writeln!(
-            f,
-            "{}{}{}{}{}",
-            prefix,
-            type_marker,
-            state.name(),
-            enter,
-            exit
-        )?;
-        for substate in state.substates() {
-            self.fmt_state_tree(f, substate, indent + 1)?;
-        }
-        Ok(())
-    }
-}
 
 impl ParsedFsm {
     pub(super) fn new(name: String, enter_state: StateId, arena: Arena<StateData>) -> Self {
@@ -166,6 +107,66 @@ impl ParsedFsm {
         let self_transitions: HashSet<_> = self.transitions().map(transition_key).collect();
         let other_transitions: HashSet<_> = other.transitions().map(transition_key).collect();
         self_transitions == other_transitions
+    }
+}
+
+impl std::fmt::Debug for ParsedFsm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        writeln!(f, "ParsedFsm {{")?;
+        writeln!(f, "  name: {:?}", self.name)?;
+        writeln!(f, "  states:")?;
+        self.fmt_state_tree(f, self.enter_state(), 2)?;
+        writeln!(f, "  transitions:")?;
+        let mut transitions: Vec<_> = self.transitions().collect();
+        transitions.sort();
+        for t in transitions {
+            let action = t.action.map(|a| format!(" / {}", a.0)).unwrap_or_default();
+            writeln!(
+                f,
+                "    {} --[{}{}]--> {}",
+                t.source.name(),
+                t.event.0,
+                action,
+                t.destination.name()
+            )?;
+        }
+        write!(f, "}}")
+    }
+}
+
+impl ParsedFsm {
+    fn fmt_state_tree(
+        &self,
+        f: &mut std::fmt::Formatter<'_>,
+        state: State<'_>,
+        indent: usize,
+    ) -> std::fmt::Result {
+        let prefix = " ".repeat(indent * 2);
+        let type_marker = match state.state_type() {
+            StateType::Enter => "[*] ",
+            StateType::Simple => "",
+        };
+        let enter = state
+            .enter_action()
+            .map(|a| format!(" > {}", a.0))
+            .unwrap_or_default();
+        let exit = state
+            .exit_action()
+            .map(|a| format!(" < {}", a.0))
+            .unwrap_or_default();
+        writeln!(
+            f,
+            "{}{}{}{}{}",
+            prefix,
+            type_marker,
+            state.name(),
+            enter,
+            exit
+        )?;
+        for substate in state.substates() {
+            self.fmt_state_tree(f, substate, indent + 1)?;
+        }
+        Ok(())
     }
 }
 

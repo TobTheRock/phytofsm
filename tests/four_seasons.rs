@@ -48,9 +48,8 @@ fn test_transitions() {
     actions.expect_drop_petals().returning(|_| ()).times(1);
 
     // Enter/exit actions
-    // winter_is_coming: called on new(), on internal transition Freezing->Mild, and when returning
-    // TODO: internal substate transitions should not call parent enter/exit
-    actions.expect_winter_is_coming().returning(|| ()).times(3);
+    // winter_is_coming: called on new() and when returning from Autumn
+    actions.expect_winter_is_coming().returning(|| ()).times(2);
     // start_heat_wave/end_heat_wave: not called (never enter Scorching)
     actions.expect_start_heat_wave().never();
     actions.expect_end_heat_wave().never();

@@ -9,6 +9,8 @@ pub struct Idents {
     pub event_enum: proc_macro2::Ident,
     pub action_trait: proc_macro2::Ident,
     pub state_struct: proc_macro2::Ident,
+    pub state_id_enum: proc_macro2::Ident,
+    pub init_state_id_variant: proc_macro2::Ident,
 }
 
 impl Idents {
@@ -21,6 +23,8 @@ impl Idents {
             event_enum: quote::format_ident!("{}Event", name.to_upper_camel_case()),
             action_trait: quote::format_ident!("I{}Actions", name.to_upper_camel_case()),
             state_struct: quote::format_ident!("{}State", name.to_upper_camel_case()),
+            state_id_enum: quote::format_ident!("{}StateId", name.to_upper_camel_case()),
+            init_state_id_variant: quote::format_ident!("_{}InitialState_", name.to_upper_camel_case()),
         }
     }
 }
@@ -48,6 +52,10 @@ impl parser::Action {
 impl parser::State<'_> {
     pub fn function_ident(&self) -> proc_macro2::Ident {
         quote::format_ident!("{}", self.qualified_name("_").to_snake_case())
+    }
+
+    pub fn state_id_variant_ident(&self) -> proc_macro2::Ident {
+        quote::format_ident!("{}", self.qualified_name("").to_upper_camel_case())
     }
 
     pub fn name_literal(&self) -> proc_macro2::Literal {

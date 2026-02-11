@@ -21,6 +21,7 @@ impl FsmCodeGenerator {
             Box::new(generators::ActionTraitGenerator),
             Box::new(generators::EventEnumGenerator),
             Box::new(generators::EventEnumDisplayImplGenerator),
+            Box::new(generators::StateIdEnumGenerator),
             Box::new(generators::StateStructGenerator),
             Box::new(generators::StateImplGenerator),
             Box::new(generators::FsmStructGenerator),

@@ -14,3 +14,9 @@ Whenever a feature is added a reference implementation is first drafted and upda
 - `src/codegen/`: code generation abstraction and implementation
 - `src/test`: test data (puml, data abstraction), cutting at the parser abstraction, so both the parser and codegen can be tested
 - `tests`: integration tests using the same puml files as the module tests
+- `target/test/data` code of the generated FSMs from the puml test files
+
+# Coding guidelines
+
+- Always follow DRY, SOLID and clean code principles
+- Follow the reference impl, but NEVER alter it without prior discussion

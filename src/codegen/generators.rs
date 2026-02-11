@@ -4,6 +4,7 @@ pub struct EventParamsTraitGenerator;
 pub struct ActionTraitGenerator;
 pub struct EventEnumGenerator;
 pub struct EventEnumDisplayImplGenerator;
+pub struct StateIdEnumGenerator;
 pub struct StateStructGenerator;
 pub struct StateImplGenerator;
 pub struct FsmStructGenerator;
@@ -107,26 +108,69 @@ impl CodeGenerator for EventEnumDisplayImplGenerator {
     }
 }
 
+impl CodeGenerator for StateIdEnumGenerator {
+    fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream {
+        let state_id_enum = &ctx.idents.state_id_enum;
+        let init_state_id_variant = &ctx.idents.init_state_id_variant;
+
+        let variants = ctx.fsm.states().map(|state| {
+            let variant_ident = state.state_id_variant_ident();
+            quote::quote! { #variant_ident, }
+        });
+
+        let from_match_arms = ctx.fsm.states().map(|state| {
+            let variant_ident = state.state_id_variant_ident();
+            let name_literal = state.name_literal();
+            quote::quote! { #state_id_enum::#variant_ident => #name_literal, }
+        });
+
+        quote::quote! {
+            #[derive(Copy, Clone, PartialEq, Eq, Debug)]
+            enum #state_id_enum {
+                #(#variants)*
+                #init_state_id_variant,
+            }
+
+            impl From<#state_id_enum> for &'static str {
+                fn from(id: #state_id_enum) -> Self {
+                    match id {
+                        #(#from_match_arms)*
+                        #state_id_enum::#init_state_id_variant => "[*]",
+                    }
+                }
+            }
+
+            impl std::fmt::Display for #state_id_enum {
+                fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+                    let name: &'static str = (*self).into();
+                    write!(f, "{}", name)
+                }
+            }
+        }
+    }
+}
+
 impl CodeGenerator for StateStructGenerator {
     fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream {
         let state_ident = &ctx.idents.state_struct;
+        let state_id_enum = &ctx.idents.state_id_enum;
         let actions_trait = &ctx.idents.action_trait;
         let event_enum = &ctx.idents.event_enum;
 
         quote::quote! {
+            #[derive(Copy)]
             struct #state_ident<A: #actions_trait> {
-                name: &'static str,
+                id: #state_id_enum,
                 transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<Self>,
                 enter_state: fn() -> Self,
-                enter: fn(&mut A),
-                exit: fn(&mut A),
+                enter: fn(&mut A, from: &Self),
+                exit: fn(&mut A, to: &Self),
             }
-
 
             impl<A: #actions_trait> Clone for #state_ident<A> {
                 fn clone(&self) -> Self {
                     Self {
-                        name: self.name,
+                        id: self.id,
                         transition: self.transition,
                         enter_state: self.enter_state,
                         enter: self.enter,
@@ -134,40 +178,100 @@ impl CodeGenerator for StateStructGenerator {
                     }
                 }
             }
+
+            impl<A: #actions_trait> PartialEq for #state_ident<A> {
+                fn eq(&self, other: &Self) -> bool {
+                    self.id == other.id
+                }
+            }
         }
     }
 }
 
 impl StateImplGenerator {
-    fn generate_enter_action(state: &crate::parser::State<'_>) -> proc_macro2::TokenStream {
+    fn generate_enter_action(
+        state: &crate::parser::State<'_>,
+        state_id_enum: &proc_macro2::Ident,
+    ) -> proc_macro2::TokenStream {
+        let substate_ids = Self::all_substate_ids(state, state_id_enum);
+        let has_substates = !substate_ids.is_empty();
+
         if let Some(action) = state.enter_action() {
             let action_ident = action.ident();
-            quote::quote! { |actions| actions.#action_ident() }
+            if has_substates {
+                quote::quote! {
+                    |actions, from| {
+                        if matches!(from.id, #(#substate_ids)|*) {
+                            return;
+                        }
+                        actions.#action_ident();
+                    }
+                }
+            } else {
+                // Leaf state with action: just call the action
+                quote::quote! { |actions, _from| actions.#action_ident() }
+            }
         } else if let Some(parent) = state.parent() {
+            // As a substate, forward to parent if no own enter action is defined
             let parent_fn = parent.function_ident();
-            quote::quote! { |actions| (Self::#parent_fn().enter)(actions) }
+            quote::quote! { |actions, from| (Self::#parent_fn().enter)(actions, from) }
         } else {
-            quote::quote! { |_| {} }
+            quote::quote! { |_actions, _from| {} }
         }
     }
 
-    fn generate_exit_action(state: &crate::parser::State<'_>) -> proc_macro2::TokenStream {
+    fn generate_exit_action(
+        state: &crate::parser::State<'_>,
+        state_id_enum: &proc_macro2::Ident,
+    ) -> proc_macro2::TokenStream {
+        let substate_ids = Self::all_substate_ids(state, state_id_enum);
+        let has_substates = !substate_ids.is_empty();
+
         if let Some(action) = state.exit_action() {
             let action_ident = action.ident();
-            quote::quote! { |actions| actions.#action_ident() }
+            if has_substates {
+                // Composite state with action: skip enter/exit actions for internal transitions
+                quote::quote! {
+                    |actions, to| {
+                        if matches!(to.id, #(#substate_ids)|*) {
+                            return;
+                        }
+                        actions.#action_ident();
+                    }
+                }
+            } else {
+                // Leaf state with action: just call the action
+                quote::quote! { |actions, _to| actions.#action_ident() }
+            }
         } else if let Some(parent) = state.parent() {
             let parent_fn = parent.function_ident();
-            quote::quote! { |actions| (Self::#parent_fn().exit)(actions) }
+            quote::quote! { |actions, to| (Self::#parent_fn().exit)(actions, to) }
         } else {
-            quote::quote! { |_| {} }
+            quote::quote! { |_actions, _to| {} }
         }
+    }
+
+    fn all_substate_ids(
+        state: &crate::parser::State<'_>,
+        state_id_enum: &proc_macro2::Ident,
+    ) -> Vec<proc_macro2::TokenStream> {
+        state
+            .substates()
+            .map(|s| {
+                let variant = s.state_id_variant_ident();
+                quote::quote! { #state_id_enum::#variant }
+            })
+            .collect()
     }
 }
 
 impl CodeGenerator for StateImplGenerator {
     fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream {
+        let state_id_enum = &ctx.idents.state_id_enum;
+        let init_state_id_variant = &ctx.idents.init_state_id_variant;
+
         let state_fns = ctx.fsm.states().map(|state| {
-            let state_name = state.name_literal();
+            let state_id_variant = state.state_id_variant_ident();
             let fn_name = state.function_ident();
 
             let transitions = state.transitions().map(|t| {
@@ -205,22 +309,20 @@ impl CodeGenerator for StateImplGenerator {
 
             let enter_state = state.enter_state();
             let enter_fn = enter_state.function_ident();
-            let enter_action = Self::generate_enter_action(&state);
-            let exit_action = Self::generate_exit_action(&state);
+            let enter_action = Self::generate_enter_action(&state, state_id_enum);
+            let exit_action = Self::generate_exit_action(&state, state_id_enum);
 
             quote::quote! {
-                    fn #fn_name() -> Self {
-                        Self {
-                            name: #state_name,
-                            transition: |event, action| match event {
-
-                                #(#transitions,)*
-                                _ => #parent_transition,
-                            },
-                            enter_state: Self::#enter_fn,
-                            enter: #enter_action,
-                            exit: #exit_action,
-
+                fn #fn_name() -> Self {
+                    Self {
+                        id: #state_id_enum::#state_id_variant,
+                        transition: |event, action| match event {
+                            #(#transitions,)*
+                            _ => #parent_transition,
+                        },
+                        enter_state: Self::#enter_fn,
+                        enter: #enter_action,
+                        exit: #exit_action,
                     }
                 }
             }
@@ -229,7 +331,17 @@ impl CodeGenerator for StateImplGenerator {
         let struct_ident = &ctx.idents.state_struct;
         let actions_trait = &ctx.idents.action_trait;
         quote::quote! {
-        impl<A: #actions_trait> #struct_ident<A> {
+            impl<A: #actions_trait> #struct_ident<A> {
+                fn init() -> Self {
+                    Self {
+                        id: #state_id_enum::#init_state_id_variant,
+                        transition: |_event, _action| None,
+                        enter_state: Self::init,
+                        enter: |_actions, _from| {},
+                        exit: |_actions, _to| {},
+                    }
+                }
+
                 #(#state_fns)*
             }
         }
@@ -263,11 +375,10 @@ impl CodeGenerator for FsmImplGenerator {
             {
                 pub fn trigger_event(&mut self, event: #event_enum<A>) {
                     if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
-                        self.exit_current_state();
-                        self.enter_new_state(new_state);
+                        let enter_state = self.enter_new_state(new_state);
+                        self.exit_current_state(enter_state);
                     }
                 }
-
             }
         }
     }
@@ -289,18 +400,19 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
                 fn trigger_event(&mut self, event: #event_enum<A>) {
                     let event_name = format!("{}", event);
                     if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
-                        let new_state_name = new_state.name;
-                        let from_state_name = self.current_state.name;
+                        let new_state_id = new_state.id;
+                        let from_state_id = self.current_state.id;
 
-                        self.exit_current_state();
                         let enter_state = self.enter_new_state(new_state);
 
                         ::log::log!(#level, #log_transition,
-                            from_state_name,
+                            from_state_id,
                             event_name,
-                            new_state_name,
-                            enter_state.name
+                            new_state_id,
+                            enter_state.id
                         );
+
+                        self.exit_current_state(enter_state);
                     }
                 }
             }
@@ -313,7 +425,7 @@ impl CodeGenerator for FsmImplGeneratorCommon {
         let fsm = &ctx.idents.fsm;
         let action = &ctx.idents.action_trait;
         let state = &ctx.idents.state_struct;
-        let entry_state = ctx.fsm.enter_state().function_ident();
+        let enter_state = ctx.fsm.enter_state().function_ident();
         let event_enum = &ctx.idents.event_enum;
         let event_params_trait = &ctx.idents.event_params_trait;
 
@@ -334,23 +446,24 @@ impl CodeGenerator for FsmImplGeneratorCommon {
                 A: #action,
             {
                 pub fn new(mut actions: A) -> Self {
-                    let initial_state = #state::#entry_state();
-                    (initial_state.enter)(&mut actions);
+                    let init = #state::init();
+                    let enter_state = #state::#enter_state();
+                    (enter_state.enter)(&mut actions, &init);
                     Self {
                         actions,
-                        current_state: initial_state,
+                        current_state: enter_state,
                     }
                 }
 
                 fn enter_new_state(&mut self, new_state: #state<A>) -> #state<A> {
                     let enter_state = (new_state.enter_state)();
-                    (enter_state.enter)(&mut self.actions);
-                    self.current_state = enter_state.clone();
+                    (enter_state.enter)(&mut self.actions, &self.current_state);
                     enter_state
                 }
 
-                fn exit_current_state(&mut self) {
-                    (self.current_state.exit)(&mut self.actions);
+                fn exit_current_state(&mut self, new_state: #state<A>) {
+                    (self.current_state.exit)(&mut self.actions, &new_state);
+                    self.current_state = new_state;
                 }
 
                 #(#methods)*
