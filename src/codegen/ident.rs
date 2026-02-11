@@ -24,7 +24,10 @@ impl Idents {
             action_trait: quote::format_ident!("I{}Actions", name.to_upper_camel_case()),
             state_struct: quote::format_ident!("{}State", name.to_upper_camel_case()),
             state_id_enum: quote::format_ident!("{}StateId", name.to_upper_camel_case()),
-            init_state_id_variant: quote::format_ident!("_{}InitialState_", name.to_upper_camel_case()),
+            init_state_id_variant: quote::format_ident!(
+                "_{}InitialState_",
+                name.to_upper_camel_case()
+            ),
         }
     }
 }

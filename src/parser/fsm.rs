@@ -13,7 +13,6 @@ pub struct ParsedFsm {
     arena: Arena<StateData>,
 }
 
-
 impl ParsedFsm {
     pub(super) fn new(name: String, enter_state: StateId, arena: Arena<StateData>) -> Self {
         Self {
