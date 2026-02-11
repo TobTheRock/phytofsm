@@ -27,6 +27,7 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 | Events with custom data | Trigger transitions with typed event parameters | [actions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/actions.rs) |
 | Custom data types | Use any type (primitives, structs, references, pointers) as event data | [data_types.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/data_types.rs) |
 | Actions on transitions | Execute custom code when transitions occur | [actions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/actions.rs) |
+| Enter/exit actions | Execute custom code when entering or exiting a state | [enter_exit.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/enter_exit.rs) |
 | Composite states | Nested/hierarchical states with automatic enter state resolution | [composite_states.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/composite_states.rs) |
 | Substate-to-substate transitions | Transitions between substates across different parent states | [substate_to_substate.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/substate_to_substate.rs) |
 | Self-transitions | States that transition to themselves | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
@@ -35,14 +36,60 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 ### Missing Features
 
-- enter/exit actions
 - exit state
 - guards
 - event deferring
 - sub state machines
 - history states
 
-## Generated Code Naming Conventions
+## Custom Syntax for FSM Actions & Events
+
+This library extends standard PlantUML state diagram syntax with custom notation for defining actions.
+
+### Transitions with Actions
+
+Transitions can optionally include an action that is executed when the transition occurs:
+
+```puml
+StateA --> StateB : EventName / ActionName
+```
+
+- **EventName**: The event that triggers the transition
+- **ActionName** (optional): The action method called during the transition seperated by `/`
+
+### Enter/Exit Actions
+
+States can define enter and exit actions using the state description syntax with special prefixes:
+
+```puml
+State MyState : > EnterActionName
+State MyState : < ExitActionName
+```
+
+- **`>`** prefix denotes an **enter action** - called when entering the state
+- **`<`** prefix denotes an **exit action** - called when leaving the state
+
+Enter and exit actions can also be defined within composite states:
+
+```puml
+state Parent {
+  Parent: > EnterParent
+  Parent: < ExitParent
+
+  state Child : > EnterChild
+  state Child : < ExitChild
+
+  [*] --> Child
+}
+```
+
+**Behavior with composite states:**
+
+- If a substate defines its own enter/exit action, it overrides the parent's action
+- If a substate has no enter/exit action, it inherits the parent's action
+- Internal transitions (between substates of the same parent) do not trigger the parent's enter/exit actions
+
+## Generated Code
 
 When you use `generate_fsm!("path/to/diagram.puml")`, the macro generates various traits, enums, and structs based on your PlantUML diagram name and elements. Here's how they are named:
 
@@ -66,25 +113,16 @@ The following is generated:
 | **State Struct** | `{DiagramName}State` | Internal state representation |
 | **Module** | `{diagram_name}` | Generated module name (snake_case) |
 
-### Event and Action Elements
+### Events and Actions
 
-The actions and events associated with a transition must be defined as such with PlantUML:
-
-```
-StateA --> StateB : EventName / ActionName
-```
-
-- **EventName** becomes the event that triggers the transition
-- **ActionName** (optional) becomes the method called during the transition
-- Use `/` to separate the event from the action
+From the elements given by the custom syntax the following is derived:
 
 | PlantUML Element | Generated Item | Naming Pattern |
 |-----------------|----------------|----------------|
-| **Event** | Method name | snake_case of event name |
+| **Event** | Method name of the FSM Struct | snake_case of event name |
 | **Event** | Parameter type | `{EventName}Params` |
-| **Action** | Method name | snake_case of action name |
+| **Action** (Transition/Enter/Exit) | Method name of the Actions Trait | snake_case of action name |
 | **State** | State name | Preserved as written in PlantUML |
-| **State** | Function name | snake_case of state name |
 
 ## Example
 
@@ -94,6 +132,8 @@ StateA --> StateB : EventName / ActionName
 @startuml PlantFsm
 
 state Winter {
+  Winter: > WinterIsComing
+
   state Freezing
   state Mild
 
@@ -108,6 +148,16 @@ state Spring {
   [*] --> Chilly
   Chilly -> Warm: TemperatureRises
   Warm -> Chilly: TemperatureDrops
+}
+
+state Summer {
+  state Balmy
+  state Scorching: > StartHeatWave
+  state Scorching: < EndHeatWave
+
+  [*] --> Balmy
+  Balmy -> Scorching: TemperatureRises
+  Scorching -> Balmy: TemperatureDrops
 }
 
 [*] --> Winter
@@ -145,6 +195,7 @@ impl IPlantFsmEventParams for PlantActions {
 }
 
 impl IPlantFsmActions for PlantActions {
+    // Transition actions
     fn start_blooming(&mut self, time: Self::TimeAdvancesParams) {
         println!("Started blooming at {:?}", time);
     }
@@ -156,6 +207,20 @@ impl IPlantFsmActions for PlantActions {
     fn drop_petals(&mut self, _: Self::TimeAdvancesParams) {
         println!("Dropping petals");
     }
+
+    // Enter actions
+    fn winter_is_coming(&mut self) {
+        println!("Brace yourselves, winter is coming!");
+    }
+
+    fn start_heat_wave(&mut self) {
+        println!("Heat wave starting!");
+    }
+
+    // Exit actions
+    fn end_heat_wave(&mut self) {
+        println!("Heat wave ending, cooling down...");
+    }
 }
 ```
 
@@ -166,6 +231,7 @@ use plant_fsm::PlantFsm;
 
 fn main() {
     let actions = PlantActions;
+    // Creating the FSM triggers winter_is_coming() enter action
     let mut fsm = PlantFsm::new(actions);
 
     // Transition within Winter: Freezing -> Mild
@@ -173,5 +239,12 @@ fn main() {
 
     // Transition to next season: Winter -> Spring (enters Spring::Chilly)
     fsm.time_advances(std::time::SystemTime::now());
+
+    // Transition to Summer, then enter Scorching (triggers start_heat_wave)
+    fsm.time_advances(std::time::SystemTime::now());
+    fsm.temperature_rises(());
+
+    // Leave Scorching (triggers end_heat_wave), go to Balmy
+    fsm.temperature_drops(());
 }
 ```
