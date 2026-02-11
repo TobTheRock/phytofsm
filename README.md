@@ -232,7 +232,7 @@ use plant_fsm::PlantFsm;
 fn main() {
     let actions = PlantActions;
     // Creating the FSM triggers winter_is_coming() enter action
-    let mut fsm = PlantFsm::new(actions);
+    let mut fsm = PlantFsm::start(actions);
 
     // Transition within Winter: Freezing -> Mild
     fsm.temperature_rises(());

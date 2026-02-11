@@ -29,7 +29,7 @@ fn should_change_between_nested_substates() {
     // Only way to reach state AAB is through AAA -> entering substates works
     actions.expect_action_in_aaa().returning(|_| ()).times(1);
 
-    let mut fsm = CompositeStates::new(actions);
+    let mut fsm = CompositeStates::start(actions);
     fsm.to_aab(());
 }
 
@@ -39,7 +39,7 @@ fn should_change_between_substates() {
     // This guaranteses we can exit nested substates, if the parent has a respective transition for
     // the event
     actions.expect_action_in_aa().returning(|_| ()).times(1);
-    let mut fsm = CompositeStates::new(actions);
+    let mut fsm = CompositeStates::start(actions);
     fsm.to_ab(());
 }
 
@@ -49,6 +49,6 @@ fn should_change_between_top_level_states() {
     // This guaranteses we can exit nested substates, if the parent has a respective transition for
     // the event
     actions.expect_action_in_a().returning(|_| ()).times(1);
-    let mut fsm = CompositeStates::new(actions);
+    let mut fsm = CompositeStates::start(actions);
     fsm.to_b(());
 }

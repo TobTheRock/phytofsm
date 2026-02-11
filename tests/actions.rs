@@ -31,7 +31,7 @@ fn actions_are_called_when_transitioning() {
         .with(predicate::eq(param_for_action2))
         .returning(|_| ())
         .times(1);
-    let mut fsm = TestFsm::new(actions);
+    let mut fsm = TestFsm::start(actions);
     fsm.go_to_b(());
     fsm.go_to_a(param_for_action2);
 }
@@ -41,7 +41,7 @@ fn no_action_called_when_no_transition() {
     let mut actions = MockTestFsmActions::new();
     actions.expect_action1().times(0);
     actions.expect_action2().times(0);
-    let mut fsm = TestFsm::new(actions);
+    let mut fsm = TestFsm::start(actions);
     // Trigger event that does not cause a transition from the initial state
     fsm.go_to_a(42);
 }

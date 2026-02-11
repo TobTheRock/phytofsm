@@ -445,7 +445,7 @@ impl CodeGenerator for FsmImplGeneratorCommon {
             where
                 A: #action,
             {
-                pub fn new(mut actions: A) -> Self {
+                pub fn start(mut actions: A) -> Self {
                     let init = #state::init();
                     let enter_state = #state::#enter_state();
                     (enter_state.enter)(&mut actions, &init);

@@ -341,7 +341,8 @@ impl<A> PlantFsm<A>
 where
     A: IPlantFsmActions,
 {
-    pub fn new(mut actions: A) -> Self {
+    // THis may already trigger actions, depending on the initial state
+    pub fn start(mut actions: A) -> Self {
         let init = PlantFsmState::init();
         let enter_state = PlantFsmState::winter_freezing();
         // This acts similiar to a self transition: Enter and exit actions of the initial state are executed, but no transition is triggered
@@ -446,7 +447,7 @@ mod test {
         // Called twice: once on init (entering Winter::Freezing), once when returning from Autumn
         actions.expect_winter_is_coming().returning(|| ()).times(2);
 
-        let mut fsm = PlantFsm::new(actions);
+        let mut fsm = PlantFsm::start(actions);
         fsm.temperature_rises(());
         fsm.time_advances(time);
         fsm.time_advances(time);
@@ -466,7 +467,7 @@ mod test {
         actions.expect_start_heat_wave().returning(|| ()).times(1);
         actions.expect_end_heat_wave().returning(|| ()).times(1);
 
-        let mut fsm = PlantFsm::new(actions);
+        let mut fsm = PlantFsm::start(actions);
         // To Summer
         fsm.time_advances(time);
         fsm.time_advances(time);

@@ -22,7 +22,7 @@ impl ITestFsmActions for ActionsWithClonableData {
 #[test]
 fn actions_with_clonable_data() {
     let actions = ActionsWithClonableData;
-    let mut fsm = TestFsm::new(actions);
+    let mut fsm = TestFsm::start(actions);
     fsm.go_to_b("Hello FSM".to_string());
     fsm.go_to_a(vec![10, 20, 30]);
 }
@@ -54,7 +54,7 @@ fn actions_with_pointers() {
     let actions = ActionsWithPointers {
         phantom: std::marker::PhantomData,
     };
-    let mut fsm = TestFsm::new(actions);
+    let mut fsm = TestFsm::start(actions);
     fsm.go_to_b("Pointer Event");
     let number: i32 = 100;
     let number_ptr: *const i32 = &number as *const i32;

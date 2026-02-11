@@ -28,7 +28,7 @@ fn self_transition_action_called() {
     let mut actions = MockTestFsmActions::new();
     actions.expect_action1().returning(|_| ()).times(1);
     actions.expect_action2().returning(|_| ()).times(1);
-    let mut fsm = TestFsm::new(actions);
+    let mut fsm = TestFsm::start(actions);
 
     fsm.self_transition(());
     fsm.go_to_b(());
@@ -39,7 +39,7 @@ fn final_state() {
     let mut actions = MockTestFsmActions::new();
     actions.expect_action1().times(0);
     actions.expect_action2().returning(|_| ()).times(1);
-    let mut fsm = TestFsm::new(actions);
+    let mut fsm = TestFsm::start(actions);
 
     fsm.go_to_b(());
     fsm.self_transition(());
@@ -50,7 +50,7 @@ fn alternative_transition() {
     let mut actions = MockTestFsmActions::new();
     actions.expect_action3().returning(|_| ()).times(1);
     actions.expect_action2().times(0);
-    let mut fsm = TestFsm::new(actions);
+    let mut fsm = TestFsm::start(actions);
 
     fsm.go_to_b_differently(());
 }

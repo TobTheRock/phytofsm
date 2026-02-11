@@ -97,7 +97,7 @@ fn enter_action_called_on_initial_state() {
     let mut actions = MockActions::new();
     actions.expect_enter_a().returning(|| ()).times(1);
 
-    let _fsm = EnterExitActions::new(actions);
+    let _fsm = EnterExitActions::start(actions);
 }
 
 #[test]
@@ -107,7 +107,7 @@ fn exit_action_called_when_leaving_state() {
     t.expect_enter_a();
     t.expect_exit_a();
 
-    let mut fsm = EnterExitActions::new(t.actions);
+    let mut fsm = EnterExitActions::start(t.actions);
     fsm.go_to_b(());
 }
 
@@ -119,7 +119,7 @@ fn enter_action_called_when_entering_state() {
     t.expect_exit_a();
     t.expect_enter_a();
 
-    let mut fsm = EnterExitActions::new(t.actions);
+    let mut fsm = EnterExitActions::start(t.actions);
     fsm.go_to_b(());
     fsm.go_to_a_from_b(());
 }
@@ -133,7 +133,7 @@ fn substate_entry_overwrites_parent_enter() {
     t.expect_exit_a();    // Then exit old state
     t.actions.expect_enter_c().never();
 
-    let mut fsm = EnterExitActions::new(t.actions);
+    let mut fsm = EnterExitActions::start(t.actions);
     fsm.go_to_c1_from_a(());
 }
 
@@ -147,7 +147,7 @@ fn substate_exit_overwrites_parent_exit() {
     t.expect_enter_a();   // Enter A (new state from C)
     t.expect_exit_c1();   // Then exit C1 (old state)
 
-    let mut fsm = EnterExitActions::new(t.actions);
+    let mut fsm = EnterExitActions::start(t.actions);
     fsm.go_to_c1_from_a(());
     fsm.go_to_a_from_c(());
 }
@@ -160,7 +160,7 @@ fn substate_entry_defaults_to_parent_enter() {
     t.expect_enter_c();   // Enter new state first
     t.expect_exit_a();    // Then exit old state
 
-    let mut fsm = EnterExitActions::new(t.actions);
+    let mut fsm = EnterExitActions::start(t.actions);
     fsm.go_to_c2_from_a(());
 }
 
@@ -174,7 +174,7 @@ fn substate_exit_defaults_to_parent_exit() {
     t.expect_enter_a();   // Enter A (new state from C)
     t.expect_exit_c();    // Then exit C2 (uses parent C's exit)
 
-    let mut fsm = EnterExitActions::new(t.actions);
+    let mut fsm = EnterExitActions::start(t.actions);
     fsm.go_to_c2_from_a(());
     fsm.go_to_a_from_c(());
 }
@@ -190,7 +190,7 @@ fn internal_substate_transition_only_calls_substate_actions() {
     t.actions.expect_enter_c().never();
     t.actions.expect_exit_c().never();
 
-    let mut fsm = EnterExitActions::new(t.actions);
+    let mut fsm = EnterExitActions::start(t.actions);
     fsm.go_to_c1_from_a(());
     fsm.go_to_c2(());
 }

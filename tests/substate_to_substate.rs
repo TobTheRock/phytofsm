@@ -29,7 +29,7 @@ fn should_transition_from_substate_to_substate_across_parents() {
     // Starting in A::AA, transition to B::BA should trigger action_in_aa
     actions.expect_action_in_aa().returning(|_| ()).times(1);
 
-    let mut fsm = SubstateToSubstate::new(actions);
+    let mut fsm = SubstateToSubstate::start(actions);
     fsm.to_ba(());
 }
 
@@ -40,7 +40,7 @@ fn should_transition_within_substate() {
     actions.expect_action_in_aa().returning(|_| ()).times(1);
     actions.expect_action_in_ba().returning(|_| ()).times(1);
 
-    let mut fsm = SubstateToSubstate::new(actions);
+    let mut fsm = SubstateToSubstate::start(actions);
     fsm.to_ba(());
     fsm.to_bb(());
 }
