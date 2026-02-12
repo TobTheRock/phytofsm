@@ -1,0 +1,140 @@
+use crate::parser::{Event, ParsedFsm, ParsedFsmBuilder, State, StateType};
+
+use super::super::StateId;
+
+#[test]
+fn add_substate() {
+    let mut builder = builder_with_enter();
+    add_state_with_substate(&mut builder, "Parent", "Child", StateType::Simple);
+    let fsm = builder.build().unwrap();
+
+    let parent = find_state(&fsm, "Parent");
+    assert_eq!(parent.substates().count(), 1);
+
+    let substate = parent.substates().next().unwrap();
+    assert_eq!(substate.name(), "Child");
+    assert_eq!(substate.state_type(), StateType::Simple);
+    assert_eq!(substate.parent().unwrap(), parent);
+}
+
+#[test]
+fn add_substate_same_name_different_parents() {
+    let mut builder = builder_with_enter();
+    add_state_with_substate(&mut builder, "Parent1", "Child", StateType::Simple);
+    add_state_with_substate(&mut builder, "Parent2", "Child", StateType::Simple);
+    let fsm = builder.build().unwrap();
+
+    assert_n_times_state(&fsm, "Parent1", 1);
+    assert_n_times_state(&fsm, "Parent2", 1);
+    assert_n_times_state(&fsm, "Child", 2);
+}
+
+#[test]
+fn add_substate_enter() {
+    let mut builder = builder_with_enter();
+    add_state_with_substate(&mut builder, "Parent", "InitialChild", StateType::Enter);
+    let fsm = builder.build().unwrap();
+
+    let parent = find_state(&fsm, "Parent");
+    let child = parent.substates().next().unwrap();
+    assert_eq!(child.name(), "InitialChild");
+    assert_eq!(child.state_type(), StateType::Enter);
+}
+
+#[test]
+fn add_nested_substates() {
+    let mut builder = builder_with_enter();
+    let (_, l2) = add_state_with_substate(&mut builder, "Level1", "Level2", StateType::Simple);
+    builder.set_scope(Some(l2));
+    builder.add_state("Level3", StateType::Simple);
+    let fsm = builder.build().unwrap();
+
+    let level1 = find_state(&fsm, "Level1");
+    let level2 = level1.substates().next().unwrap();
+    let level3 = level2.substates().next().unwrap();
+    assert_eq!(level3.name(), "Level3");
+    assert_eq!(level3.parent().unwrap(), level2);
+}
+
+#[test]
+fn add_substate_transition() {
+    let mut builder = builder_with_enter();
+    let parent = builder.add_state("Parent", StateType::Simple);
+    builder.set_scope(Some(parent));
+    builder.add_state("A", StateType::Enter);
+    builder.add_state("B", StateType::Simple);
+    builder.add_transition("A", "B", "E1".into(), None);
+    let fsm = builder.build().unwrap();
+
+    let parent_state = find_state(&fsm, "Parent");
+    let a = parent_state.substates().find(|s| s.name() == "A").unwrap();
+    let t = a.transitions().next().unwrap();
+    assert_eq!(t.destination.name(), "B");
+    assert_eq!(t.event, &Event::from("E1"));
+}
+
+#[test]
+fn add_substate_transition_same_name_different_parents() {
+    let mut builder = builder_with_enter();
+    let p1 = builder.add_state("Parent1", StateType::Simple);
+    let p2 = builder.add_state("Parent2", StateType::Simple);
+
+    builder.set_scope(Some(p1));
+    builder.add_state("A", StateType::Enter);
+    builder.add_state("B", StateType::Simple);
+    builder.add_transition("A", "B", "E1".into(), None);
+
+    builder.set_scope(Some(p2));
+    builder.add_state("A", StateType::Enter);
+    builder.add_state("B", StateType::Simple);
+    builder.add_transition("A", "B", "E2".into(), None);
+
+    let fsm = builder.build().unwrap();
+
+    let parent1 = find_state(&fsm, "Parent1");
+    let parent2 = find_state(&fsm, "Parent2");
+    let p1_a = parent1.substates().find(|s| s.name() == "A").unwrap();
+    let p2_a = parent2.substates().find(|s| s.name() == "A").unwrap();
+
+    assert_eq!(p1_a.transitions().next().unwrap().event, &Event::from("E1"));
+    assert_eq!(p2_a.transitions().next().unwrap().event, &Event::from("E2"));
+}
+
+#[test]
+fn add_substate_transition_creates_substates() {
+    let mut builder = builder_with_enter();
+    let parent = builder.add_state("Parent", StateType::Simple);
+    builder.set_scope(Some(parent));
+    builder.add_transition("A", "B", "E1".into(), None);
+    let fsm = builder.build().unwrap();
+
+    assert_eq!(find_state(&fsm, "Parent").substates().count(), 2);
+}
+
+fn builder_with_enter() -> ParsedFsmBuilder {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("Start", StateType::Enter);
+    builder
+}
+
+fn find_state<'a>(fsm: &'a ParsedFsm, name: &str) -> State<'a> {
+    fsm.states().find(|s| s.name() == name).unwrap()
+}
+
+fn assert_n_times_state(fsm: &ParsedFsm, name: &str, n: usize) {
+    let count = fsm.states().filter(|s| s.name() == name).count();
+    assert_eq!(count, n, "Expected {} states named '{}' found {}", n, name, count);
+}
+
+fn add_state_with_substate(
+    builder: &mut ParsedFsmBuilder,
+    parent: &str,
+    child: &str,
+    child_type: StateType,
+) -> (StateId, StateId) {
+    let parent_id = builder.add_state(parent, StateType::Simple);
+    builder.set_scope(Some(parent_id));
+    let child_id = builder.add_state(child, child_type);
+    builder.set_scope(None);
+    (parent_id, child_id)
+}
