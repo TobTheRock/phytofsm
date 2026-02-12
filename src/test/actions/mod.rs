@@ -32,6 +32,7 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     builder.add_state("B", StateType::Simple);
 
     // Root level transitions
+    builder.add_transition("A", "A", Event::from("GoToAFromA"), None);
     builder.add_transition("A", "B", Event::from("GoToB"), None);
     builder.add_transition("B", "A", Event::from("GoToAFromB"), None);
 

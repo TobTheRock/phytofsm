@@ -374,9 +374,8 @@ impl CodeGenerator for FsmImplGenerator {
                 A: #action,
             {
                 pub fn trigger_event(&mut self, event: #event_enum<A>) {
-                    if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
-                        let enter_state = self.enter_new_state(new_state);
-                        self.exit_current_state(enter_state);
+                    if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
+                        self.change_state(transition_state);
                     }
                 }
             }
@@ -399,20 +398,15 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
             {
                 fn trigger_event(&mut self, event: #event_enum<A>) {
                     let event_name = format!("{}", event);
-                    if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
-                        let new_state_id = new_state.id;
-                        let from_state_id = self.current_state.id;
-
-                        let enter_state = self.enter_new_state(new_state);
-
+                    if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
+                        let enter_state = (transition_state.enter_state)();
                         ::log::log!(#level, #log_transition,
-                            from_state_id,
+                            self.current_state.id,
                             event_name,
-                            new_state_id,
+                            transition_state.id,
                             enter_state.id
                         );
-
-                        self.exit_current_state(enter_state);
+                        self.change_state(transition_state);
                     }
                 }
             }
@@ -455,15 +449,11 @@ impl CodeGenerator for FsmImplGeneratorCommon {
                     }
                 }
 
-                fn enter_new_state(&mut self, new_state: #state<A>) -> #state<A> {
-                    let enter_state = (new_state.enter_state)();
+                fn change_state(&mut self, transition_state: #state<A>) {
+                    let enter_state = (transition_state.enter_state)();
+                    (self.current_state.exit)(&mut self.actions, &enter_state);
                     (enter_state.enter)(&mut self.actions, &self.current_state);
-                    enter_state
-                }
-
-                fn exit_current_state(&mut self, new_state: #state<A>) {
-                    (self.current_state.exit)(&mut self.actions, &new_state);
-                    self.current_state = new_state;
+                    self.current_state = enter_state;
                 }
 
                 #(#methods)*

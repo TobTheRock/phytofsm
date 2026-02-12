@@ -41,6 +41,8 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 - event deferring
 - sub state machines
 - history states
+- orthogonal regions
+- run to completion model (RTC)
 
 ## Custom Syntax for FSM Actions & Events
 

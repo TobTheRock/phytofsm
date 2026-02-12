@@ -5,6 +5,7 @@
 State A : > EnterA
 State A : < ExitA
 
+A -> A : GoToAFromA
 A -> B : GoToB 
 B -> A : GoToAFromB
 

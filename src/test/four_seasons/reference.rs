@@ -356,29 +356,22 @@ where
 
     fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
         let event_name = format!("{}", event);
-        if let Some(new_state) = (self.current_state.transition)(event, &mut self.actions) {
-            let new_state_name = new_state.id;
-            let enter_state = self.enter_new_state(new_state);
+        if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
+            let enter_state = (transition_state.enter_state)();
 
             debug!(
                 "PlantFsm: {} -[{}]-> {}, entering {}",
-                self.current_state.id, event_name, enter_state.id, new_state_name
+                self.current_state.id, event_name, enter_state.id, transition_state.id
             );
 
-            self.exit_current_state(enter_state);
+            self.change_state(enter_state);
         }
     }
 
-    fn enter_new_state(&mut self, new_state: PlantFsmState<A>) -> PlantFsmState<A> {
-        let enter_state = (new_state.enter_state)();
-
-        (enter_state.enter)(&mut self.actions, &self.current_state);
-        enter_state
-    }
-
-    fn exit_current_state(&mut self, new_state: PlantFsmState<A>) {
-        (self.current_state.exit)(&mut self.actions, &new_state);
-        self.current_state = new_state;
+    fn change_state(&mut self, next_state: PlantFsmState<A>) {
+        (self.current_state.exit)(&mut self.actions, &next_state);
+        (next_state.enter)(&mut self.actions, &self.current_state);
+        self.current_state = next_state;
     }
 
     pub fn temperature_rises(
