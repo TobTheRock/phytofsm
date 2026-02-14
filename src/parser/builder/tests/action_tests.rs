@@ -36,7 +36,10 @@ fn set_substate_actions() {
     let fsm = builder.build().unwrap();
 
     let parent_state = find_state(&fsm, "Parent");
-    let child = parent_state.substates().find(|s| s.name() == "Child").unwrap();
+    let child = parent_state
+        .substates()
+        .find(|s| s.name() == "Child")
+        .unwrap();
     assert_eq!(child.enter_action(), Some(&Action::from("OnEnterChild")));
     assert_eq!(child.exit_action(), Some(&Action::from("OnExitChild")));
 }

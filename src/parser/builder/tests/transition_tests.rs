@@ -49,7 +49,10 @@ fn add_transition_finds_existing_substate_from_root_scope() {
 
     // The transition should be on Parent's substate
     let parent_state = fsm.states().find(|s| s.name() == "Parent").unwrap();
-    let child = parent_state.substates().find(|s| s.name() == "Child").unwrap();
+    let child = parent_state
+        .substates()
+        .find(|s| s.name() == "Child")
+        .unwrap();
     let t = child.transitions().next().unwrap();
     assert_eq!(t.destination.name(), "Other");
 }

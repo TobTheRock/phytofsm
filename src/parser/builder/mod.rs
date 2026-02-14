@@ -134,7 +134,11 @@ impl ParsedFsmBuilder {
     }
 
     fn create_state(&mut self, name: &str, state_type: StateType) -> StateId {
-        debug!("Creating state '{}' in scope {:?}", name, self.arena.scope());
+        debug!(
+            "Creating state '{}' in scope {:?}",
+            name,
+            self.arena.scope()
+        );
         let state_data = StateData::new(name, state_type);
         self.arena.new_node_in_scope(state_data)
     }
@@ -159,10 +163,7 @@ impl ParsedFsmBuilder {
             .filter(|node| node.get().state_type == StateType::Enter);
         let enter_state_names = || enter_states.clone().map(|node| node.get().name.as_str());
 
-        trace!(
-            "Root enter states: {:?}",
-            enter_state_names().collect_vec()
-        );
+        trace!("Root enter states: {:?}", enter_state_names().collect_vec());
 
         let root_enter = enter_states
             .clone()

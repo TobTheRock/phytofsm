@@ -123,7 +123,11 @@ fn find_state<'a>(fsm: &'a ParsedFsm, name: &str) -> State<'a> {
 
 fn assert_n_times_state(fsm: &ParsedFsm, name: &str, n: usize) {
     let count = fsm.states().filter(|s| s.name() == name).count();
-    assert_eq!(count, n, "Expected {} states named '{}' found {}", n, name, count);
+    assert_eq!(
+        count, n,
+        "Expected {} states named '{}' found {}",
+        n, name, count
+    );
 }
 
 fn add_state_with_substate(
