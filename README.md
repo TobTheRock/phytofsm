@@ -36,13 +36,14 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 ### Missing Features
 
-- exit state
+- internal transitions
 - guards
+- run to completion model (RTC), currently events in transitions are UB
+- exit state
 - event deferring
 - sub state machines
 - history states
 - orthogonal regions
-- run to completion model (RTC)
 
 ## Custom Syntax for FSM Actions & Events
 
@@ -85,11 +86,17 @@ state Parent {
 }
 ```
 
-**Behavior with composite states:**
+**Execution order:**
 
-- If a substate defines its own enter/exit action, it overrides the parent's action
-- If a substate has no enter/exit action, it inherits the parent's action
+Following the [UML specification](https://www.omg.org/spec/UML/2.5.1/PDF), exit actions are always executed before enter actions during a transition:
+
+1. **Exit** the source state (and its parents, from innermost to outermost)
+2. **Enter** the target state (and its parents, from outermost to innermost)
+
+Furthermore:
+
 - Internal transitions (between substates of the same parent) do not trigger the parent's enter/exit actions
+- Self-transitions trigger both exit and enter actions (exit first, then enter)
 
 ## Generated Code
 

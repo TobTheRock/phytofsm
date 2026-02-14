@@ -193,30 +193,31 @@ impl StateImplGenerator {
         state: &crate::parser::State<'_>,
         state_id_enum: &proc_macro2::Ident,
     ) -> proc_macro2::TokenStream {
-        let substate_ids = Self::all_substate_ids(state, state_id_enum);
-        let has_substates = !substate_ids.is_empty();
-
-        if let Some(action) = state.enter_action() {
+        let enter_action = if let Some(action) = state.enter_action() {
             let action_ident = action.ident();
-            if has_substates {
-                quote::quote! {
-                    |actions, from| {
-                        if matches!(from.id, #(#substate_ids)|*) {
-                            return;
-                        }
-                        actions.#action_ident();
-                    }
-                }
-            } else {
-                // Leaf state with action: just call the action
-                quote::quote! { |actions, _from| actions.#action_ident() }
+            quote::quote! {
+                actions.#action_ident();
             }
-        } else if let Some(parent) = state.parent() {
-            // As a substate, forward to parent if no own enter action is defined
-            let parent_fn = parent.function_ident();
-            quote::quote! { |actions, from| (Self::#parent_fn().enter)(actions, from) }
         } else {
-            quote::quote! { |_actions, _from| {} }
+            quote::quote! {}
+        };
+        let internal_guard = Self::generate_internal_transition_guard(state, state_id_enum, true);
+        let parent_enter = if let Some(parent) = state.parent() {
+            let parent_fn = parent.function_ident();
+            quote::quote! {
+            (Self::#parent_fn().enter)(actions, from);
+            }
+        } else {
+            quote::quote! {}
+        };
+
+        quote::quote! {
+            |actions, from|
+            {
+            #internal_guard
+            #parent_enter
+            #enter_action
+            }
         }
     }
 
@@ -224,30 +225,31 @@ impl StateImplGenerator {
         state: &crate::parser::State<'_>,
         state_id_enum: &proc_macro2::Ident,
     ) -> proc_macro2::TokenStream {
-        let substate_ids = Self::all_substate_ids(state, state_id_enum);
-        let has_substates = !substate_ids.is_empty();
-
-        if let Some(action) = state.exit_action() {
+        let exit_action = if let Some(action) = state.exit_action() {
             let action_ident = action.ident();
-            if has_substates {
-                // Composite state with action: skip enter/exit actions for internal transitions
-                quote::quote! {
-                    |actions, to| {
-                        if matches!(to.id, #(#substate_ids)|*) {
-                            return;
-                        }
-                        actions.#action_ident();
-                    }
-                }
-            } else {
-                // Leaf state with action: just call the action
-                quote::quote! { |actions, _to| actions.#action_ident() }
+            quote::quote! {
+                actions.#action_ident();
             }
-        } else if let Some(parent) = state.parent() {
-            let parent_fn = parent.function_ident();
-            quote::quote! { |actions, to| (Self::#parent_fn().exit)(actions, to) }
         } else {
-            quote::quote! { |_actions, _to| {} }
+            quote::quote! {}
+        };
+        let internal_guard = Self::generate_internal_transition_guard(state, state_id_enum, false);
+        let parent_exit = if let Some(parent) = state.parent() {
+            let parent_fn = parent.function_ident();
+            quote::quote! {
+            (Self::#parent_fn().exit)(actions, to);
+            }
+        } else {
+            quote::quote! {}
+        };
+
+        quote::quote! {
+            |actions, to|
+            {
+            #internal_guard
+            #exit_action
+            #parent_exit
+            }
         }
     }
 
@@ -262,6 +264,28 @@ impl StateImplGenerator {
                 quote::quote! { #state_id_enum::#variant }
             })
             .collect()
+    }
+
+    fn generate_internal_transition_guard(
+        state: &crate::parser::State<'_>,
+        state_id_enum: &proc_macro2::Ident,
+        is_enter: bool,
+    ) -> proc_macro2::TokenStream {
+        let substate_ids = Self::all_substate_ids(state, state_id_enum);
+        if substate_ids.is_empty() {
+            quote::quote! {}
+        } else {
+            let check = if is_enter {
+                quote::quote! {from}
+            } else {
+                quote::quote! {to}
+            };
+            quote::quote! {
+                if matches!(#check.id, #(#substate_ids)|*) {
+                    return;
+                }
+            }
+        }
     }
 }
 

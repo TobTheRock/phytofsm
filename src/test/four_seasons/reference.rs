@@ -141,6 +141,7 @@ where
             },
             enter_state: Self::winter_freezing,
             enter: |actions, from| {
+                // Check for internal transitions and skip if any
                 if matches!(
                     from.id,
                     PlantFsmStateId::WinterFreezing | PlantFsmStateId::WinterMild
@@ -277,8 +278,16 @@ where
                 }
             },
             enter_state: Self::summer_scorching,
-            enter: |actions, _from| actions.start_heat_wave(),
-            exit: |actions, _to| actions.end_heat_wave(),
+            enter: |actions, from| {
+                // call parents enter first
+                (Self::summer().enter)(actions, from);
+                actions.start_heat_wave()
+            },
+            exit: |actions, to| {
+                actions.end_heat_wave();
+                // call parents exit last
+                (Self::summer().enter)(actions, to);
+            },
         }
     }
 
@@ -332,7 +341,6 @@ where
 }
 
 pub struct PlantFsm<T: IPlantFsmActions> {
-    // TODO ownership, can this maybe a ref?
     actions: T,
     current_state: PlantFsmState<T>,
 }
@@ -345,8 +353,6 @@ where
     pub fn start(mut actions: A) -> Self {
         let init = PlantFsmState::init();
         let enter_state = PlantFsmState::winter_freezing();
-        // This acts similiar to a self transition: Enter and exit actions of the initial state are executed, but no transition is triggered
-        // TODO test self transitions
         (enter_state.enter)(&mut actions, &init);
         Self {
             actions,
