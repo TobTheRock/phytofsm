@@ -2,7 +2,7 @@
 ///Covers direct transitions and single event transitions with actions
 use phyto_fsm::generate_fsm;
 generate_fsm!(
-    file_path = "../src/test/four_seasons/four_seasons.puml",
+    file_path = "test/four_seasons/four_seasons.puml",
     log_level = "debug"
 );
 use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm};

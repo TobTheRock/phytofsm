@@ -1,6 +1,6 @@
 use phyto_fsm::generate_fsm;
 generate_fsm!(
-    file_path = "../src/test/actions/enter_exit.puml",
+    file_path = "test/actions/enter_exit.puml",
     log_level = "debug"
 );
 
