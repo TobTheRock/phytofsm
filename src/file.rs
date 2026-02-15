@@ -30,9 +30,9 @@ impl FilePath {
     }
 
     fn resolve_relative_to_caller(file_path: &str, span: proc_macro::Span) -> Self {
-       let caller_file = span.local_file().unwrap_or_default();
-       let caller_dir = caller_file.parent().unwrap_or(std::path::Path::new("."));
-       Self(caller_dir.join(file_path))
+        let caller_file = span.local_file().unwrap_or_default();
+        let caller_dir = caller_file.parent().unwrap_or(std::path::Path::new("."));
+        Self(caller_dir.join(file_path))
     }
 
     fn resolve_to_src_dir(file_path: &str) -> Self {
