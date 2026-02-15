@@ -2,8 +2,8 @@
 
 [*] --> A
 
-State A : > EnterA
-State A : < ExitA
+State A : entry / EnterA
+State A : exit / ExitA
 
 A -> A : GoToAFromA
 A -> B : GoToB 
@@ -11,12 +11,12 @@ B -> A : GoToAFromB
 
 ' Composite state 
 state C {
-  C: > EnterC
-  C: < ExitC
+  C: entry / EnterC
+  C: exit / ExitC
 
   '  parent enter/exit are overwritten by substates
-  State C1 : > EnterC1
-  State C1 : < ExitC1
+  State C1 : entry / EnterC1
+  State C1 : exit / ExitC1
 
   [*] --> C1
   C1 -> C2 : GoToC2

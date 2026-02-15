@@ -1,0 +1,23 @@
+// UML State Machine Description Grammar
+// Parses state descriptions and transition descriptions per UML 2.5.1 spec
+
+// State description: entry / ActionName or exit / ActionName
+state_description = { SOI ~ ws* ~ state_action ~ ws* ~ EOI }
+
+state_action = {
+    entry_action |
+    exit_action
+}
+
+entry_action = { ^"entry" ~ ws* ~ "/" ~ ws* ~ action_name }
+exit_action = { ^"exit" ~ ws* ~ "/" ~ ws* ~ action_name }
+
+// Transition description: EventName / ActionName or just EventName
+transition_description = { SOI ~ ws* ~ event_name ~ (ws* ~ "/" ~ ws* ~ action_name)? ~ ws* ~ EOI }
+
+// Identifiers
+event_name = @{ ASCII_ALPHANUMERIC+ }
+action_name = @{ ASCII_ALPHANUMERIC+ }
+
+// Whitespace
+ws = _{ " " | "\t" }

@@ -1,9 +1,14 @@
-use regex::Regex;
+use pest::Parser;
+use pest_derive::Parser;
 
 use crate::{
     error::{Error, Result},
     parser::{Action, Event},
 };
+
+#[derive(Parser)]
+#[grammar = "parser/uml.pest"]
+struct UmlParser;
 
 #[derive(Clone, Debug)]
 pub struct TransitionContext {
@@ -20,7 +25,7 @@ pub struct StateContext {
 impl TryFrom<&str> for TransitionContext {
     type Error = Error;
     fn try_from(value: &str) -> Result<Self> {
-        parse_transaction_description(value)
+        parse_transition_description(value)
     }
 }
 
@@ -32,26 +37,31 @@ impl TryFrom<&String> for TransitionContext {
     }
 }
 
-const ALPHA_NUMERIC: &str = "[a-zA-Z0-9]+";
+fn parse_transition_description(input: &str) -> Result<TransitionContext> {
+    let pairs = UmlParser::parse(Rule::transition_description, input)
+        .map_err(|e| Error::Parse(format!("Invalid transition description: {}", e)))?;
 
-fn parse_transaction_description(input: &str) -> Result<TransitionContext> {
-    let pattern = format!(r"^\s*({ALPHA_NUMERIC})\s*(?:/\s*({ALPHA_NUMERIC}))?\s*$");
-    let re = Regex::new(&pattern).expect("Invalid regex pattern");
+    let mut event = None;
+    let mut action = None;
 
-    let captures = re
-        .captures(input)
-        .ok_or_else(|| Error::Parse(format!("Invalid transition description: '{}'", input)))?;
+    for pair in pairs {
+        for inner in pair.into_inner() {
+            match inner.as_rule() {
+                Rule::event_name => {
+                    event = Some(inner.as_str().to_owned().into());
+                }
+                Rule::action_name => {
+                    action = Some(inner.as_str().to_owned().into());
+                }
+                _ => {}
+            }
+        }
+    }
 
-    let event = captures
-        .get(1)
-        .ok_or_else(|| Error::Parse("Event name is required".to_string()))?
-        .as_str()
-        .to_owned()
-        .into();
-
-    let action = captures.get(2).map(|m| m.as_str().to_owned().into());
-
-    Ok(TransitionContext { action, event })
+    Ok(TransitionContext {
+        event: event.ok_or_else(|| Error::Parse("Event name is required".to_string()))?,
+        action,
+    })
 }
 
 impl TryFrom<&str> for StateContext {
@@ -60,6 +70,7 @@ impl TryFrom<&str> for StateContext {
         parse_state_description(value)
     }
 }
+
 impl TryFrom<&String> for StateContext {
     type Error = Error;
     fn try_from(value: &String) -> Result<Self> {
@@ -68,28 +79,39 @@ impl TryFrom<&String> for StateContext {
 }
 
 fn parse_state_description(input: &str) -> Result<StateContext> {
-    let enter_pattern = r"^\s*>\s*([a-zA-Z0-9]+)\s*$";
-    let exit_pattern = r"^\s*<\s*([a-zA-Z0-9]+)\s*$";
-    let enter_re = Regex::new(enter_pattern).expect("Invalid regex pattern");
-    let exit_re = Regex::new(exit_pattern).expect("Invalid regex pattern");
-    if let Some(captures) = enter_re.captures(input) {
-        let enter_action = captures.get(1).map(|m| m.as_str().to_owned().into());
-        return Ok(StateContext {
-            enter_action,
+    let empty_context = StateContext {
+        enter_action: None,
+        exit_action: None,
+    };
+
+    let Ok(pairs) = UmlParser::parse(Rule::state_description, input) else {
+        return Ok(empty_context);
+    };
+
+    let Some(action_pair) = pairs
+        .flatten()
+        .find(|p| p.as_rule() == Rule::entry_action || p.as_rule() == Rule::exit_action)
+    else {
+        return Ok(empty_context);
+    };
+
+    let rule = action_pair.as_rule();
+    let action_name = action_pair
+        .into_inner()
+        .find(|p| p.as_rule() == Rule::action_name)
+        .map(|p| p.as_str().to_owned().into());
+
+    match rule {
+        Rule::entry_action => Ok(StateContext {
+            enter_action: action_name,
             exit_action: None,
-        });
-    }
-    if let Some(captures) = exit_re.captures(input) {
-        let exit_action = captures.get(1).map(|m| m.as_str().to_owned().into());
-        return Ok(StateContext {
+        }),
+        Rule::exit_action => Ok(StateContext {
             enter_action: None,
-            exit_action,
-        });
+            exit_action: action_name,
+        }),
+        _ => Ok(empty_context),
     }
-    Err(Error::Parse(format!(
-        "Invalid state description: '{}'",
-        input
-    )))
 }
 
 #[cfg(test)]
@@ -124,15 +146,44 @@ mod test {
 
     #[test]
     fn parse_enter_action() {
-        let desc = StateContext::try_from("> doSomeThing").unwrap();
-        assert_eq!(desc.enter_action, Some("doSomeThing".to_owned().into()));
+        let desc = StateContext::try_from("entry / DoSomeThing").unwrap();
+        assert_eq!(desc.enter_action, Some("DoSomeThing".to_owned().into()));
+        assert_eq!(desc.exit_action, None);
+    }
+
+    #[test]
+    fn parse_enter_action_with_extra_whitespace() {
+        let desc = StateContext::try_from("   entry   /   DoSomeThing   ").unwrap();
+        assert_eq!(desc.enter_action, Some("DoSomeThing".to_owned().into()));
         assert_eq!(desc.exit_action, None);
     }
 
     #[test]
     fn parse_exit_action() {
-        let desc = StateContext::try_from("< doSomeThing").unwrap();
-        assert_eq!(desc.exit_action, Some("doSomeThing".to_owned().into()));
+        let desc = StateContext::try_from("exit / DoSomeThing").unwrap();
+        assert_eq!(desc.exit_action, Some("DoSomeThing".to_owned().into()));
         assert_eq!(desc.enter_action, None);
+    }
+
+    #[test]
+    fn parse_exit_action_with_extra_whitespace() {
+        let desc = StateContext::try_from("   exit   /   DoSomeThing   ").unwrap();
+        assert_eq!(desc.exit_action, Some("DoSomeThing".to_owned().into()));
+        assert_eq!(desc.enter_action, None);
+    }
+
+    #[test]
+    fn parse_random_text_returns_empty_context() {
+        // Random text is ignored, returns empty context
+        let desc = StateContext::try_from("some random text").unwrap();
+        assert_eq!(desc.enter_action, None);
+        assert_eq!(desc.exit_action, None);
+    }
+
+    #[test]
+    fn parse_empty_string_returns_empty_context() {
+        let desc = StateContext::try_from("").unwrap();
+        assert_eq!(desc.enter_action, None);
+        assert_eq!(desc.exit_action, None);
     }
 }

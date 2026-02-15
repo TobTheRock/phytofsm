@@ -45,9 +45,10 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 - history states
 - orthogonal regions
 
-## Custom Syntax for FSM Actions & Events
+## UML Syntax for FSM Actions & Events
 
-This library extends standard PlantUML state diagram syntax with custom notation for defining actions.
+In order to generate a state machine this library requires transitions and actions to be described 
+according to the [UML specification](https://www.omg.org/spec/UML/2.5.1/PDF).
 
 ### Transitions with Actions
 
@@ -62,25 +63,25 @@ StateA --> StateB : EventName / ActionName
 
 ### Enter/Exit Actions
 
-States can define enter and exit actions using the state description syntax with special prefixes:
+States can define enter and exit actions using the UML state description syntax:
 
 ```puml
-State MyState : > EnterActionName
-State MyState : < ExitActionName
+State MyState : entry / EnterActionName
+State MyState : exit / ExitActionName
 ```
 
-- **`>`** prefix denotes an **enter action** - called when entering the state
-- **`<`** prefix denotes an **exit action** - called when leaving the state
+- **`entry /`** prefix denotes an **enter action** - called when entering the state
+- **`exit /`** prefix denotes an **exit action** - called when leaving the state
 
 Enter and exit actions can also be defined within composite states:
 
 ```puml
 state Parent {
-  Parent: > EnterParent
-  Parent: < ExitParent
+  Parent: entry / EnterParent
+  Parent: exit / ExitParent
 
-  state Child : > EnterChild
-  state Child : < ExitChild
+  state Child : entry / EnterChild
+  state Child : exit / ExitChild
 
   [*] --> Child
 }
@@ -141,7 +142,7 @@ From the elements given by the custom syntax the following is derived:
 @startuml PlantFsm
 
 state Winter {
-  Winter: > WinterIsComing
+  Winter: entry / WinterIsComing
 
   state Freezing
   state Mild
@@ -161,8 +162,8 @@ state Spring {
 
 state Summer {
   state Balmy
-  state Scorching: > StartHeatWave
-  state Scorching: < EndHeatWave
+  state Scorching: entry / StartHeatWave
+  state Scorching: exit / EndHeatWave
 
   [*] --> Balmy
   Balmy -> Scorching: TemperatureRises
