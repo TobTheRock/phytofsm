@@ -44,6 +44,38 @@ fn set_substate_actions() {
     assert_eq!(child.exit_action(), Some(&Action::from("OnExitChild")));
 }
 
+/// Demonstrates current limitation: actions are tied to a single event's parameters.
+///
+/// When the same action is used with multiple events, the generated trait would have
+/// the action method defined multiple times with different event parameter types.
+/// This test documents that the current data model returns the same action paired
+/// with different events - which causes code generation issues.
+#[test]
+fn shared_action_appears_with_multiple_events() {
+    use crate::test::FsmTestData;
+
+    let test_data = FsmTestData::shared_action();
+    let fsm = test_data.parsed;
+
+    // Current behavior: actions() returns (Action, Event) pairs
+    // SharedAction appears twice - once with Event1, once with Event2
+    let actions: Vec<_> = fsm.actions().collect();
+
+    // This is the limitation: same action is tied to different events
+    // Code generation will fail because it tries to define the action method twice
+    assert_eq!(actions.len(), 2, "SharedAction appears with both events");
+    assert!(
+        actions
+            .iter()
+            .any(|(a, e)| a.0 == "SharedAction" && e.0 == "Event1")
+    );
+    assert!(
+        actions
+            .iter()
+            .any(|(a, e)| a.0 == "SharedAction" && e.0 == "Event2")
+    );
+}
+
 fn builder_with_enter() -> ParsedFsmBuilder {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);

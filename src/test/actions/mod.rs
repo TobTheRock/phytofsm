@@ -59,6 +59,25 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
+fn build_shared_action_fsm() -> Result<ParsedFsm> {
+    let mut builder = ParsedFsmBuilder::new("SharedActionFSM");
+    builder.add_state("A", StateType::Enter);
+    // Same action used with two different events - demonstrates limitation
+    builder.add_transition(
+        "A",
+        "B",
+        Event("Event1".into()),
+        Some(Action("SharedAction".into())),
+    );
+    builder.add_transition(
+        "B",
+        "A",
+        Event("Event2".into()),
+        Some(Action("SharedAction".into())),
+    );
+    builder.build()
+}
+
 impl FsmTestData {
     pub fn actions() -> Self {
         let path = get_adjacent_file_path(file!(), "actions.puml");
@@ -76,6 +95,18 @@ impl FsmTestData {
             name: "enter_exit",
             content: include_str!("./enter_exit.puml"),
             parsed: build_enter_exit_fsm().expect("Failed to create expected FSM"),
+            path,
+        }
+    }
+
+    /// Test data demonstrating limitation: same action with multiple events.
+    /// This FSM cannot be used with code generation as it produces invalid code.
+    pub fn shared_action() -> Self {
+        let path = get_adjacent_file_path(file!(), "shared_action.puml");
+        Self {
+            name: "shared_action",
+            content: include_str!("./shared_action.puml"),
+            parsed: build_shared_action_fsm().expect("Failed to create expected FSM"),
             path,
         }
     }

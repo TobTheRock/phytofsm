@@ -1,0 +1,12 @@
+@startuml SharedActionFSM
+
+' Demonstrates limitation: same action used with multiple events
+' This causes code generation to fail because the action method
+' would be defined twice with different parameter types.
+
+[*] --> A
+
+A --> B : Event1 / SharedAction
+B --> A : Event2 / SharedAction
+
+@enduml
