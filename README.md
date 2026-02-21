@@ -47,7 +47,7 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 ## UML Syntax for FSM Actions & Events
 
-In order to generate a state machine this library requires transitions and actions to be described 
+In order to generate a state machine this library requires transitions and actions to be described
 according to the [UML specification](https://www.omg.org/spec/UML/2.5.1/PDF).
 
 ### Transitions with Actions
@@ -60,6 +60,8 @@ StateA --> StateB : EventName / ActionName
 
 - **EventName**: The event that triggers the transition
 - **ActionName** (optional): The action method called during the transition seperated by `/`
+
+**Be aware that actions MUST be unique per event**
 
 ### Enter/Exit Actions
 

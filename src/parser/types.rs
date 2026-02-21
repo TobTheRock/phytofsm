@@ -1,9 +1,9 @@
-use derive_more::{From, Into};
+use derive_more::{Display, From, Into};
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
+#[derive(Debug, Display, Clone, PartialEq, Eq, Hash, From, Into)]
 pub struct Event(pub String);
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash, From, Into)]
+#[derive(Debug, Display, Clone, PartialEq, Eq, Hash, From, Into)]
 pub struct Action(pub String);
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

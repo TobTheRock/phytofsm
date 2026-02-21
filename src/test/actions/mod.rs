@@ -27,8 +27,8 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
 
     // Root level states
     builder.add_state("A", StateType::Enter);
-    builder.set_state_enter_action("A", Action::from("EnterA"));
-    builder.set_state_exit_action("A", Action::from("ExitA"));
+    builder.add_enter_action("A", Action::from("EnterA"));
+    builder.add_exit_action("A", Action::from("ExitA"));
     builder.add_state("B", StateType::Simple);
 
     // Root level transitions
@@ -38,14 +38,14 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
 
     // Composite state C
     let state_c = builder.add_state("C", StateType::Simple);
-    builder.set_state_enter_action("C", Action::from("EnterC"));
-    builder.set_state_exit_action("C", Action::from("ExitC"));
+    builder.add_enter_action("C", Action::from("EnterC"));
+    builder.add_exit_action("C", Action::from("ExitC"));
 
     // C's children
     builder.set_scope(Some(state_c));
     builder.add_state("C1", StateType::Enter);
-    builder.set_state_enter_action("C1", Action::from("EnterC1"));
-    builder.set_state_exit_action("C1", Action::from("ExitC1"));
+    builder.add_enter_action("C1", Action::from("EnterC1"));
+    builder.add_exit_action("C1", Action::from("ExitC1"));
     builder.add_state("C2", StateType::Simple);
     builder.add_transition("C1", "C2", Event::from("GoToC2"), None);
 

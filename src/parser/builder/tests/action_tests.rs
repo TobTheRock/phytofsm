@@ -3,8 +3,8 @@ use crate::parser::{Action, ParsedFsm, ParsedFsmBuilder, State, StateType};
 #[test]
 fn set_state_enter_and_exit_actions() {
     let mut builder = builder_with_enter();
-    builder.set_state_enter_action("Start", Action::from("OnEnter"));
-    builder.set_state_exit_action("Start", Action::from("OnExit"));
+    builder.add_enter_action("Start", Action::from("OnEnter"));
+    builder.add_exit_action("Start", Action::from("OnExit"));
     let fsm = builder.build().unwrap();
 
     let start = find_state(&fsm, "Start");
@@ -16,8 +16,8 @@ fn set_state_enter_and_exit_actions() {
 fn set_actions_on_state_created_by_transition() {
     let mut builder = builder_with_enter();
     builder.add_transition("Start", "Other", "GoToOther".into(), None);
-    builder.set_state_enter_action("Other", Action::from("OnEnterOther"));
-    builder.set_state_exit_action("Other", Action::from("OnExitOther"));
+    builder.add_enter_action("Other", Action::from("OnEnterOther"));
+    builder.add_exit_action("Other", Action::from("OnExitOther"));
     let fsm = builder.build().unwrap();
 
     let other = find_state(&fsm, "Other");
@@ -31,8 +31,8 @@ fn set_substate_actions() {
     let parent = builder.add_state("Parent", StateType::Simple);
     builder.set_scope(Some(parent));
     builder.add_state("Child", StateType::Enter);
-    builder.set_state_enter_action("Child", Action::from("OnEnterChild"));
-    builder.set_state_exit_action("Child", Action::from("OnExitChild"));
+    builder.add_enter_action("Child", Action::from("OnEnterChild"));
+    builder.add_exit_action("Child", Action::from("OnExitChild"));
     let fsm = builder.build().unwrap();
 
     let parent_state = find_state(&fsm, "Parent");

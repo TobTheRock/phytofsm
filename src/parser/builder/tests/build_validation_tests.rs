@@ -14,3 +14,24 @@ fn build_with_empty_name_fails() {
     let result = builder.build();
     assert!(result.is_err());
 }
+
+#[test]
+fn build_with_duplicate_events_per_action_fails() {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("Start", StateType::Enter);
+    builder.add_state("End", StateType::Simple);
+    builder.add_transition(
+        "Start",
+        "End",
+        "EventA".into(),
+        Some("DuplicateAction".into()),
+    );
+    builder.add_transition(
+        "Start",
+        "End",
+        "EventB".into(),
+        Some("DuplicateAction".into()),
+    );
+    let result = builder.build();
+    assert!(result.is_err());
+}

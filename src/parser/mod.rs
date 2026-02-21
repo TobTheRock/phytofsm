@@ -63,10 +63,10 @@ fn add_fsm_elements(
     for desc in &elements.state_descriptions {
         if let Ok(ctx) = context::StateContext::try_from(desc.description) {
             if let Some(action) = ctx.enter_action {
-                builder.set_state_enter_action(desc.name, action);
+                builder.add_enter_action(desc.name, action);
             }
             if let Some(action) = ctx.exit_action {
-                builder.set_state_exit_action(desc.name, action);
+                builder.add_exit_action(desc.name, action);
             }
         }
     }

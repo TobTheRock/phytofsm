@@ -94,14 +94,14 @@ impl ParsedFsmBuilder {
         self.arena[from_id].get_mut().transitions.push(transition);
     }
 
-    pub fn set_state_enter_action(&mut self, name: &str, action: Action) {
-        if let Some(id) = self.find_descendant_state(name) {
+    pub fn add_enter_action(&mut self, state_name: &str, action: Action) {
+        if let Some(id) = self.find_descendant_state(state_name) {
             self.arena[id].get_mut().enter_action = Some(action);
         }
     }
 
-    pub fn set_state_exit_action(&mut self, name: &str, action: Action) {
-        if let Some(id) = self.find_descendant_state(name) {
+    pub fn add_exit_action(&mut self, state_name: &str, action: Action) {
+        if let Some(id) = self.find_descendant_state(state_name) {
             self.arena[id].get_mut().exit_action = Some(action);
         }
     }
@@ -115,6 +115,7 @@ impl ParsedFsmBuilder {
                 .collect::<Vec<_>>()
         );
 
+        self.validate_injective_action_mapping()?;
         self.link_enter_states();
 
         let enter_state = self.find_root_enter_state()?;
@@ -223,5 +224,36 @@ impl ParsedFsmBuilder {
                 state_type
             );
         }
+    }
+
+    fn validate_injective_action_mapping(&self) -> Result<()> {
+        let action_events = self
+            .arena
+            .iter()
+            .flat_map(|node| node.get().transitions.iter())
+            .dedup_by(|a, b| (a.event == b.event) && (a.action == b.action))
+            .filter_map(|t| {
+                t.action.as_ref().map(|action| (action.clone(), t.event.clone()))
+            });
+
+        action_events
+            .chunk_by(|(action, _)| action.clone())
+            .into_iter()
+            .try_for_each(|(action, group)| {
+                let items = group.collect_vec();
+                if items.len() == 1 {
+                    Ok(())
+                } else {
+                    let events: String = Itertools::intersperse(
+                        items.into_iter().map(|(_, event)| String::from(event)),
+                        ", ".to_owned(),
+                    )
+                    .collect();
+                    Err(Error::Parse(format!(
+                        "Action {} is associated with multiple events: {events}",
+                        action.0
+                    )))
+                }
+            })
     }
 }
