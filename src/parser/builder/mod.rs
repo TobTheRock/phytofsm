@@ -8,6 +8,7 @@ use super::fsm::ParsedFsm;
 use super::types::{Action, Event, StateType};
 
 mod scoped_arena;
+mod validation;
 use scoped_arena::ScopedArena;
 
 #[cfg(test)]
@@ -115,8 +116,8 @@ impl ParsedFsmBuilder {
                 .collect::<Vec<_>>()
         );
 
-        self.validate_injective_action_mapping()?;
-        self.validate_no_conflicting_transitions()?;
+        validation::validate_injective_action_mapping(&self.arena)?;
+        validation::validate_no_conflicting_transitions(&self.arena)?;
         self.link_enter_states();
 
         let enter_state = self.find_root_enter_state()?;
@@ -225,61 +226,5 @@ impl ParsedFsmBuilder {
                 state_type
             );
         }
-    }
-
-    fn validate_injective_action_mapping(&self) -> Result<()> {
-        let action_events = self
-            .arena
-            .iter()
-            .flat_map(|node| node.get().transitions.iter())
-            .dedup_by(|a, b| (a.event == b.event) && (a.action == b.action))
-            .filter_map(|t| {
-                t.action
-                    .as_ref()
-                    .map(|action| (action.clone(), t.event.clone()))
-            });
-
-        action_events
-            .chunk_by(|(action, _)| action.clone())
-            .into_iter()
-            .try_for_each(|(action, group)| {
-                let items = group.collect_vec();
-                if items.len() == 1 {
-                    Ok(())
-                } else {
-                    let events: String = Itertools::intersperse(
-                        items.into_iter().map(|(_, event)| String::from(event)),
-                        ", ".to_owned(),
-                    )
-                    .collect();
-                    Err(Error::Parse(format!(
-                        "Action {} is associated with multiple events: {events}",
-                        action.0
-                    )))
-                }
-            })
-    }
-
-    fn validate_no_conflicting_transitions(&self) -> Result<()> {
-        let transitions = self
-            .arena
-            .iter()
-            .flat_map(|node| node.get().transitions.iter())
-            .map(|t| (t.source, t.event.clone()));
-        transitions
-            .chunk_by(|(source, event)| (*source, event.clone()))
-            .into_iter()
-            .try_for_each(|((source, event), group)| {
-                let items = group.collect_vec();
-                if items.len() == 1 {
-                    Ok(())
-                } else {
-                    let state_name = &self.arena[source].get().name;
-                    Err(Error::Parse(format!(
-                        "State '{}' has multiple transitions for event {:?}",
-                        state_name, event
-                    )))
-                }
-            })
     }
 }
