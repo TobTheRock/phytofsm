@@ -116,6 +116,7 @@ impl ParsedFsmBuilder {
         );
 
         self.validate_injective_action_mapping()?;
+        self.validate_no_conflicting_transitions()?;
         self.link_enter_states();
 
         let enter_state = self.find_root_enter_state()?;
@@ -233,7 +234,9 @@ impl ParsedFsmBuilder {
             .flat_map(|node| node.get().transitions.iter())
             .dedup_by(|a, b| (a.event == b.event) && (a.action == b.action))
             .filter_map(|t| {
-                t.action.as_ref().map(|action| (action.clone(), t.event.clone()))
+                t.action
+                    .as_ref()
+                    .map(|action| (action.clone(), t.event.clone()))
             });
 
         action_events
@@ -252,6 +255,29 @@ impl ParsedFsmBuilder {
                     Err(Error::Parse(format!(
                         "Action {} is associated with multiple events: {events}",
                         action.0
+                    )))
+                }
+            })
+    }
+
+    fn validate_no_conflicting_transitions(&self) -> Result<()> {
+        let transitions = self
+            .arena
+            .iter()
+            .flat_map(|node| node.get().transitions.iter())
+            .map(|t| (t.source, t.event.clone()));
+        transitions
+            .chunk_by(|(source, event)| (*source, event.clone()))
+            .into_iter()
+            .try_for_each(|((source, event), group)| {
+                let items = group.collect_vec();
+                if items.len() == 1 {
+                    Ok(())
+                } else {
+                    let state_name = &self.arena[source].get().name;
+                    Err(Error::Parse(format!(
+                        "State '{}' has multiple transitions for event {:?}",
+                        state_name, event
                     )))
                 }
             })
