@@ -14,6 +14,7 @@ struct UmlParser;
 pub struct TransitionContext {
     pub action: Option<Action>,
     pub event: Event,
+    pub guard: Option<Action>,
 }
 
 #[derive(Clone, Debug)]
@@ -43,12 +44,16 @@ fn parse_transition_description(input: &str) -> Result<TransitionContext> {
 
     let mut event = None;
     let mut action = None;
+    let mut guard = None;
 
     for pair in pairs {
         for inner in pair.into_inner() {
             match inner.as_rule() {
                 Rule::event_name => {
                     event = Some(inner.as_str().to_owned().into());
+                }
+                Rule::guard_name => {
+                    guard = Some(inner.as_str().to_owned().into());
                 }
                 Rule::action_name => {
                     action = Some(inner.as_str().to_owned().into());
@@ -61,6 +66,7 @@ fn parse_transition_description(input: &str) -> Result<TransitionContext> {
     Ok(TransitionContext {
         event: event.ok_or_else(|| Error::Parse("Event name is required".to_string()))?,
         action,
+        guard,
     })
 }
 
@@ -185,5 +191,29 @@ mod test {
         let desc = StateContext::try_from("").unwrap();
         assert_eq!(desc.enter_action, None);
         assert_eq!(desc.exit_action, None);
+    }
+
+    #[test]
+    fn parse_event_with_guard() {
+        let desc = TransitionContext::try_from("ChangeState [AGuard]").unwrap();
+        assert_eq!(desc.event, "ChangeState".to_owned().into());
+        assert_eq!(desc.guard, Some("AGuard".to_owned().into()));
+        assert_eq!(desc.action, None);
+    }
+
+    #[test]
+    fn parse_event_with_guard_and_action() {
+        let desc = TransitionContext::try_from("ChangeState [AGuard] / DoSomething").unwrap();
+        assert_eq!(desc.event, "ChangeState".to_owned().into());
+        assert_eq!(desc.guard, Some("AGuard".to_owned().into()));
+        assert_eq!(desc.action, Some("DoSomething".to_owned().into()));
+    }
+
+    #[test]
+    fn parse_event_with_guard_whitespace() {
+        let desc = TransitionContext::try_from("  ChangeState  [  AGuard  ]  /  DoSomething  ").unwrap();
+        assert_eq!(desc.event, "ChangeState".to_owned().into());
+        assert_eq!(desc.guard, Some("AGuard".to_owned().into()));
+        assert_eq!(desc.action, Some("DoSomething".to_owned().into()));
     }
 }

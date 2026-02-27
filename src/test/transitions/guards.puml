@@ -1,0 +1,16 @@
+@startuml Guards
+
+[*] --> StateA
+
+' Multiple transitions for same event with guards
+StateA --> StateA : ChangeState [AGuard] / ActionToA
+StateA --> StateB : ChangeState [BGuard] / ActionToB
+StateA --> StateC : ChangeState [CGuard] / ActionToC
+
+' 
+state StateC {
+    StateC --> StateCa : ChangeState [CaGuard] / ActionToCa
+    StateC --> StateCb : ChangeState [CbGuard] / ActionToCb
+}
+
+@enduml

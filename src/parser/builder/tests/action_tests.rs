@@ -1,4 +1,4 @@
-use crate::parser::{Action, ParsedFsm, ParsedFsmBuilder, State, StateType};
+use crate::parser::{Action, ParsedFsm, ParsedFsmBuilder, State, StateType, TransitionParameters};
 
 #[test]
 fn set_state_enter_and_exit_actions() {
@@ -15,7 +15,13 @@ fn set_state_enter_and_exit_actions() {
 #[test]
 fn set_actions_on_state_created_by_transition() {
     let mut builder = builder_with_enter();
-    builder.add_transition("Start", "Other", "GoToOther".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "Start",
+        target: "Other",
+        event: "GoToOther".into(),
+        action: None,
+        guard: None,
+    });
     builder.add_enter_action("Other", Action::from("OnEnterOther"));
     builder.add_exit_action("Other", Action::from("OnExitOther"));
     let fsm = builder.build().unwrap();

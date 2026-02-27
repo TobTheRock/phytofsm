@@ -37,9 +37,9 @@ state Autumn {
 }
 
 [*] --> Winter
-Winter --> Spring : TimeAdvances
-Spring --> Summer : TimeAdvances / StartBlooming
-Summer --> Autumn : TimeAdvances / RipenFruit
-Autumn --> Winter : TimeAdvances / DropPetals 
+Winter --> Spring : TimeAdvances [EnoughTimePassed]
+Spring --> Summer : TimeAdvances [EnoughTimePassed] / StartBlooming
+Summer --> Autumn : TimeAdvances [EnoughTimePassed] / RipenFruit
+Autumn --> Winter : TimeAdvances [EnoughTimePassed] / DropPetals 
 
 @enduml

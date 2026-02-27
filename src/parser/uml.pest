@@ -12,11 +12,12 @@ state_action = {
 entry_action = { ^"entry" ~ ws* ~ "/" ~ ws* ~ action_name }
 exit_action = { ^"exit" ~ ws* ~ "/" ~ ws* ~ action_name }
 
-// Transition description: EventName / ActionName or just EventName
-transition_description = { SOI ~ ws* ~ event_name ~ (ws* ~ "/" ~ ws* ~ action_name)? ~ ws* ~ EOI }
+// Transition description: EventName [GuardName] / ActionName
+transition_description = { SOI ~ ws* ~ event_name ~ (ws* ~ "[" ~ ws* ~ guard_name ~ ws* ~ "]")? ~ (ws* ~ "/" ~ ws* ~ action_name)? ~ ws* ~ EOI }
 
 // Identifiers
 event_name = @{ ASCII_ALPHANUMERIC+ }
+guard_name = @{ ASCII_ALPHANUMERIC+ }
 action_name = @{ ASCII_ALPHANUMERIC+ }
 
 // Whitespace

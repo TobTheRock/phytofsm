@@ -1,4 +1,4 @@
-use crate::parser::{Event, ParsedFsm, ParsedFsmBuilder, State, StateType};
+use crate::parser::{Event, ParsedFsm, ParsedFsmBuilder, State, StateType, TransitionParameters};
 
 use super::super::StateId;
 
@@ -63,7 +63,13 @@ fn add_substate_transition() {
     builder.set_scope(Some(parent));
     builder.add_state("A", StateType::Enter);
     builder.add_state("B", StateType::Simple);
-    builder.add_transition("A", "B", "E1".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "E1".into(),
+        action: None,
+        guard: None,
+    });
     let fsm = builder.build().unwrap();
 
     let parent_state = find_state(&fsm, "Parent");
@@ -82,12 +88,24 @@ fn add_substate_transition_same_name_different_parents() {
     builder.set_scope(Some(p1));
     builder.add_state("A", StateType::Enter);
     builder.add_state("B", StateType::Simple);
-    builder.add_transition("A", "B", "E1".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "E1".into(),
+        action: None,
+        guard: None,
+    });
 
     builder.set_scope(Some(p2));
     builder.add_state("A", StateType::Enter);
     builder.add_state("B", StateType::Simple);
-    builder.add_transition("A", "B", "E2".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "E2".into(),
+        action: None,
+        guard: None,
+    });
 
     let fsm = builder.build().unwrap();
 
@@ -105,7 +123,13 @@ fn add_substate_transition_creates_substates() {
     let mut builder = builder_with_enter();
     let parent = builder.add_state("Parent", StateType::Simple);
     builder.set_scope(Some(parent));
-    builder.add_transition("A", "B", "E1".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "E1".into(),
+        action: None,
+        guard: None,
+    });
     let fsm = builder.build().unwrap();
 
     assert_eq!(find_state(&fsm, "Parent").substates().count(), 2);

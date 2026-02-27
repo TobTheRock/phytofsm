@@ -1,6 +1,6 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType},
+    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
@@ -10,33 +10,36 @@ fn build_composite_states_fsm() -> Result<ParsedFsm> {
     // Root level
     let state_a = builder.add_state("StateA", StateType::Enter);
     builder.add_state("StateB", StateType::Simple);
-    builder.add_transition(
-        "StateA",
-        "StateB",
-        Event("toB".into()),
-        Some(Action("actionInA".into())),
-    );
+    builder.add_transition(TransitionParameters {
+        source: "StateA",
+        target: "StateB",
+        event: Event("toB".into()),
+        action: Some(Action("actionInA".into())),
+        guard: None,
+    });
 
     // StateA children
     builder.set_scope(Some(state_a));
     let state_aa = builder.add_state("StateAA", StateType::Enter);
     builder.add_state("StateAB", StateType::Simple);
-    builder.add_transition(
-        "StateAA",
-        "StateAB",
-        Event("toAB".into()),
-        Some(Action("actionInAA".into())),
-    );
+    builder.add_transition(TransitionParameters {
+        source: "StateAA",
+        target: "StateAB",
+        event: Event("toAB".into()),
+        action: Some(Action("actionInAA".into())),
+        guard: None,
+    });
     // StateAA children
     builder.set_scope(Some(state_aa));
     builder.add_state("StateAAA", StateType::Enter);
     builder.add_state("StateAAB", StateType::Simple);
-    builder.add_transition(
-        "StateAAA",
-        "StateAAB",
-        Event("toAAB".into()),
-        Some(Action("actionInAAA".into())),
-    );
+    builder.add_transition(TransitionParameters {
+        source: "StateAAA",
+        target: "StateAAB",
+        event: Event("toAAB".into()),
+        action: Some(Action("actionInAAA".into())),
+        guard: None,
+    });
 
     builder.build()
 }
@@ -56,21 +59,23 @@ fn build_substate_to_substate_fsm() -> Result<ParsedFsm> {
     builder.set_scope(Some(state_b));
     builder.add_state("BA", StateType::Simple);
     builder.add_state("BB", StateType::Simple);
-    builder.add_transition(
-        "BA",
-        "BB",
-        Event("toBB".into()),
-        Some(Action("actionInBA".into())),
-    );
+    builder.add_transition(TransitionParameters {
+        source: "BA",
+        target: "BB",
+        event: Event("toBB".into()),
+        action: Some(Action("actionInBA".into())),
+        guard: None,
+    });
 
     // Substate to substate transition (defined at root level but references substates)
     builder.set_scope(None);
-    builder.add_transition(
-        "AA",
-        "BA",
-        Event("toBA".into()),
-        Some(Action("actionInAA".into())),
-    );
+    builder.add_transition(TransitionParameters {
+        source: "AA",
+        target: "BA",
+        event: Event("toBA".into()),
+        action: Some(Action("actionInAA".into())),
+        guard: None,
+    });
 
     builder.build()
 }
@@ -81,19 +86,37 @@ fn build_same_name_substates_fsm() -> Result<ParsedFsm> {
     // Root level
     let parent_a = builder.add_state("ParentA", StateType::Enter);
     let parent_b = builder.add_state("ParentB", StateType::Simple);
-    builder.add_transition("ParentA", "ParentB", Event("toB".into()), None);
+    builder.add_transition(TransitionParameters {
+        source: "ParentA",
+        target: "ParentB",
+        event: Event("toB".into()),
+        action: None,
+        guard: None,
+    });
 
     // ParentA children
     builder.set_scope(Some(parent_a));
     builder.add_state("Inner", StateType::Enter);
     builder.add_state("Other", StateType::Simple);
-    builder.add_transition("Inner", "Other", Event("toOther".into()), None);
+    builder.add_transition(TransitionParameters {
+        source: "Inner",
+        target: "Other",
+        event: Event("toOther".into()),
+        action: None,
+        guard: None,
+    });
 
     // ParentB children
     builder.set_scope(Some(parent_b));
     builder.add_state("Inner", StateType::Enter);
     builder.add_state("Other", StateType::Simple);
-    builder.add_transition("Inner", "Other", Event("toOther".into()), None);
+    builder.add_transition(TransitionParameters {
+        source: "Inner",
+        target: "Other",
+        event: Event("toOther".into()),
+        action: None,
+        guard: None,
+    });
 
     builder.build()
 }

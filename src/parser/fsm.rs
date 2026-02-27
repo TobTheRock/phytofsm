@@ -36,6 +36,12 @@ impl ParsedFsm {
             .unique()
     }
 
+    pub fn guards(&self) -> impl Iterator<Item = (&Action, &Event)> {
+        self.transitions()
+            .filter_map(|t| t.guard.map(|guard| (guard, t.event)))
+            .unique()
+    }
+
     pub fn enter_actions(&self) -> impl Iterator<Item = Action> + '_ {
         self.states()
             .filter_map(|s| s.enter_action().cloned())
@@ -109,27 +115,25 @@ impl ParsedFsm {
     }
 }
 
-impl std::fmt::Debug for ParsedFsm {
+impl std::fmt::Display for ParsedFsm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         writeln!(f, "ParsedFsm {{")?;
-        writeln!(f, "  name: {:?}", self.name)?;
+        writeln!(f, "  name: {}", self.name)?;
         writeln!(f, "  states:")?;
         self.fmt_state_tree(f, self.enter_state(), 2)?;
         writeln!(f, "  transitions:")?;
         let mut transitions: Vec<_> = self.transitions().collect();
         transitions.sort();
         for t in transitions {
-            let action = t.action.map(|a| format!(" / {}", a.0)).unwrap_or_default();
-            writeln!(
-                f,
-                "    {} --[{}{}]--> {}",
-                t.source.name(),
-                t.event.0,
-                action,
-                t.destination.name()
-            )?;
+            writeln!(f, "    {}", t)?;
         }
         write!(f, "}}")
+    }
+}
+
+impl std::fmt::Debug for ParsedFsm {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Display::fmt(self, f)
     }
 }
 
@@ -169,11 +173,12 @@ impl ParsedFsm {
     }
 }
 
-fn transition_key(t: Transition) -> (String, Event, Option<Action>) {
+fn transition_key(t: Transition) -> (String, Event, Option<Action>, Option<Action>) {
     (
         t.destination.name().to_string(),
         t.event.clone(),
         t.action.cloned(),
+        t.guard.cloned(),
     )
 }
 
@@ -256,16 +261,34 @@ pub struct Transition<'a> {
     pub destination: State<'a>,
     pub event: &'a Event,
     pub action: Option<&'a Action>,
+    pub guard: Option<&'a Action>,
 }
 
 impl<'a> Transition<'a> {
     fn from(data: &'a TransitionData, arena: &'a Arena<StateData>) -> Transition<'a> {
         Transition {
             source: State::new(data.source, arena),
-            destination: State::new(data.destination, arena),
+            destination: State::new(data.target, arena),
             event: &data.event,
             action: data.action.as_ref(),
+            guard: data.guard.as_ref(),
         }
+    }
+}
+
+impl std::fmt::Display for Transition<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let guard = self.guard.map(|g| format!(" [{}]", g.0)).unwrap_or_default();
+        let action = self.action.map(|a| format!(" / {}", a.0)).unwrap_or_default();
+        write!(
+            f,
+            "{} --[{}{}{}]--> {}",
+            self.source.name(),
+            self.event.0,
+            guard,
+            action,
+            self.destination.name()
+        )
     }
 }
 

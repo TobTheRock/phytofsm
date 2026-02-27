@@ -1,4 +1,4 @@
-use crate::parser::{ParsedFsmBuilder, StateType};
+use crate::parser::{ParsedFsmBuilder, StateType, TransitionParameters};
 
 #[test]
 fn add_enter_state() {
@@ -24,7 +24,13 @@ fn add_enter_state_twice_fails() {
 #[test]
 fn add_enter_state_after_transition() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
-    builder.add_transition("A", "B", "Event".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "Event".into(),
+        action: None,
+        guard: None,
+    });
     builder.add_state("Start", StateType::Enter);
 
     let fsm = builder.build().unwrap();
@@ -37,7 +43,13 @@ fn add_enter_state_after_transition() {
 fn add_transition_after_enter_state() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
-    builder.add_transition("A", "B", "Event".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "Event".into(),
+        action: None,
+        guard: None,
+    });
 
     let fsm = builder.build().unwrap();
     let enter = fsm.enter_state();

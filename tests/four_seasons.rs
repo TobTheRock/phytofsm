@@ -5,6 +5,7 @@ generate_fsm!(
     file_path = "test/four_seasons/four_seasons.puml",
     log_level = "debug"
 );
+
 use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData};
 
 use mockall::{mock, predicate};
@@ -21,6 +22,11 @@ mock! {
         fn start_heat_wave(&mut self);
         // Exit actions
         fn end_heat_wave(&mut self);
+        // Guards
+        fn enough_time_passed(
+            &self,
+            event: &<MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams,
+        ) -> bool;
     }
 }
 
@@ -37,6 +43,12 @@ fn test_transitions() {
     // let _ = stderrlog::new().verbosity(log::Level::Debug).init();
     let time = std::time::SystemTime::now();
     let mut actions = MockPlantFsmActions::new();
+
+    // Guards
+    actions
+        .expect_enough_time_passed()
+        .returning(|_| true)
+        .times(4);
 
     // Transition actions
     actions

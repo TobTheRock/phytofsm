@@ -40,6 +40,14 @@ impl CodeGenerator for ActionTraitGenerator {
             }
         });
 
+        let guard_methods = ctx.fsm.guards().map(|(guard, event)| {
+            let guard_ident = guard.ident();
+            let params_ident = event.params_ident();
+            quote::quote! {
+                fn #guard_ident(&self, event: &Self::#params_ident) -> bool;
+            }
+        });
+
         let enter_methods = ctx.fsm.enter_actions().map(|action| {
             let action_ident = action.ident();
             quote::quote! {
@@ -62,6 +70,7 @@ impl CodeGenerator for ActionTraitGenerator {
                 #(#action_methods)*
                 #(#enter_methods)*
                 #(#exit_methods)*
+                #(#guard_methods)*
             }
         }
     }
@@ -309,8 +318,15 @@ impl CodeGenerator for StateImplGenerator {
                     quote::quote! {}
                 };
 
+                let guard_condition = if let Some(g) = t.guard {
+                    let guard_ident = g.ident();
+                    quote::quote! { if action.#guard_ident(&params) }
+                } else {
+                    quote::quote! {}
+                };
+
                 quote::quote! {
-                    #event_enum::#event_ident(params) => {
+                    #event_enum::#event_ident(params) #guard_condition => {
                         #action
                         Some(Self::#next_state())
                     }

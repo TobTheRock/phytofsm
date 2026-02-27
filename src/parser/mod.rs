@@ -9,7 +9,7 @@ mod fsm;
 mod plantuml;
 mod types;
 
-pub use builder::ParsedFsmBuilder;
+pub use builder::{ParsedFsmBuilder, TransitionParameters};
 pub use fsm::{ParsedFsm, State};
 use log::trace;
 pub use types::{Action, Event, StateType};
@@ -57,7 +57,13 @@ fn add_fsm_elements(
     // Add transitions last, as they can create new states
     for transition in &elements.transitions {
         let ctx = context::TransitionContext::try_from(transition.description)?;
-        builder.add_transition(transition.from, transition.to, ctx.event, ctx.action);
+        builder.add_transition(TransitionParameters {
+            source: transition.source,
+            target: transition.target,
+            event: ctx.event,
+            action: ctx.action,
+            guard: ctx.guard,
+        });
     }
 
     for desc in &elements.state_descriptions {
@@ -73,6 +79,20 @@ fn add_fsm_elements(
 
     builder.set_scope(previous_scope);
     Ok(())
+}
+
+impl<'a> TryFrom<plantuml::TransitionDescription<'a>> for builder::TransitionParameters<'a> {
+    type Error = crate::error::Error;
+    fn try_from(transition: plantuml::TransitionDescription<'a>) -> Result<Self> {
+        let ctx = context::TransitionContext::try_from(transition.description)?;
+        Ok(Self {
+            source: transition.source,
+            target: transition.target,
+            event: ctx.event,
+            action: ctx.action,
+            guard: ctx.guard,
+        })
+    }
 }
 
 #[cfg(test)]

@@ -14,16 +14,27 @@ use scoped_arena::ScopedArena;
 #[cfg(test)]
 mod tests;
 
-pub(super) type StateId = NodeId;
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct TransitionParameters<'a> {
+    pub source: &'a str,
+    pub target: &'a str,
+    pub event: Event,
+    pub action: Option<Action>,
+    pub guard: Option<Action>,
+}
 
+// TODO move to top level !
+pub type StateId = NodeId;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) struct TransitionData {
     pub source: StateId,
-    pub destination: StateId,
+    pub target: StateId,
     pub event: Event,
     pub action: Option<Action>,
+    pub guard: Option<Action>,
 }
 
+// TODO move to top level !
 #[derive(Debug, Clone)]
 pub(super) struct StateData {
     pub name: String,
@@ -76,20 +87,29 @@ impl ParsedFsmBuilder {
         self.create_state(name, state_type)
     }
 
-    pub fn add_transition(&mut self, from: &str, to: &str, event: Event, action: Option<Action>) {
+    pub fn add_transition(&mut self, params: TransitionParameters) {
+        let TransitionParameters {
+            source,
+            target,
+            event,
+            action,
+            guard,
+        } = params;
+
         debug!(
-            "Adding transition from '{}' to '{}' on event {:?}",
-            from, to, event
+            "Adding transition from {} -> {}: {:?} [{:?}] / {:?}",
+            source, target, event, guard, action
         );
 
-        let from_id = self.find_or_create_state(from);
-        let to_id = self.find_or_create_state(to);
+        let from_id = self.find_or_create_state(source);
+        let to_id = self.find_or_create_state(target);
 
         let transition = TransitionData {
             source: from_id,
-            destination: to_id,
+            target: to_id,
             event,
             action,
+            guard,
         };
 
         self.arena[from_id].get_mut().transitions.push(transition);

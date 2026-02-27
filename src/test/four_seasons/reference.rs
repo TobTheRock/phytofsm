@@ -18,6 +18,8 @@ pub trait IPlantFsmActions: IPlantFsmEventParams {
     fn winter_is_coming(&mut self);
     // exit actions
     fn end_heat_wave(&mut self);
+    // guards
+    fn enough_time_passed(&self, event: &Self::TimeAdvancesParams) -> bool;
 }
 
 type NoEventData = ();
@@ -135,13 +137,14 @@ where
     fn winter() -> Self {
         Self {
             id: PlantFsmStateId::Winter,
-            transition: |event, _| match event {
-                PlantFsmEvent::TimeAdvances(_) => Some(Self::spring()),
+            transition: |event, actions| match event {
+                PlantFsmEvent::TimeAdvances(params) if actions.enough_time_passed(&params) => {
+                    Some(Self::spring())
+                }
                 _ => None,
             },
             enter_state: Self::winter_freezing,
             enter: |actions, from| {
-                // Check for internal transitions and skip if any
                 if matches!(
                     from.id,
                     PlantFsmStateId::WinterFreezing | PlantFsmStateId::WinterMild
@@ -157,12 +160,12 @@ where
     fn winter_freezing() -> Self {
         Self {
             id: PlantFsmStateId::WinterFreezing,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureRises(_) => Some(Self::winter_mild()),
                 // Check the parent
                 _ => {
                     let parent = Self::winter();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::winter_freezing,
@@ -174,11 +177,11 @@ where
     fn winter_mild() -> Self {
         Self {
             id: PlantFsmStateId::WinterMild,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureDrops(_) => Some(Self::winter_freezing()),
                 _ => {
                     let parent = Self::winter();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::winter_mild,
@@ -190,9 +193,9 @@ where
     fn spring() -> Self {
         Self {
             id: PlantFsmStateId::Spring,
-            transition: |event, action| match event {
-                PlantFsmEvent::TimeAdvances(params) => {
-                    action.start_blooming(params);
+            transition: |event, actions| match event {
+                PlantFsmEvent::TimeAdvances(params) if actions.enough_time_passed(&params) => {
+                    actions.start_blooming(params);
                     Some(Self::summer())
                 }
                 _ => None,
@@ -206,11 +209,11 @@ where
     fn spring_brisk() -> Self {
         Self {
             id: PlantFsmStateId::SpringBrisk,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureRises(_) => Some(Self::spring_temperate()),
                 _ => {
                     let parent = Self::spring();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::spring_brisk,
@@ -222,11 +225,11 @@ where
     fn spring_temperate() -> Self {
         Self {
             id: PlantFsmStateId::SpringTemperate,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureDrops(_) => Some(Self::spring_brisk()),
                 _ => {
                     let parent = Self::spring();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::spring_temperate,
@@ -238,9 +241,9 @@ where
     fn summer() -> Self {
         Self {
             id: PlantFsmStateId::Summer,
-            transition: |event, action| match event {
-                PlantFsmEvent::TimeAdvances(params) => {
-                    action.ripen_fruit(params);
+            transition: |event, actions| match event {
+                PlantFsmEvent::TimeAdvances(params) if actions.enough_time_passed(&params) => {
+                    actions.ripen_fruit(params);
                     Some(Self::autumn())
                 }
                 _ => None,
@@ -254,11 +257,11 @@ where
     fn summer_balmy() -> Self {
         Self {
             id: PlantFsmStateId::SummerBalmy,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureRises(_) => Some(Self::summer_scorching()),
                 _ => {
                     let parent = Self::summer();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::summer_balmy,
@@ -270,33 +273,25 @@ where
     fn summer_scorching() -> Self {
         Self {
             id: PlantFsmStateId::SummerScorching,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureDrops(_) => Some(Self::summer_balmy()),
                 _ => {
                     let parent = Self::summer();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::summer_scorching,
-            enter: |actions, from| {
-                // call parents enter first
-                (Self::summer().enter)(actions, from);
-                actions.start_heat_wave()
-            },
-            exit: |actions, to| {
-                actions.end_heat_wave();
-                // call parents exit last
-                (Self::summer().enter)(actions, to);
-            },
+            enter: |actions, _from| actions.start_heat_wave(),
+            exit: |actions, _to| actions.end_heat_wave(),
         }
     }
 
     fn autumn() -> Self {
         Self {
             id: PlantFsmStateId::Autumn,
-            transition: |event, action| match event {
-                PlantFsmEvent::TimeAdvances(params) => {
-                    action.drop_petals(params);
+            transition: |event, actions| match event {
+                PlantFsmEvent::TimeAdvances(params) if actions.enough_time_passed(&params) => {
+                    actions.drop_petals(params);
                     Some(Self::winter())
                 }
                 _ => None,
@@ -310,11 +305,11 @@ where
     fn autumn_crisp() -> Self {
         Self {
             id: PlantFsmStateId::AutumnCrisp,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureRises(_) => Some(Self::autumn_pleasant()),
                 _ => {
                     let parent = Self::autumn();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::autumn_crisp,
@@ -326,11 +321,11 @@ where
     fn autumn_pleasant() -> Self {
         Self {
             id: PlantFsmStateId::AutumnPleasant,
-            transition: |event, action| match event {
+            transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureDrops(_) => Some(Self::autumn_crisp()),
                 _ => {
                     let parent = Self::autumn();
-                    (parent.transition)(event, action)
+                    (parent.transition)(event, actions)
                 }
             },
             enter_state: Self::autumn_pleasant,
@@ -371,17 +366,15 @@ where
 }
 
 pub struct PlantFsm<A: IPlantFsmActions>(PlantFsmImpl<A>);
-// THis may already trigger actions, depending on the initial state
+// This may already trigger actions, depending on the initial state
 pub fn start<A: IPlantFsmActions>(mut actions: A) -> PlantFsm<A> {
     let init = PlantFsmState::init();
     let enter_state = PlantFsmState::winter_freezing();
     (enter_state.enter)(&mut actions, &init);
-
-    let fsm = PlantFsmImpl {
+    PlantFsm(PlantFsmImpl {
         actions,
         current_state: enter_state,
-    };
-    PlantFsm(fsm)
+    })
 }
 
 impl<A> PlantFsm<A>
@@ -426,6 +419,11 @@ mod test {
             fn winter_is_coming(&mut self);
 
             fn end_heat_wave(&mut self);
+
+            fn enough_time_passed(
+                &self,
+                event: &<MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams,
+            ) -> bool;
         }
     }
 
@@ -445,6 +443,11 @@ mod test {
     fn test_transitions() {
         let time = 42;
         let mut actions = setup();
+
+        actions
+            .expect_enough_time_passed()
+            .returning(|_| true)
+            .times(4);
 
         actions
             .expect_start_blooming()
@@ -469,6 +472,10 @@ mod test {
     fn test_substate_enter_exit_actions() {
         let time = 42;
         let mut actions = setup();
+        actions
+            .expect_enough_time_passed()
+            .returning(|_| true)
+            .times(2);
 
         // Called once on init (entering Winter::Freezing)
         actions.expect_winter_is_coming().returning(|| ()).times(1);

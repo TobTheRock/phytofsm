@@ -32,12 +32,12 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 | Substate-to-substate transitions | Transitions between substates across different parent states | [substate_to_substate.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/substate_to_substate.rs) |
 | Self-transitions | States that transition to themselves | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
 | Alternative transitions | Multiple transitions from the same state with different events | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
+| Guard conditions | Conditional transitions using `[GuardName]` syntax | [guards.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/guards.rs) |
 | Transition logging | Optional logging via [log](https://docs.rs/log/latest/log/) crate | [four_seasons.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/four_seasons.rs) |
 
 ### Missing Features
 
 - internal transitions
-- guards
 - run to completion model (RTC), currently events in transitions are UB
 - exit state
 - event deferring
@@ -62,6 +62,29 @@ StateA --> StateB : EventName / ActionName
 - **ActionName** (optional): The action method called during the transition seperated by `/`
 
 **Be aware that actions MUST be unique per event**
+
+### Guards
+
+Transitions can include a guard condition that must evaluate to `true` for the transition to occur:
+
+```puml
+StateA --> StateB : EventName [GuardName] / ActionName
+```
+
+- **GuardName** (optional): A boolean method called before the transition. If it returns `false`, the transition is skipped.
+
+When multiple transitions share the same event, guards are evaluated in declaration order and the first matching guard wins:
+
+```puml
+StateA --> StateB : Change [IsReady] / GoToB
+StateA --> StateC : Change [IsFull] / GoToC
+```
+
+The generated actions trait will include guard methods with the signature:
+
+```rust
+fn guard_name(&self, event: &Self::EventNameParams) -> bool;
+```
 
 ### Enter/Exit Actions
 
@@ -173,10 +196,10 @@ state Summer {
 }
 
 [*] --> Winter
-Winter --> Spring : TimeAdvances
-Spring --> Summer : TimeAdvances / StartBlooming
-Summer --> Autumn : TimeAdvances / RipenFruit
-Autumn --> Winter : TimeAdvances / DropPetals
+Winter --> Spring : TimeAdvances [EnoughTimePassed]
+Spring --> Summer : TimeAdvances [EnoughTimePassed] / StartBlooming
+Summer --> Autumn : TimeAdvances [EnoughTimePassed] / RipenFruit
+Autumn --> Winter : TimeAdvances [EnoughTimePassed] / DropPetals
 
 @enduml
 ```
@@ -233,18 +256,21 @@ impl IPlantFsmActions for PlantActions {
     fn end_heat_wave(&mut self) {
         println!("Heat wave ending, cooling down...");
     }
+
+    // Guards
+    fn enough_time_passed(&self, _: &Self::TimeAdvancesParams) -> bool {
+        true // your logic here
+    }
 }
 ```
 
 ### 4. Use your state machine
 
 ```rust
-use plant_fsm::PlantFsm;
-
 fn main() {
     let actions = PlantActions;
     // Creating the FSM triggers winter_is_coming() enter action
-    let mut fsm = PlantFsm::start(actions);
+    let mut fsm = plant_fsm::start(actions);
 
     // Transition within Winter: Freezing -> Mild
     fsm.temperature_rises(());

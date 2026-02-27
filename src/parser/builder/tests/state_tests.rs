@@ -1,4 +1,4 @@
-use crate::parser::{ParsedFsm, ParsedFsmBuilder, State, StateType};
+use crate::parser::{ParsedFsm, ParsedFsmBuilder, State, StateType, TransitionParameters};
 
 #[test]
 fn add_state_creates_simple_state() {
@@ -16,7 +16,13 @@ fn add_state_creates_simple_state() {
 fn add_state_reuses_existing() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
-    builder.add_transition("A", "B", "E1".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "E1".into(),
+        action: None,
+        guard: None,
+    });
     builder.add_state("B", StateType::Simple);
     let fsm = builder.build().unwrap();
 
@@ -37,7 +43,13 @@ fn enter_state_not_overwritten_by_simple() {
 #[test]
 fn simple_state_upgraded_to_enter() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
-    builder.add_transition("Start", "B", "E1".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "Start",
+        target: "B",
+        event: "E1".into(),
+        action: None,
+        guard: None,
+    });
     builder.add_state("Start", StateType::Enter);
     let fsm = builder.build().unwrap();
 

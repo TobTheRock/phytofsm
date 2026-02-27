@@ -1,10 +1,16 @@
-use crate::parser::{Event, ParsedFsmBuilder, StateType};
+use crate::parser::{Event, ParsedFsmBuilder, StateType, TransitionParameters};
 
 #[test]
 fn add_transition() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
-    builder.add_transition("A", "B", "EventAB".into(), Some("ActionAB".into()));
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "EventAB".into(),
+        action: Some("ActionAB".into()),
+        guard: None,
+    });
     let fsm = builder.build().unwrap();
 
     assert_eq!(fsm.states().count(), 2);
@@ -19,7 +25,13 @@ fn add_transition() {
 fn add_transition_creates_states() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
-    builder.add_transition("A", "B", "Event".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "Event".into(),
+        action: None,
+        guard: None,
+    });
     let fsm = builder.build().unwrap();
 
     let names: Vec<_> = fsm.states().map(|s| s.name().to_string()).collect();
@@ -39,7 +51,13 @@ fn add_transition_finds_existing_substate_from_root_scope() {
     builder.add_state("Child", StateType::Simple);
 
     builder.set_scope(None);
-    builder.add_transition("Child", "Other", "toOther".into(), None);
+    builder.add_transition(TransitionParameters {
+        source: "Child",
+        target: "Other",
+        event: "toOther".into(),
+        action: None,
+        guard: None,
+    });
 
     let fsm = builder.build().unwrap();
 

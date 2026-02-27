@@ -2,7 +2,7 @@ pub mod reference;
 
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType},
+    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
@@ -17,39 +17,72 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     let autumn = builder.add_state("Autumn", StateType::Simple);
 
     // Root level transitions
-    builder.add_transition("Winter", "Spring", Event("TimeAdvances".into()), None);
-    builder.add_transition(
-        "Spring",
-        "Summer",
-        Event("TimeAdvances".into()),
-        Some(Action("StartBlooming".into())),
-    );
-    builder.add_transition(
-        "Summer",
-        "Autumn",
-        Event("TimeAdvances".into()),
-        Some(Action("RipenFruit".into())),
-    );
-    builder.add_transition(
-        "Autumn",
-        "Winter",
-        Event("TimeAdvances".into()),
-        Some(Action("DropPetals".into())),
-    );
+    builder.add_transition(TransitionParameters {
+        source: "Winter",
+        target: "Spring",
+        event: Event("TimeAdvances".into()),
+        action: None,
+        guard: Some(Action("EnoughTimePassed".into())),
+    });
+    builder.add_transition(TransitionParameters {
+        source: "Spring",
+        target: "Summer",
+        event: Event("TimeAdvances".into()),
+        action: Some(Action("StartBlooming".into())),
+        guard: Some(Action("EnoughTimePassed".into())),
+    });
+    builder.add_transition(TransitionParameters {
+        source: "Summer",
+        target: "Autumn",
+        event: Event("TimeAdvances".into()),
+        action: Some(Action("RipenFruit".into())),
+        guard: Some(Action("EnoughTimePassed".into())),
+    });
+    builder.add_transition(TransitionParameters {
+        source: "Autumn",
+        target: "Winter",
+        event: Event("TimeAdvances".into()),
+        action: Some(Action("DropPetals".into())),
+        guard: Some(Action("EnoughTimePassed".into())),
+    });
 
     // Winter substates
     builder.set_scope(Some(winter));
     builder.add_state("Freezing", StateType::Enter);
     builder.add_state("Mild", StateType::Simple);
-    builder.add_transition("Freezing", "Mild", Event("TemperatureRises".into()), None);
-    builder.add_transition("Mild", "Freezing", Event("TemperatureDrops".into()), None);
+    builder.add_transition(TransitionParameters {
+        source: "Freezing",
+        target: "Mild",
+        event: Event("TemperatureRises".into()),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "Mild",
+        target: "Freezing",
+        event: Event("TemperatureDrops".into()),
+        action: None,
+        guard: None,
+    });
 
     // Spring substates
     builder.set_scope(Some(spring));
     builder.add_state("Brisk", StateType::Enter);
     builder.add_state("Temperate", StateType::Simple);
-    builder.add_transition("Brisk", "Temperate", Event("TemperatureRises".into()), None);
-    builder.add_transition("Temperate", "Brisk", Event("TemperatureDrops".into()), None);
+    builder.add_transition(TransitionParameters {
+        source: "Brisk",
+        target: "Temperate",
+        event: Event("TemperatureRises".into()),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "Temperate",
+        target: "Brisk",
+        event: Event("TemperatureDrops".into()),
+        action: None,
+        guard: None,
+    });
 
     // Summer substates
     builder.set_scope(Some(summer));
@@ -57,15 +90,39 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     builder.add_state("Scorching", StateType::Simple);
     builder.add_enter_action("Scorching", Action::from("StartHeatWave"));
     builder.add_exit_action("Scorching", Action::from("EndHeatWave"));
-    builder.add_transition("Balmy", "Scorching", Event("TemperatureRises".into()), None);
-    builder.add_transition("Scorching", "Balmy", Event("TemperatureDrops".into()), None);
+    builder.add_transition(TransitionParameters {
+        source: "Balmy",
+        target: "Scorching",
+        event: Event("TemperatureRises".into()),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "Scorching",
+        target: "Balmy",
+        event: Event("TemperatureDrops".into()),
+        action: None,
+        guard: None,
+    });
 
     // Autumn substates
     builder.set_scope(Some(autumn));
     builder.add_state("Crisp", StateType::Enter);
     builder.add_state("Pleasant", StateType::Simple);
-    builder.add_transition("Crisp", "Pleasant", Event("TemperatureRises".into()), None);
-    builder.add_transition("Pleasant", "Crisp", Event("TemperatureDrops".into()), None);
+    builder.add_transition(TransitionParameters {
+        source: "Crisp",
+        target: "Pleasant",
+        event: Event("TemperatureRises".into()),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "Pleasant",
+        target: "Crisp",
+        event: Event("TemperatureDrops".into()),
+        action: None,
+        guard: None,
+    });
 
     builder.build()
 }

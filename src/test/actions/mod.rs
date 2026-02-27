@@ -1,24 +1,26 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType},
+    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
 fn build_actions_fsm() -> Result<ParsedFsm> {
     let mut builder = ParsedFsmBuilder::new("TestFsm");
     builder.add_state("StateA", StateType::Enter);
-    builder.add_transition(
-        "StateA",
-        "StateB",
-        Event("GoToB".into()),
-        Some(Action("Action1".into())),
-    );
-    builder.add_transition(
-        "StateB",
-        "StateA",
-        Event("GoToA".into()),
-        Some(Action("Action2".into())),
-    );
+    builder.add_transition(TransitionParameters {
+        source: "StateA",
+        target: "StateB",
+        event: Event("GoToB".into()),
+        action: Some(Action("Action1".into())),
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "StateB",
+        target: "StateA",
+        event: Event("GoToA".into()),
+        action: Some(Action("Action2".into())),
+        guard: None,
+    });
     builder.build()
 }
 
@@ -32,9 +34,27 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     builder.add_state("B", StateType::Simple);
 
     // Root level transitions
-    builder.add_transition("A", "A", Event::from("GoToAFromA"), None);
-    builder.add_transition("A", "B", Event::from("GoToB"), None);
-    builder.add_transition("B", "A", Event::from("GoToAFromB"), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "A",
+        event: Event::from("GoToAFromA"),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: Event::from("GoToB"),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "B",
+        target: "A",
+        event: Event::from("GoToAFromB"),
+        action: None,
+        guard: None,
+    });
 
     // Composite state C
     let state_c = builder.add_state("C", StateType::Simple);
@@ -47,14 +67,44 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     builder.add_enter_action("C1", Action::from("EnterC1"));
     builder.add_exit_action("C1", Action::from("ExitC1"));
     builder.add_state("C2", StateType::Simple);
-    builder.add_transition("C1", "C2", Event::from("GoToC2"), None);
+    builder.add_transition(TransitionParameters {
+        source: "C1",
+        target: "C2",
+        event: Event::from("GoToC2"),
+        action: None,
+        guard: None,
+    });
 
     // Root level transitions involving C
     builder.set_scope(None);
-    builder.add_transition("A", "C", Event::from("GoToC"), None);
-    builder.add_transition("A", "C1", Event::from("GoToC1FromA"), None);
-    builder.add_transition("A", "C2", Event::from("GoToC2FromA"), None);
-    builder.add_transition("C", "A", Event::from("GoToAFromC"), None);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "C",
+        event: Event::from("GoToC"),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "C1",
+        event: Event::from("GoToC1FromA"),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "C2",
+        event: Event::from("GoToC2FromA"),
+        action: None,
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "C",
+        target: "A",
+        event: Event::from("GoToAFromC"),
+        action: None,
+        guard: None,
+    });
 
     builder.build()
 }

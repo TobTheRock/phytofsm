@@ -19,8 +19,8 @@ pub struct StateDescription<'a> {
 
 #[derive(Debug, PartialEq, Clone)]
 pub struct TransitionDescription<'a> {
-    pub from: StateName<'a>,
-    pub to: StateName<'a>,
+    pub source: StateName<'a>,
+    pub target: StateName<'a>,
     // TODO make this optional for direct transitions
     pub description: &'a str,
 }
@@ -152,8 +152,8 @@ fn parse_transition(pair: Pair<'_>) -> Result<TransitionDescription<'_>> {
     }
 
     Ok(TransitionDescription {
-        from: from.ok_or_else(|| Error::Parse("Missing source state in transition".to_string()))?,
-        to: to
+        source: from.ok_or_else(|| Error::Parse("Missing source state in transition".to_string()))?,
+        target: to
             .ok_or_else(|| Error::Parse("Missing destination state in transition".to_string()))?,
         description,
     })
@@ -239,7 +239,7 @@ mod tests {
         fn assert_transition(&self, idx: usize, from: &str, to: &str) -> &Self {
             let t = &self.elements.transitions[idx];
             assert_eq!(
-                (t.from, t.to),
+                (t.source, t.target),
                 (from, to),
                 "transition[{}] for '{}'",
                 idx,
@@ -275,8 +275,8 @@ mod tests {
         let full_input = format!("@startuml test\n{}@enduml", input);
         let diagram = StateDiagram::parse(&full_input).unwrap();
         assert_eq!(diagram.root.transitions.len(), 1);
-        assert_eq!(diagram.root.transitions[0].from, "A");
-        assert_eq!(diagram.root.transitions[0].to, "B");
+        assert_eq!(diagram.root.transitions[0].source, "A");
+        assert_eq!(diagram.root.transitions[0].target, "B");
         assert_eq!(diagram.root.transitions[0].description, "label");
     }
 

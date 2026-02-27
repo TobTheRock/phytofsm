@@ -34,6 +34,7 @@ impl FsmTestData {
             Self::enter_exit(),
             Self::four_seasons(),
             Self::misc(),
+            Self::guards(),
             Self::same_name_substates(),
             Self::substate_to_substate(),
             Self::transitions(),
