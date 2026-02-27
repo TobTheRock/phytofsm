@@ -5,9 +5,7 @@ generate_fsm!(
 );
 
 use mockall::mock;
-use substate_to_substate::{
-    ISubstateToSubstateActions, ISubstateToSubstateEventParams, SubstateToSubstate,
-};
+use substate_to_substate::{ISubstateToSubstateActions, ISubstateToSubstateEventParams};
 
 mock! {
     SubstateToSubstateActions {}
@@ -29,7 +27,7 @@ fn should_transition_from_substate_to_substate_across_parents() {
     // Starting in A::AA, transition to B::BA should trigger action_in_aa
     actions.expect_action_in_aa().returning(|_| ()).times(1);
 
-    let mut fsm = SubstateToSubstate::start(actions);
+    let mut fsm = substate_to_substate::start(actions);
     fsm.to_ba(());
 }
 
@@ -40,7 +38,7 @@ fn should_transition_within_substate() {
     actions.expect_action_in_aa().returning(|_| ()).times(1);
     actions.expect_action_in_ba().returning(|_| ()).times(1);
 
-    let mut fsm = SubstateToSubstate::start(actions);
+    let mut fsm = substate_to_substate::start(actions);
     fsm.to_ba(());
     fsm.to_bb(());
 }

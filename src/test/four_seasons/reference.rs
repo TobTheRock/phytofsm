@@ -340,26 +340,15 @@ where
     }
 }
 
-pub struct PlantFsm<T: IPlantFsmActions> {
-    actions: T,
-    current_state: PlantFsmState<T>,
+struct PlantFsmImpl<A: IPlantFsmActions> {
+    actions: A,
+    current_state: PlantFsmState<A>,
 }
 
-impl<A> PlantFsm<A>
+impl<A> PlantFsmImpl<A>
 where
     A: IPlantFsmActions,
 {
-    // THis may already trigger actions, depending on the initial state
-    pub fn start(mut actions: A) -> Self {
-        let init = PlantFsmState::init();
-        let enter_state = PlantFsmState::winter_freezing();
-        (enter_state.enter)(&mut actions, &init);
-        Self {
-            actions,
-            current_state: enter_state,
-        }
-    }
-
     fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
         let event_name = format!("{}", event);
         if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
@@ -379,23 +368,44 @@ where
         (next_state.enter)(&mut self.actions, &self.current_state);
         self.current_state = next_state;
     }
+}
 
+pub struct PlantFsm<A: IPlantFsmActions>(PlantFsmImpl<A>);
+// THis may already trigger actions, depending on the initial state
+pub fn start<A: IPlantFsmActions>(mut actions: A) -> PlantFsm<A> {
+    let init = PlantFsmState::init();
+    let enter_state = PlantFsmState::winter_freezing();
+    (enter_state.enter)(&mut actions, &init);
+
+    let fsm = PlantFsmImpl {
+        actions,
+        current_state: enter_state,
+    };
+    PlantFsm(fsm)
+}
+
+impl<A> PlantFsm<A>
+where
+    A: IPlantFsmActions,
+{
     pub fn temperature_rises(
         &mut self,
         params: <A as IPlantFsmEventParams>::TemperatureRisesParams,
     ) {
-        self.trigger_event(PlantFsmEvent::TemperatureRises(params));
+        self.0
+            .trigger_event(PlantFsmEvent::TemperatureRises(params));
     }
 
     pub fn temperature_drops(
         &mut self,
         params: <A as IPlantFsmEventParams>::TemperatureDropsParams,
     ) {
-        self.trigger_event(PlantFsmEvent::TemperatureDrops(params));
+        self.0
+            .trigger_event(PlantFsmEvent::TemperatureDrops(params));
     }
 
     pub fn time_advances(&mut self, params: <A as IPlantFsmEventParams>::TimeAdvancesParams) {
-        self.trigger_event(PlantFsmEvent::TimeAdvances(params));
+        self.0.trigger_event(PlantFsmEvent::TimeAdvances(params));
     }
 }
 
@@ -403,7 +413,7 @@ where
 mod test {
     use mockall::{mock, predicate};
 
-    use super::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm};
+    use super::{IPlantFsmActions, IPlantFsmEventParams, NoEventData};
 
     mock! {
         PlantFsmActions {}
@@ -446,7 +456,7 @@ mod test {
         // Called twice: once on init (entering Winter::Freezing), once when returning from Autumn
         actions.expect_winter_is_coming().returning(|| ()).times(2);
 
-        let mut fsm = PlantFsm::start(actions);
+        let mut fsm = super::start(actions);
         fsm.temperature_rises(());
         fsm.time_advances(time);
         fsm.time_advances(time);
@@ -466,7 +476,7 @@ mod test {
         actions.expect_start_heat_wave().returning(|| ()).times(1);
         actions.expect_end_heat_wave().returning(|| ()).times(1);
 
-        let mut fsm = PlantFsm::start(actions);
+        let mut fsm = super::start(actions);
         // To Summer
         fsm.time_advances(time);
         fsm.time_advances(time);

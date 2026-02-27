@@ -4,6 +4,7 @@ use crate::parser;
 
 pub struct Idents {
     pub fsm: proc_macro2::Ident,
+    pub fsm_inner: proc_macro2::Ident,
     pub module: proc_macro2::Ident,
     pub event_params_trait: proc_macro2::Ident,
     pub event_enum: proc_macro2::Ident,
@@ -18,6 +19,7 @@ impl Idents {
         let name = name.to_string();
         Idents {
             fsm: quote::format_ident!("{}", name.to_upper_camel_case()),
+            fsm_inner: quote::format_ident!("{}Inner", name.to_upper_camel_case()),
             module: quote::format_ident!("{}", name.to_snake_case()),
             event_params_trait: quote::format_ident!("I{}EventParams", name.to_upper_camel_case()),
             event_enum: quote::format_ident!("{}Event", name.to_upper_camel_case()),

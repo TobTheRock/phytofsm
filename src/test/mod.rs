@@ -4,6 +4,7 @@ use crate::parser;
 mod actions;
 mod composite_states;
 mod four_seasons;
+mod misc;
 mod transitions;
 mod utils;
 
@@ -32,6 +33,7 @@ impl FsmTestData {
             Self::composite_states(),
             Self::enter_exit(),
             Self::four_seasons(),
+            Self::misc(),
             Self::same_name_substates(),
             Self::substate_to_substate(),
             Self::transitions(),

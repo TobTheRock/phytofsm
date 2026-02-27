@@ -83,7 +83,7 @@ mod test {
 
     const FSM_CASES: TestCases<FsmTestData> = cases!(FsmTestData::all());
 
-    #[test_casing(7, FSM_CASES)]
+    #[test_casing(8, FSM_CASES)]
     fn parses_fsm(data: FsmTestData) {
         crate::logging::init();
         let fsm = ParsedFsm::try_parse(data.content).unwrap();

@@ -5,7 +5,7 @@ generate_fsm!(
     file_path = "test/four_seasons/four_seasons.puml",
     log_level = "debug"
 );
-use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData, PlantFsm};
+use plant_fsm::{IPlantFsmActions, IPlantFsmEventParams, NoEventData};
 
 use mockall::{mock, predicate};
 
@@ -54,7 +54,7 @@ fn test_transitions() {
     actions.expect_start_heat_wave().never();
     actions.expect_end_heat_wave().never();
 
-    let mut fsm = PlantFsm::start(actions);
+    let mut fsm = plant_fsm::start(actions);
     fsm.temperature_rises(());
     fsm.time_advances(time);
     fsm.time_advances(time);

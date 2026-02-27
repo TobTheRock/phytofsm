@@ -375,29 +375,31 @@ impl CodeGenerator for StateImplGenerator {
 impl CodeGenerator for FsmStructGenerator {
     fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream {
         let fsm = &ctx.idents.fsm;
+        let fsm_inner = &ctx.idents.fsm_inner;
         let action = &ctx.idents.action_trait;
         let state = &ctx.idents.state_struct;
         quote::quote! {
-            pub struct #fsm<A: #action> {
+            struct #fsm_inner<A: #action> {
                 actions: A,
                 current_state: #state<A>,
             }
+            pub struct #fsm<A: #action>(#fsm_inner<A>);
         }
     }
 }
 
 impl CodeGenerator for FsmImplGenerator {
     fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream {
-        let fsm = &ctx.idents.fsm;
+        let fsm_inner = &ctx.idents.fsm_inner;
         let action = &ctx.idents.action_trait;
         let event_enum = &ctx.idents.event_enum;
 
         quote::quote! {
-            impl<A> #fsm<A>
+            impl<A> #fsm_inner<A>
             where
                 A: #action,
             {
-                pub fn trigger_event(&mut self, event: #event_enum<A>) {
+                fn trigger_event(&mut self, event: #event_enum<A>) {
                     if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
                         self.change_state(transition_state);
                     }
@@ -409,14 +411,14 @@ impl CodeGenerator for FsmImplGenerator {
 
 impl CodeGenerator for FsmImplGeneratorWithLogging {
     fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream {
-        let fsm = &ctx.idents.fsm;
+        let fsm_inner = &ctx.idents.fsm_inner;
         let action = &ctx.idents.action_trait;
         let event_enum = &ctx.idents.event_enum;
         let level = self.log_level_token();
 
         let log_transition = format! {"{}: {{}} -[{{}}]-> {{}}, entering {{}}", ctx.fsm.name()};
         quote::quote! {
-            impl<A> #fsm<A>
+            impl<A> #fsm_inner<A>
             where
                 A: #action,
             {
@@ -441,6 +443,7 @@ impl CodeGenerator for FsmImplGeneratorWithLogging {
 impl CodeGenerator for FsmImplGeneratorCommon {
     fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream {
         let fsm = &ctx.idents.fsm;
+        let fsm_inner = &ctx.idents.fsm_inner;
         let action = &ctx.idents.action_trait;
         let state = &ctx.idents.state_struct;
         let enter_state = ctx.fsm.enter_state().function_ident();
@@ -453,34 +456,36 @@ impl CodeGenerator for FsmImplGeneratorCommon {
             let params_ident = event.params_ident();
             quote::quote! {
                 pub fn #fn_ident(&mut self, params: <A as #event_params_trait>::#params_ident) {
-                    self.trigger_event(#event_enum::#event_ident(params));
+                    self.0.trigger_event(#event_enum::#event_ident(params));
                 }
             }
         });
 
         quote::quote! {
-            impl<A> #fsm<A>
+            impl<A> #fsm_inner<A>
             where
                 A: #action,
             {
-                pub fn start(mut actions: A) -> Self {
-                    let init = #state::init();
-                    let enter_state = #state::#enter_state();
-                    (enter_state.enter)(&mut actions, &init);
-                    Self {
-                        actions,
-                        current_state: enter_state,
-                    }
-                }
-
                 fn change_state(&mut self, transition_state: #state<A>) {
                     let enter_state = (transition_state.enter_state)();
                     (self.current_state.exit)(&mut self.actions, &enter_state);
                     (enter_state.enter)(&mut self.actions, &self.current_state);
                     self.current_state = enter_state;
                 }
+            }
 
+            impl<A> #fsm<A>
+            where
+                A: #action,
+            {
                 #(#methods)*
+            }
+
+            pub fn start<A: #action>(mut actions: A) -> #fsm<A> {
+                let init = #state::init();
+                let enter_state = #state::#enter_state();
+                (enter_state.enter)(&mut actions, &init);
+                #fsm(#fsm_inner { actions, current_state: enter_state })
             }
         }
     }

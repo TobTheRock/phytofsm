@@ -1,0 +1,9 @@
+@startuml InternalNames
+' Events should not collide with internal namings
+[*] --> StateA
+
+StateA --> StateB : TriggerEvent
+StateA --> StateB : ChangeState
+StateA --> StateB : Start
+
+@enduml
