@@ -1,11 +1,12 @@
 use itertools::Itertools;
 
 use crate::error::{Error, Result};
+use crate::parser::types::{Action, Event};
 
 use super::StateData;
 use super::scoped_arena::ScopedArena;
 
-pub(super) fn validate_injective_action_mapping(arena: &ScopedArena<StateData>) -> Result<()> {
+pub fn injective_action_mapping(arena: &ScopedArena<StateData>) -> Result<()> {
     let action_events = arena
         .iter()
         .flat_map(|node| node.get().transitions.iter())
@@ -37,27 +38,45 @@ pub(super) fn validate_injective_action_mapping(arena: &ScopedArena<StateData>) 
         })
 }
 
-pub(super) fn validate_no_conflicting_transitions(arena: &ScopedArena<StateData>) -> Result<()> {
-    let transitions = arena
+pub fn no_conflicting_transitions(arena: &ScopedArena<StateData>) -> Result<()> {
+    for_each_transition_group(arena, |state_name, event, guards| {
+        let has_guards = guards.len() > 1;
+        let all_transitions_guarded = guards.iter().all(|g| g.is_some());
+        if has_guards && !all_transitions_guarded {
+            return Err(Error::Parse(format!(
+                "State '{}' has multiple transitions for event {:?}",
+                state_name, event
+            )));
+        }
+        Ok(())
+    })
+}
+
+pub fn unique_guards_per_event(arena: &ScopedArena<StateData>) -> Result<()> {
+    for_each_transition_group(arena, |_state_name, event, guards| {
+        if !guards.iter().all_unique() {
+            return Err(Error::Parse(format!(
+                "Duplicate guard for event {:?}",
+                event
+            )));
+        }
+        Ok(())
+    })
+}
+
+fn for_each_transition_group(
+    arena: &ScopedArena<StateData>,
+    mut validate: impl FnMut(&str, &Event, &[Option<Action>]) -> Result<()>,
+) -> Result<()> {
+    arena
         .iter()
         .flat_map(|node| node.get().transitions.iter())
-        .map(|t| (t.source, t.event.clone(), t.guard.is_some()));
-    transitions
+        .map(|t| (t.source, t.event.clone(), t.guard.clone()))
         .chunk_by(|(source, event, _)| (*source, event.clone()))
         .into_iter()
         .try_for_each(|((source, event), group)| {
-            let items = group.collect_vec();
-            if items.len() == 1 {
-                return Ok(());
-            }
-            let all_guarded = items.iter().all(|(_, _, guarded)| *guarded);
-            if all_guarded {
-                return Ok(());
-            }
+            let guards = group.map(|(_, _, guard)| guard).collect_vec();
             let state_name = &arena[source].get().name;
-            Err(Error::Parse(format!(
-                "State '{}' has multiple transitions for event {:?}",
-                state_name, event
-            )))
+            validate(state_name, &event, &guards)
         })
 }

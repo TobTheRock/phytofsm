@@ -136,8 +136,9 @@ impl ParsedFsmBuilder {
                 .collect::<Vec<_>>()
         );
 
-        validation::validate_injective_action_mapping(&self.arena)?;
-        validation::validate_no_conflicting_transitions(&self.arena)?;
+        validation::injective_action_mapping(&self.arena)?;
+        validation::no_conflicting_transitions(&self.arena)?;
+        validation::unique_guards_per_event(&self.arena)?;
         self.link_enter_states();
 
         let enter_state = self.find_root_enter_state()?;

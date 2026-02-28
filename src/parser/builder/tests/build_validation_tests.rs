@@ -102,3 +102,25 @@ fn build_with_partially_guarded_conflicting_transitions_fails() {
     let result = builder.build();
     assert!(result.is_err());
 }
+
+#[test]
+fn build_with_duplicate_guards_per_event_fails() {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("A", StateType::Enter);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "B",
+        event: "EventA".into(),
+        action: None,
+        guard: Some("DuplicateGuard".into()),
+    });
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: "C",
+        event: "EventA".into(),
+        action: None,
+        guard: Some("DuplicateGuard".into()),
+    });
+    let result = builder.build();
+    assert!(result.is_err());
+}

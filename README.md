@@ -80,6 +80,8 @@ StateA --> StateB : Change [IsReady] / GoToB
 StateA --> StateC : Change [IsFull] / GoToC
 ```
 
+**Guards MUST be unique per event** — using the same guard name on multiple transitions for the same event will produce a compile-time error.
+
 The generated actions trait will include guard methods with the signature:
 
 ```rust
