@@ -278,8 +278,14 @@ impl<'a> Transition<'a> {
 
 impl std::fmt::Display for Transition<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let guard = self.guard.map(|g| format!(" [{}]", g.0)).unwrap_or_default();
-        let action = self.action.map(|a| format!(" / {}", a.0)).unwrap_or_default();
+        let guard = self
+            .guard
+            .map(|g| format!(" [{}]", g.0))
+            .unwrap_or_default();
+        let action = self
+            .action
+            .map(|a| format!(" / {}", a.0))
+            .unwrap_or_default();
         write!(
             f,
             "{} --[{}{}{}]--> {}",

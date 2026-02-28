@@ -211,7 +211,8 @@ mod test {
 
     #[test]
     fn parse_event_with_guard_whitespace() {
-        let desc = TransitionContext::try_from("  ChangeState  [  AGuard  ]  /  DoSomething  ").unwrap();
+        let desc =
+            TransitionContext::try_from("  ChangeState  [  AGuard  ]  /  DoSomething  ").unwrap();
         assert_eq!(desc.event, "ChangeState".to_owned().into());
         assert_eq!(desc.guard, Some("AGuard".to_owned().into()));
         assert_eq!(desc.action, Some("DoSomething".to_owned().into()));

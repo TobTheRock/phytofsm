@@ -152,7 +152,8 @@ fn parse_transition(pair: Pair<'_>) -> Result<TransitionDescription<'_>> {
     }
 
     Ok(TransitionDescription {
-        source: from.ok_or_else(|| Error::Parse("Missing source state in transition".to_string()))?,
+        source: from
+            .ok_or_else(|| Error::Parse("Missing source state in transition".to_string()))?,
         target: to
             .ok_or_else(|| Error::Parse("Missing destination state in transition".to_string()))?,
         description,
