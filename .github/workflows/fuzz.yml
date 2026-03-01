@@ -1,0 +1,16 @@
+name: Fuzz Test
+
+on:
+  schedule:
+    - cron: '0 0 * * 0' # Weekly Sunday midnight UTC
+  workflow_dispatch:
+
+jobs:
+  fuzz:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo test --test four_seasons
+        env:
+          PROPTEST_CASES: 10000

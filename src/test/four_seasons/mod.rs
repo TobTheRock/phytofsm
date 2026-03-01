@@ -1,5 +1,3 @@
-pub mod reference;
-
 use crate::{
     error::Result,
     parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},

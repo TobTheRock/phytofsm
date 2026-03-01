@@ -1,5 +1,8 @@
 ///Test that the FSM generated from four_seasons.puml works as expected.
 ///Covers direct transitions and single event transitions with actions
+mod fuzz;
+mod reference;
+
 use phyto_fsm::generate_fsm;
 generate_fsm!(
     file_path = "test/four_seasons/four_seasons.puml",
