@@ -1,6 +1,6 @@
 use crate::parser::{Event, ParsedFsm, ParsedFsmBuilder, State, StateType, TransitionParameters};
 
-use super::super::StateId;
+use crate::parser::fsm::StateId;
 
 #[test]
 fn add_substate() {

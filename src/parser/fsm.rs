@@ -1,20 +1,52 @@
 use std::collections::HashSet;
 
-use indextree::Arena;
 use itertools::Itertools;
 
-use super::builder::{StateData, StateId, TransitionData};
 use super::types::{Action, Event, StateType};
 
+pub(crate) type StateId = indextree::NodeId;
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct TransitionParameters<'a> {
+    pub source: &'a str,
+    pub target: &'a str,
+    pub event: Event,
+    pub action: Option<Action>,
+    pub guard: Option<Action>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(super) struct TransitionData {
+    pub source: StateId,
+    pub target: StateId,
+    pub event: Event,
+    pub action: Option<Action>,
+    pub guard: Option<Action>,
+}
+
+#[derive(Debug, Clone)]
+pub(super) struct StateData {
+    pub name: String,
+    pub state_type: StateType,
+    pub transitions: Vec<TransitionData>,
+    pub enter_action: Option<Action>,
+    pub exit_action: Option<Action>,
+    pub enter_state: Option<StateId>,
+}
+
 #[derive(Clone)]
-pub struct ParsedFsm {
+pub(crate) struct ParsedFsm {
     name: String,
     enter_state: StateId,
-    arena: Arena<StateData>,
+    arena: indextree::Arena<StateData>,
 }
 
 impl ParsedFsm {
-    pub(super) fn new(name: String, enter_state: StateId, arena: Arena<StateData>) -> Self {
+    pub(super) fn new(
+        name: String,
+        enter_state: StateId,
+        arena: indextree::Arena<StateData>,
+    ) -> Self {
         Self {
             name,
             enter_state,
@@ -183,13 +215,13 @@ fn transition_key(t: Transition) -> (String, Event, Option<Action>, Option<Actio
 }
 
 #[derive(Debug, Clone)]
-pub struct State<'a> {
+pub(crate) struct State<'a> {
     id: StateId,
-    arena: &'a Arena<StateData>,
+    arena: &'a indextree::Arena<StateData>,
 }
 
 impl<'a> State<'a> {
-    fn new(id: StateId, arena: &'a Arena<StateData>) -> Self {
+    fn new(id: StateId, arena: &'a indextree::Arena<StateData>) -> Self {
         Self { id, arena }
     }
 
@@ -256,7 +288,7 @@ impl<'a> PartialEq for State<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub struct Transition<'a> {
+pub(crate) struct Transition<'a> {
     pub source: State<'a>,
     pub destination: State<'a>,
     pub event: &'a Event,
@@ -265,7 +297,7 @@ pub struct Transition<'a> {
 }
 
 impl<'a> Transition<'a> {
-    fn from(data: &'a TransitionData, arena: &'a Arena<StateData>) -> Transition<'a> {
+    fn from(data: &'a TransitionData, arena: &'a indextree::Arena<StateData>) -> Transition<'a> {
         Transition {
             source: State::new(data.source, arena),
             destination: State::new(data.target, arena),

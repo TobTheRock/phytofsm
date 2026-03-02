@@ -1,7 +1,4 @@
-use crate::{
-    error::{Error, Result},
-    parser::builder::StateId,
-};
+use crate::error::{Error, Result};
 
 mod builder;
 mod context;
@@ -9,10 +6,11 @@ mod fsm;
 mod plantuml;
 mod types;
 
-pub use builder::{ParsedFsmBuilder, TransitionParameters};
-pub use fsm::{ParsedFsm, State};
+use fsm::StateId;
 use log::trace;
-pub use types::{Action, Event, StateType};
+pub(crate) use builder::ParsedFsmBuilder;
+pub(crate) use fsm::{ParsedFsm, State, TransitionParameters};
+pub(crate) use types::{Action, Event, StateType};
 
 impl ParsedFsm {
     pub fn try_parse<C>(content: C) -> Result<ParsedFsm>
@@ -81,7 +79,7 @@ fn add_fsm_elements(
     Ok(())
 }
 
-impl<'a> TryFrom<plantuml::TransitionDescription<'a>> for builder::TransitionParameters<'a> {
+impl<'a> TryFrom<plantuml::TransitionDescription<'a>> for TransitionParameters<'a> {
     type Error = crate::error::Error;
     fn try_from(transition: plantuml::TransitionDescription<'a>) -> Result<Self> {
         let ctx = context::TransitionContext::try_from(transition.description)?;

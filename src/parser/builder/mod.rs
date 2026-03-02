@@ -1,11 +1,10 @@
-use indextree::NodeId;
 use itertools::Itertools;
 use log::{debug, trace};
 
 use crate::error::{Error, Result};
 
-use super::fsm::ParsedFsm;
-use super::types::{Action, Event, StateType};
+use super::fsm::{ParsedFsm, StateData, StateId, TransitionData, TransitionParameters};
+use super::types::{Action, StateType};
 
 mod scoped_arena;
 mod validation;
@@ -14,36 +13,6 @@ use scoped_arena::ScopedArena;
 #[cfg(test)]
 mod tests;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub struct TransitionParameters<'a> {
-    pub source: &'a str,
-    pub target: &'a str,
-    pub event: Event,
-    pub action: Option<Action>,
-    pub guard: Option<Action>,
-}
-
-// TODO move to top level !
-pub type StateId = NodeId;
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(super) struct TransitionData {
-    pub source: StateId,
-    pub target: StateId,
-    pub event: Event,
-    pub action: Option<Action>,
-    pub guard: Option<Action>,
-}
-
-// TODO move to top level !
-#[derive(Debug, Clone)]
-pub(super) struct StateData {
-    pub name: String,
-    pub state_type: StateType,
-    pub transitions: Vec<TransitionData>,
-    pub enter_action: Option<Action>,
-    pub exit_action: Option<Action>,
-    pub enter_state: Option<StateId>,
-}
 
 impl StateData {
     fn new(name: &str, state_type: StateType) -> Self {
@@ -229,7 +198,7 @@ impl ParsedFsmBuilder {
             .and_then(|node| self.arena.get_node_id(node))
     }
 
-    fn update_non_simple_state_type(&mut self, id: NodeId, state_type: StateType, name: &str) {
+    fn update_non_simple_state_type(&mut self, id: StateId, state_type: StateType, name: &str) {
         let current_type = self.arena[id].get().state_type;
         if state_type != StateType::Simple && current_type == StateType::Simple {
             log::debug!(
