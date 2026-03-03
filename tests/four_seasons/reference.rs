@@ -13,6 +13,7 @@ pub trait IPlantFsmActions: IPlantFsmEventParams {
     fn start_blooming(&mut self, event: Self::TimeAdvancesParams);
     fn ripen_fruit(&mut self, event: Self::TimeAdvancesParams);
     fn drop_petals(&mut self, event: Self::TimeAdvancesParams);
+    fn spontaneous_combustion(&mut self, event: Self::TemperatureRisesParams);
     // enter actions
     fn start_heat_wave(&mut self);
     fn winter_is_coming(&mut self);
@@ -275,6 +276,10 @@ where
             id: PlantFsmStateId::SummerScorching,
             transition: |event, actions| match event {
                 PlantFsmEvent::TemperatureDrops(_) => Some(Self::summer_balmy()),
+                PlantFsmEvent::TemperatureRises(params) => {
+                    actions.spontaneous_combustion(params);
+                    None
+                }
                 _ => {
                     let parent = Self::summer();
                     (parent.transition)(event, actions)
@@ -414,6 +419,7 @@ mod test {
             fn start_blooming(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
             fn ripen_fruit(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
             fn drop_petals(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
+            fn spontaneous_combustion(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TemperatureRisesParams);
 
             fn start_heat_wave(&mut self);
             fn winter_is_coming(&mut self);

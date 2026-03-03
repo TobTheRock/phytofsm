@@ -21,14 +21,14 @@ fn build_with_duplicate_events_per_action_fails() {
     builder.add_state("Start", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "Start",
-        target: "End",
+        target: Some("End"),
         event: "EventA".into(),
         action: Some("DuplicateAction".into()),
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "Start",
-        target: "End",
+        target: Some("End"),
         event: "EventB".into(),
         action: Some("DuplicateAction".into()),
         guard: None,
@@ -43,14 +43,14 @@ fn build_with_conflicting_transitions_fails() {
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "EventA".into(),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "C",
+        target: Some("C"),
         event: "EventA".into(),
         action: None,
         guard: None,
@@ -65,14 +65,14 @@ fn build_with_guarded_conflicting_transitions_succeeds() {
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "EventA".into(),
         action: None,
         guard: Some("GuardOne".into()),
     });
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "C",
+        target: Some("C"),
         event: "EventA".into(),
         action: None,
         guard: Some("GuardTwo".into()),
@@ -87,14 +87,14 @@ fn build_with_partially_guarded_conflicting_transitions_fails() {
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "EventA".into(),
         action: None,
         guard: Some("GuardOne".into()),
     });
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "C",
+        target: Some("C"),
         event: "EventA".into(),
         action: None,
         guard: None,
@@ -109,14 +109,14 @@ fn build_with_duplicate_guards_per_event_fails() {
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "EventA".into(),
         action: None,
         guard: Some("DuplicateGuard".into()),
     });
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "C",
+        target: Some("C"),
         event: "EventA".into(),
         action: None,
         guard: Some("DuplicateGuard".into()),

@@ -9,14 +9,14 @@ fn build_actions_fsm() -> Result<ParsedFsm> {
     builder.add_state("StateA", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "StateA",
-        target: "StateB",
+        target: Some("StateB"),
         event: Event("GoToB".into()),
         action: Some(Action("Action1".into())),
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "StateB",
-        target: "StateA",
+        target: Some("StateA"),
         event: Event("GoToA".into()),
         action: Some(Action("Action2".into())),
         guard: None,
@@ -36,21 +36,21 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     // Root level transitions
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "A",
+        target: Some("A"),
         event: Event::from("GoToAFromA"),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: Event::from("GoToB"),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "B",
-        target: "A",
+        target: Some("A"),
         event: Event::from("GoToAFromB"),
         action: None,
         guard: None,
@@ -69,7 +69,7 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     builder.add_state("C2", StateType::Simple);
     builder.add_transition(TransitionParameters {
         source: "C1",
-        target: "C2",
+        target: Some("C2"),
         event: Event::from("GoToC2"),
         action: None,
         guard: None,
@@ -79,28 +79,28 @@ fn build_enter_exit_fsm() -> Result<ParsedFsm> {
     builder.set_scope(None);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "C",
+        target: Some("C"),
         event: Event::from("GoToC"),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "C1",
+        target: Some("C1"),
         event: Event::from("GoToC1FromA"),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "C2",
+        target: Some("C2"),
         event: Event::from("GoToC2FromA"),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "C",
-        target: "A",
+        target: Some("A"),
         event: Event::from("GoToAFromC"),
         action: None,
         guard: None,

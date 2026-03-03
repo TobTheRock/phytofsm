@@ -121,6 +121,9 @@ macro_rules! impl_recorder {
             fn drop_petals(&mut self, _event: ()) {
                 self.0.record("drop_petals");
             }
+            fn spontaneous_combustion(&mut self, _event: ()) {
+                self.0.record("spontaneous_combustion");
+            }
             fn start_heat_wave(&mut self) {
                 self.0.record("start_heat_wave");
             }

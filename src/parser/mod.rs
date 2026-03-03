@@ -57,7 +57,7 @@ fn add_fsm_elements(
         let ctx = context::TransitionContext::try_from(transition.description)?;
         builder.add_transition(TransitionParameters {
             source: transition.source,
-            target: transition.target,
+            target: Some(transition.target),
             event: ctx.event,
             action: ctx.action,
             guard: ctx.guard,
@@ -66,12 +66,25 @@ fn add_fsm_elements(
 
     for desc in &elements.state_descriptions {
         if let Ok(ctx) = context::StateContext::try_from(desc.description) {
-            if let Some(action) = ctx.enter_action {
-                builder.add_enter_action(desc.name, action);
+            if ctx.enter_action.is_some() || ctx.exit_action.is_some() {
+                if let Some(action) = ctx.enter_action {
+                    builder.add_enter_action(desc.name, action);
+                }
+                if let Some(action) = ctx.exit_action {
+                    builder.add_exit_action(desc.name, action);
+                }
+                continue;
             }
-            if let Some(action) = ctx.exit_action {
-                builder.add_exit_action(desc.name, action);
-            }
+        }
+        // Not an entry/exit action — try as internal transition
+        if let Ok(ctx) = context::TransitionContext::try_from(desc.description) {
+            builder.add_transition(TransitionParameters {
+                source: desc.name,
+                target: None,
+                event: ctx.event,
+                action: ctx.action,
+                guard: ctx.guard,
+            });
         }
     }
 
@@ -85,7 +98,7 @@ impl<'a> TryFrom<plantuml::TransitionDescription<'a>> for TransitionParameters<'
         let ctx = context::TransitionContext::try_from(transition.description)?;
         Ok(Self {
             source: transition.source,
-            target: transition.target,
+            target: Some(transition.target),
             event: ctx.event,
             action: ctx.action,
             guard: ctx.guard,
@@ -101,7 +114,7 @@ mod test {
 
     const FSM_CASES: TestCases<FsmTestData> = cases!(FsmTestData::all());
 
-    #[test_casing(8, FSM_CASES)]
+    #[test_casing(9, FSM_CASES)]
     fn parses_fsm(data: FsmTestData) {
         crate::logging::init();
         let fsm = ParsedFsm::try_parse(data.content).unwrap();

@@ -66,12 +66,12 @@ impl ParsedFsmBuilder {
         } = params;
 
         debug!(
-            "Adding transition from {} -> {}: {:?} [{:?}] / {:?}",
+            "Adding transition from {} -> {:?}: {:?} [{:?}] / {:?}",
             source, target, event, guard, action
         );
 
         let from_id = self.find_or_create_state(source);
-        let to_id = self.find_or_create_state(target);
+        let to_id = target.map(|t| self.find_or_create_state(t));
 
         let transition = TransitionData {
             source: from_id,

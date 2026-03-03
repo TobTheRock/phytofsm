@@ -22,6 +22,7 @@ state Summer {
   state Balmy
   state Scorching: entry / StartHeatWave 
   state Scorching: exit / EndHeatWave
+  state Scorching: TemperatureRises / SpontaneousCombustion
 
   [*] --> Balmy
   Balmy -> Scorching: TemperatureRises

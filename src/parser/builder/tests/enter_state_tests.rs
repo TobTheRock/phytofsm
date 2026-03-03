@@ -26,7 +26,7 @@ fn add_enter_state_after_transition() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "Event".into(),
         action: None,
         guard: None,
@@ -45,7 +45,7 @@ fn add_transition_after_enter_state() {
     builder.add_state("Start", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "Event".into(),
         action: None,
         guard: None,

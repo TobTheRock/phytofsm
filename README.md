@@ -33,11 +33,11 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 | Self-transitions | States that transition to themselves | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
 | Alternative transitions | Multiple transitions from the same state with different events | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
 | Guard conditions | Conditional transitions using `[GuardName]` syntax | [guards.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/guards.rs) |
+| Internal transitions | Stay in state without triggering exit/enter actions | [internal_transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/internal_transitions.rs) |
 | Transition logging | Optional logging via [log](https://docs.rs/log/latest/log/) crate | [four_seasons.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/four_seasons.rs) |
 
 ### Missing Features
 
-- internal transitions
 - run to completion model (RTC), currently events in transitions are UB
 - exit state
 - event deferring
@@ -61,7 +61,7 @@ StateA --> StateB : EventName / ActionName
 - **EventName**: The event that triggers the transition
 - **ActionName** (optional): The action method called during the transition seperated by `/`
 
-**Be aware that actions MUST be unique per event**
+**Be aware that actions MUST be unique per event**, else a compile time error is raised.
 
 ### Guards
 
@@ -87,6 +87,24 @@ The generated actions trait will include guard methods with the signature:
 ```rust
 fn guard_name(&self, event: &Self::EventNameParams) -> bool;
 ```
+
+### Internal Transitions
+
+Internal transitions execute an action without leaving the current state. Unlike self-transitions, they do **not** trigger exit or enter actions:
+
+```puml
+StateA : EventName / ActionName
+```
+
+This is equivalent to a transition with no target state. When `EventName` fires while in `StateA`, `ActionName` is called but the state remains unchanged and no exit/enter actions run.
+
+Compare with a **self-transition**, which does trigger exit and re-entry:
+
+```puml
+StateA -> StateA : EventName / ActionName
+```
+
+Internal transitions also work inside composite states — they will not trigger the parent state's exit/enter actions.
 
 ### Enter/Exit Actions
 
@@ -123,7 +141,8 @@ Following the [UML specification](https://www.omg.org/spec/UML/2.5.1/PDF), exit 
 
 Furthermore:
 
-- Internal transitions (between substates of the same parent) do not trigger the parent's enter/exit actions
+- Transitions between substates of the same parent do not trigger the parent's enter/exit actions
+- Internal transitions (no target) do not trigger any exit/enter actions
 - Self-transitions trigger both exit and enter actions (exit first, then enter)
 
 ## Generated Code
@@ -191,6 +210,7 @@ state Summer {
   state Balmy
   state Scorching: entry / StartHeatWave
   state Scorching: exit / EndHeatWave
+  state Scorching: TemperatureRises / SpontaneousCombustion
 
   [*] --> Balmy
   Balmy -> Scorching: TemperatureRises
@@ -243,6 +263,11 @@ impl IPlantFsmActions for PlantActions {
 
     fn drop_petals(&mut self, _: Self::TimeAdvancesParams) {
         println!("Dropping petals");
+    }
+
+    // Internal transition action (no exit/enter triggered)
+    fn spontaneous_combustion(&mut self, _: Self::TemperatureRisesParams) {
+        println!("Too hot! Spontaneous combustion!");
     }
 
     // Enter actions

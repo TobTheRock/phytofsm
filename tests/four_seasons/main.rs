@@ -20,6 +20,7 @@ mock! {
         fn start_blooming(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
         fn ripen_fruit(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
         fn drop_petals(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
+        fn spontaneous_combustion(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TemperatureRisesParams);
         // Enter actions
         fn winter_is_coming(&mut self);
         fn start_heat_wave(&mut self);
@@ -65,9 +66,10 @@ fn test_transitions() {
     // Enter/exit actions
     // winter_is_coming: called on start() and when returning from Autumn
     actions.expect_winter_is_coming().returning(|| ()).times(2);
-    // start_heat_wave/end_heat_wave: not called (never enter Scorching)
+    // start_heat_wave/end_heat_wave/spontaneous_combustion: not called (never enter Scorching)
     actions.expect_start_heat_wave().never();
     actions.expect_end_heat_wave().never();
+    actions.expect_spontaneous_combustion().never();
 
     let mut fsm = plant_fsm::start(actions);
     fsm.temperature_rises(());

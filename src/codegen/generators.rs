@@ -310,7 +310,10 @@ impl CodeGenerator for StateImplGenerator {
             let transitions = state.transitions().map(|t| {
                 let event_ident = t.event.ident();
                 let event_enum = &ctx.idents.event_enum;
-                let next_state = t.destination.function_ident();
+                let next_state = t.destination.as_ref().map(|d| {
+                    let fn_ident = d.function_ident();
+                    quote::quote! { Some(Self::#fn_ident()) }
+                }).unwrap_or_else(|| quote::quote! { None });
                 let action = if let Some(a) = t.action {
                     let action_ident = a.ident();
                     quote::quote! { action.#action_ident(params); }
@@ -328,7 +331,7 @@ impl CodeGenerator for StateImplGenerator {
                 quote::quote! {
                     #event_enum::#event_ident(params) #guard_condition => {
                         #action
-                        Some(Self::#next_state())
+                        #next_state
                     }
                 }
             });

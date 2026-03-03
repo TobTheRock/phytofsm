@@ -1,0 +1,25 @@
+@startuml InternalTransitions
+
+[*] --> StateA
+
+StateA : entry / EnterStateA
+StateA : exit / ExitStateA
+' Internal transition, will not cause exit and re-entry of the state
+StateA : InternalEvent / HandleInternalEvent
+
+' Self transition causes exit and re-entry of the state
+StateA -> StateA : SelfTransitionEvent / HandleSelfTransitionEvent
+StateA -> StateB : GoToB
+
+state StateB {
+  [*] --> StateBa
+  StateB : entry / EnterStateB
+  StateB : exit / ExitStateB
+  ' Internal transition, will not cause exit and re-entry of the parent state
+  StateBa : InternalEvent / HandleInternalEvent
+  ' Self transition causes exit and re-entry of the state
+  StateBa -> StateBa : SelfTransitionEvent / HandleSelfTransitionEvent
+}
+
+@enduml
+

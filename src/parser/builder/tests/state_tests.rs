@@ -18,7 +18,7 @@ fn add_state_reuses_existing() {
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "E1".into(),
         action: None,
         guard: None,
@@ -45,7 +45,7 @@ fn simple_state_upgraded_to_enter() {
     let mut builder = ParsedFsmBuilder::new("TestFSM");
     builder.add_transition(TransitionParameters {
         source: "Start",
-        target: "B",
+        target: Some("B"),
         event: "E1".into(),
         action: None,
         guard: None,

@@ -65,7 +65,7 @@ fn add_substate_transition() {
     builder.add_state("B", StateType::Simple);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "E1".into(),
         action: None,
         guard: None,
@@ -75,7 +75,7 @@ fn add_substate_transition() {
     let parent_state = find_state(&fsm, "Parent");
     let a = parent_state.substates().find(|s| s.name() == "A").unwrap();
     let t = a.transitions().next().unwrap();
-    assert_eq!(t.destination.name(), "B");
+    assert_eq!(t.destination.as_ref().unwrap().name(), "B");
     assert_eq!(t.event, &Event::from("E1"));
 }
 
@@ -90,7 +90,7 @@ fn add_substate_transition_same_name_different_parents() {
     builder.add_state("B", StateType::Simple);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "E1".into(),
         action: None,
         guard: None,
@@ -101,7 +101,7 @@ fn add_substate_transition_same_name_different_parents() {
     builder.add_state("B", StateType::Simple);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "E2".into(),
         action: None,
         guard: None,
@@ -125,7 +125,7 @@ fn add_substate_transition_creates_substates() {
     builder.set_scope(Some(parent));
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "E1".into(),
         action: None,
         guard: None,

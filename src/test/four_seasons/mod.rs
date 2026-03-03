@@ -17,28 +17,28 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     // Root level transitions
     builder.add_transition(TransitionParameters {
         source: "Winter",
-        target: "Spring",
+        target: Some("Spring"),
         event: Event("TimeAdvances".into()),
         action: None,
         guard: Some(Action("EnoughTimePassed".into())),
     });
     builder.add_transition(TransitionParameters {
         source: "Spring",
-        target: "Summer",
+        target: Some("Summer"),
         event: Event("TimeAdvances".into()),
         action: Some(Action("StartBlooming".into())),
         guard: Some(Action("EnoughTimePassed".into())),
     });
     builder.add_transition(TransitionParameters {
         source: "Summer",
-        target: "Autumn",
+        target: Some("Autumn"),
         event: Event("TimeAdvances".into()),
         action: Some(Action("RipenFruit".into())),
         guard: Some(Action("EnoughTimePassed".into())),
     });
     builder.add_transition(TransitionParameters {
         source: "Autumn",
-        target: "Winter",
+        target: Some("Winter"),
         event: Event("TimeAdvances".into()),
         action: Some(Action("DropPetals".into())),
         guard: Some(Action("EnoughTimePassed".into())),
@@ -50,14 +50,14 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     builder.add_state("Mild", StateType::Simple);
     builder.add_transition(TransitionParameters {
         source: "Freezing",
-        target: "Mild",
+        target: Some("Mild"),
         event: Event("TemperatureRises".into()),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "Mild",
-        target: "Freezing",
+        target: Some("Freezing"),
         event: Event("TemperatureDrops".into()),
         action: None,
         guard: None,
@@ -69,14 +69,14 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     builder.add_state("Temperate", StateType::Simple);
     builder.add_transition(TransitionParameters {
         source: "Brisk",
-        target: "Temperate",
+        target: Some("Temperate"),
         event: Event("TemperatureRises".into()),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "Temperate",
-        target: "Brisk",
+        target: Some("Brisk"),
         event: Event("TemperatureDrops".into()),
         action: None,
         guard: None,
@@ -89,15 +89,22 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     builder.add_enter_action("Scorching", Action::from("StartHeatWave"));
     builder.add_exit_action("Scorching", Action::from("EndHeatWave"));
     builder.add_transition(TransitionParameters {
+        source: "Scorching",
+        target: None,
+        event: Event("TemperatureRises".into()),
+        action: Some(Action("SpontaneousCombustion".into())),
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
         source: "Balmy",
-        target: "Scorching",
+        target: Some("Scorching"),
         event: Event("TemperatureRises".into()),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "Scorching",
-        target: "Balmy",
+        target: Some("Balmy"),
         event: Event("TemperatureDrops".into()),
         action: None,
         guard: None,
@@ -109,14 +116,14 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
     builder.add_state("Pleasant", StateType::Simple);
     builder.add_transition(TransitionParameters {
         source: "Crisp",
-        target: "Pleasant",
+        target: Some("Pleasant"),
         event: Event("TemperatureRises".into()),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "Pleasant",
-        target: "Crisp",
+        target: Some("Crisp"),
         event: Event("TemperatureDrops".into()),
         action: None,
         guard: None,

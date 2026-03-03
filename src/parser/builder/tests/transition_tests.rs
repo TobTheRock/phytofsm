@@ -6,7 +6,7 @@ fn add_transition() {
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "EventAB".into(),
         action: Some("ActionAB".into()),
         guard: None,
@@ -16,7 +16,7 @@ fn add_transition() {
     assert_eq!(fsm.states().count(), 2);
     let transitions: Vec<_> = fsm.transitions().collect();
     assert_eq!(transitions.len(), 1);
-    assert_eq!(transitions[0].destination.name(), "B");
+    assert_eq!(transitions[0].destination.as_ref().unwrap().name(), "B");
     assert_eq!(transitions[0].event, &Event::from("EventAB"));
     assert_eq!(transitions[0].action, Some(&"ActionAB".into()));
 }
@@ -27,7 +27,7 @@ fn add_transition_creates_states() {
     builder.add_state("Start", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
-        target: "B",
+        target: Some("B"),
         event: "Event".into(),
         action: None,
         guard: None,
@@ -53,7 +53,7 @@ fn add_transition_finds_existing_substate_from_root_scope() {
     builder.set_scope(None);
     builder.add_transition(TransitionParameters {
         source: "Child",
-        target: "Other",
+        target: Some("Other"),
         event: "toOther".into(),
         action: None,
         guard: None,
@@ -72,5 +72,5 @@ fn add_transition_finds_existing_substate_from_root_scope() {
         .find(|s| s.name() == "Child")
         .unwrap();
     let t = child.transitions().next().unwrap();
-    assert_eq!(t.destination.name(), "Other");
+    assert_eq!(t.destination.as_ref().unwrap().name(), "Other");
 }

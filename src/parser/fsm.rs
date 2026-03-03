@@ -9,7 +9,7 @@ pub(crate) type StateId = indextree::NodeId;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct TransitionParameters<'a> {
     pub source: &'a str,
-    pub target: &'a str,
+    pub target: Option<&'a str>,
     pub event: Event,
     pub action: Option<Action>,
     pub guard: Option<Action>,
@@ -18,7 +18,7 @@ pub(crate) struct TransitionParameters<'a> {
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(super) struct TransitionData {
     pub source: StateId,
-    pub target: StateId,
+    pub target: Option<StateId>,
     pub event: Event,
     pub action: Option<Action>,
     pub guard: Option<Action>,
@@ -205,9 +205,11 @@ impl ParsedFsm {
     }
 }
 
-fn transition_key(t: Transition) -> (String, Event, Option<Action>, Option<Action>) {
+fn transition_key(
+    t: Transition,
+) -> (Option<String>, Event, Option<Action>, Option<Action>) {
     (
-        t.destination.name().to_string(),
+        t.destination.map(|d| d.name().to_string()),
         t.event.clone(),
         t.action.cloned(),
         t.guard.cloned(),
@@ -290,7 +292,7 @@ impl<'a> PartialEq for State<'a> {
 #[derive(Debug, Clone)]
 pub(crate) struct Transition<'a> {
     pub source: State<'a>,
-    pub destination: State<'a>,
+    pub destination: Option<State<'a>>,
     pub event: &'a Event,
     pub action: Option<&'a Action>,
     pub guard: Option<&'a Action>,
@@ -300,7 +302,7 @@ impl<'a> Transition<'a> {
     fn from(data: &'a TransitionData, arena: &'a indextree::Arena<StateData>) -> Transition<'a> {
         Transition {
             source: State::new(data.source, arena),
-            destination: State::new(data.target, arena),
+            destination: data.target.map(|id| State::new(id, arena)),
             event: &data.event,
             action: data.action.as_ref(),
             guard: data.guard.as_ref(),
@@ -318,6 +320,11 @@ impl std::fmt::Display for Transition<'_> {
             .action
             .map(|a| format!(" / {}", a.0))
             .unwrap_or_default();
+        let dest = self
+            .destination
+            .as_ref()
+            .map(|d| d.name())
+            .unwrap_or("(internal)");
         write!(
             f,
             "{} --[{}{}{}]--> {}",
@@ -325,7 +332,7 @@ impl std::fmt::Display for Transition<'_> {
             self.event.0,
             guard,
             action,
-            self.destination.name()
+            dest
         )
     }
 }
