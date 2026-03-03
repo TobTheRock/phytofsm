@@ -1,8 +1,8 @@
 // UML State Machine Description Grammar
 // Parses state descriptions and transition descriptions per UML 2.5.1 spec
 
-// State description: entry / ActionName or exit / ActionName
-state_description = { SOI ~ ws* ~ state_action ~ ws* ~ EOI }
+// State description: entry / ActionName, exit / ActionName, or internal transition
+state_description = { SOI ~ ws* ~ (state_action | transition_description) ~ ws* ~ EOI }
 
 state_action = {
     entry_action |

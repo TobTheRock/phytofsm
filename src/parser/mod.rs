@@ -1,15 +1,15 @@
 use crate::error::{Error, Result};
 
 mod builder;
-mod context;
+mod uml;
 mod fsm;
 mod plantuml;
 mod types;
 
-use fsm::StateId;
-use log::trace;
 pub(crate) use builder::ParsedFsmBuilder;
+use fsm::StateId;
 pub(crate) use fsm::{ParsedFsm, State, TransitionParameters};
+use log::trace;
 pub(crate) use types::{Action, Event, StateType};
 
 impl ParsedFsm {
@@ -54,37 +54,34 @@ fn add_fsm_elements(
     }
     // Add transitions last, as they can create new states
     for transition in &elements.transitions {
-        let ctx = context::TransitionContext::try_from(transition.description)?;
+        let label = uml::TransitionLabel::try_from(transition.description)?;
         builder.add_transition(TransitionParameters {
             source: transition.source,
             target: Some(transition.target),
-            event: ctx.event,
-            action: ctx.action,
-            guard: ctx.guard,
+            event: label.event,
+            action: label.action,
+            guard: label.guard,
         });
     }
 
     for desc in &elements.state_descriptions {
-        if let Ok(ctx) = context::StateContext::try_from(desc.description) {
-            if ctx.enter_action.is_some() || ctx.exit_action.is_some() {
-                if let Some(action) = ctx.enter_action {
-                    builder.add_enter_action(desc.name, action);
-                }
-                if let Some(action) = ctx.exit_action {
-                    builder.add_exit_action(desc.name, action);
-                }
-                continue;
+        match uml::StateDescription::try_from(desc.description) {
+            Ok(uml::StateDescription::Entry(action)) => {
+                builder.add_enter_action(desc.name, action);
             }
-        }
-        // Not an entry/exit action — try as internal transition
-        if let Ok(ctx) = context::TransitionContext::try_from(desc.description) {
-            builder.add_transition(TransitionParameters {
-                source: desc.name,
-                target: None,
-                event: ctx.event,
-                action: ctx.action,
-                guard: ctx.guard,
-            });
+            Ok(uml::StateDescription::Exit(action)) => {
+                builder.add_exit_action(desc.name, action);
+            }
+            Ok(uml::StateDescription::InternalTransition(label)) => {
+                builder.add_transition(TransitionParameters {
+                    source: desc.name,
+                    target: None,
+                    event: label.event,
+                    action: label.action,
+                    guard: label.guard,
+                });
+            }
+            Err(_) => {} // unrecognised description, skip
         }
     }
 
@@ -95,13 +92,13 @@ fn add_fsm_elements(
 impl<'a> TryFrom<plantuml::TransitionDescription<'a>> for TransitionParameters<'a> {
     type Error = crate::error::Error;
     fn try_from(transition: plantuml::TransitionDescription<'a>) -> Result<Self> {
-        let ctx = context::TransitionContext::try_from(transition.description)?;
+        let label = uml::TransitionLabel::try_from(transition.description)?;
         Ok(Self {
             source: transition.source,
             target: Some(transition.target),
-            event: ctx.event,
-            action: ctx.action,
-            guard: ctx.guard,
+            event: label.event,
+            action: label.action,
+            guard: label.guard,
         })
     }
 }

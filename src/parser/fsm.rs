@@ -205,9 +205,7 @@ impl ParsedFsm {
     }
 }
 
-fn transition_key(
-    t: Transition,
-) -> (Option<String>, Event, Option<Action>, Option<Action>) {
+fn transition_key(t: Transition) -> (Option<String>, Event, Option<Action>, Option<Action>) {
     (
         t.destination.map(|d| d.name().to_string()),
         t.event.clone(),

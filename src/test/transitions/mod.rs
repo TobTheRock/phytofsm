@@ -1,7 +1,7 @@
 use crate::{
     error::Result,
     parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
-    test::{utils::get_adjacent_file_path, FsmTestData},
+    test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
 fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
@@ -163,8 +163,7 @@ impl FsmTestData {
         Self {
             name: "internal_transitions",
             content: include_str!("./internal_transitions.puml"),
-            parsed: build_internal_transitions_fsm()
-                .expect("Failed to create expected FSM"),
+            parsed: build_internal_transitions_fsm().expect("Failed to create expected FSM"),
             path,
         }
     }

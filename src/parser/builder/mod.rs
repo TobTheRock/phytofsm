@@ -13,7 +13,6 @@ use scoped_arena::ScopedArena;
 #[cfg(test)]
 mod tests;
 
-
 impl StateData {
     fn new(name: &str, state_type: StateType) -> Self {
         StateData {
