@@ -11,29 +11,12 @@ pub struct Options {
 }
 
 pub struct FsmCodeGenerator {
-    generators: Vec<CodeGeneratorPtr>,
+    options: Options,
 }
 
 impl FsmCodeGenerator {
     pub fn new(options: &Options) -> Self {
-        let generators: Vec<CodeGeneratorPtr> = vec![
-            Box::new(generators::EventParamsTraitGenerator),
-            Box::new(generators::ActionTraitGenerator),
-            Box::new(generators::EventEnumGenerator),
-            Box::new(generators::EventEnumDisplayImplGenerator),
-            Box::new(generators::StateIdEnumGenerator),
-            Box::new(generators::StateStructGenerator),
-            Box::new(generators::StateImplGenerator),
-            Box::new(generators::FsmStructGenerator),
-            Box::new(generators::FsmImplGeneratorCommon),
-            if let Some(log_level) = options.log_level {
-                Box::new(generators::FsmImplGeneratorWithLogging::new(log_level))
-            } else {
-                Box::new(generators::FsmImplGenerator)
-            },
-        ];
-
-        Self { generators }
+        Self { options: *options }
     }
 
     pub fn generate(&self, fsm: parser::ParsedFsm) -> GeneratedCode {
@@ -41,19 +24,30 @@ impl FsmCodeGenerator {
         let ctx = GenerationContext {
             fsm: &fsm,
             idents: &idents,
+            options: &self.options,
         };
 
-        let components: Vec<proc_macro2::TokenStream> = self
-            .generators
-            .iter()
-            .map(|generator| generator.generate(&ctx))
-            .collect();
+        let event_params_trait = generators::generate_event_params_trait(&ctx);
+        let action_trait = generators::generate_action_trait(&ctx);
+        let event_enum = generators::generate_event_enum(&ctx);
+        let event_enum_display = generators::generate_event_enum_display(&ctx);
+        let state_id_enum = generators::generate_state_id_enum(&ctx);
+        let state_struct = generators::generate_state_struct(&ctx);
+        let state_impl = generators::generate_state_impl(&ctx);
+        let fsm = generators::generate_fsm(&ctx);
 
         let module_name = &idents.module;
         quote::quote! {
             mod #module_name {
                 pub type NoEventData = ();
-                #(#components)*
+                #event_params_trait
+                #action_trait
+                #event_enum
+                #event_enum_display
+                #state_id_enum
+                #state_struct
+                #state_impl
+                #fsm
             }
         }
     }
@@ -62,12 +56,8 @@ impl FsmCodeGenerator {
 pub(crate) struct GenerationContext<'a> {
     pub fsm: &'a parser::ParsedFsm,
     pub idents: &'a ident::Idents,
+    pub options: &'a Options,
 }
-
-pub(crate) trait CodeGenerator {
-    fn generate(&self, ctx: &GenerationContext) -> proc_macro2::TokenStream;
-}
-type CodeGeneratorPtr = Box<dyn CodeGenerator>;
 
 #[cfg(test)]
 mod tests {
