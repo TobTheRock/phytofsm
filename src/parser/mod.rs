@@ -1,10 +1,10 @@
 use crate::error::{Error, Result};
 
 mod builder;
-mod uml;
 mod fsm;
 mod plantuml;
 mod types;
+mod uml;
 
 pub(crate) use builder::ParsedFsmBuilder;
 use fsm::StateId;
