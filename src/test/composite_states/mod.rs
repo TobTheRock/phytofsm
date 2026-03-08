@@ -13,7 +13,7 @@ fn build_composite_states_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("toB".into()),
+        event: Some(Event("toB".into())),
         action: Some(Action("actionInA".into())),
         guard: None,
     });
@@ -25,7 +25,7 @@ fn build_composite_states_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateAA",
         target: Some("StateAB"),
-        event: Event("toAB".into()),
+        event: Some(Event("toAB".into())),
         action: Some(Action("actionInAA".into())),
         guard: None,
     });
@@ -36,7 +36,7 @@ fn build_composite_states_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateAAA",
         target: Some("StateAAB"),
-        event: Event("toAAB".into()),
+        event: Some(Event("toAAB".into())),
         action: Some(Action("actionInAAA".into())),
         guard: None,
     });
@@ -62,7 +62,7 @@ fn build_substate_to_substate_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "BA",
         target: Some("BB"),
-        event: Event("toBB".into()),
+        event: Some(Event("toBB".into())),
         action: Some(Action("actionInBA".into())),
         guard: None,
     });
@@ -72,7 +72,7 @@ fn build_substate_to_substate_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "AA",
         target: Some("BA"),
-        event: Event("toBA".into()),
+        event: Some(Event("toBA".into())),
         action: Some(Action("actionInAA".into())),
         guard: None,
     });
@@ -89,7 +89,7 @@ fn build_same_name_substates_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "ParentA",
         target: Some("ParentB"),
-        event: Event("toB".into()),
+        event: Some(Event("toB".into())),
         action: None,
         guard: None,
     });
@@ -101,7 +101,7 @@ fn build_same_name_substates_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "Inner",
         target: Some("Other"),
-        event: Event("toOther".into()),
+        event: Some(Event("toOther".into())),
         action: None,
         guard: None,
     });
@@ -113,7 +113,7 @@ fn build_same_name_substates_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "Inner",
         target: Some("Other"),
-        event: Event("toOther".into()),
+        event: Some(Event("toOther".into())),
         action: None,
         guard: None,
     });

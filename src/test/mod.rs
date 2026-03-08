@@ -39,6 +39,7 @@ impl FsmTestData {
             Self::same_name_substates(),
             Self::substate_to_substate(),
             Self::transitions(),
+            Self::direct_transitions(),
         ]
         .into_iter()
     }

@@ -9,8 +9,10 @@ pub(crate) type StateId = indextree::NodeId;
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub(crate) struct TransitionParameters<'a> {
     pub source: &'a str,
+    /// No target indicates an internal transition
     pub target: Option<&'a str>,
-    pub event: Event,
+    /// No event indicates a direct transition
+    pub event: Option<Event>,
     pub action: Option<Action>,
     pub guard: Option<Action>,
 }
@@ -19,7 +21,7 @@ pub(crate) struct TransitionParameters<'a> {
 pub(super) struct TransitionData {
     pub source: StateId,
     pub target: Option<StateId>,
-    pub event: Event,
+    pub event: Option<Event>,
     pub action: Option<Action>,
     pub guard: Option<Action>,
 }
@@ -59,18 +61,38 @@ impl ParsedFsm {
     }
 
     pub fn events(&self) -> impl Iterator<Item = &Event> {
-        self.transitions().map(|t| t.event).unique()
+        self.transitions().filter_map(|t| t.event).unique()
     }
 
     pub fn actions(&self) -> impl Iterator<Item = (&Action, &Event)> {
         self.transitions()
-            .filter_map(|t| t.action.map(|action| (action, t.event)))
+            .filter_map(|t| {
+                let event = t.event?;
+                t.action.map(|action| (action, event))
+            })
             .unique()
     }
 
     pub fn guards(&self) -> impl Iterator<Item = (&Action, &Event)> {
         self.transitions()
-            .filter_map(|t| t.guard.map(|guard| (guard, t.event)))
+            .filter_map(|t| {
+                let event = t.event?;
+                t.guard.map(|guard| (guard, event))
+            })
+            .unique()
+    }
+
+    pub fn direct_transition_actions(&self) -> impl Iterator<Item = &Action> {
+        self.transitions()
+            .filter(|t| t.event.is_none())
+            .filter_map(|t| t.action)
+            .unique()
+    }
+
+    pub fn direct_transition_guards(&self) -> impl Iterator<Item = &Action> {
+        self.transitions()
+            .filter(|t| t.event.is_none())
+            .filter_map(|t| t.guard)
             .unique()
     }
 
@@ -205,10 +227,17 @@ impl ParsedFsm {
     }
 }
 
-fn transition_key(t: Transition) -> (Option<String>, Event, Option<Action>, Option<Action>) {
+fn transition_key(
+    t: Transition,
+) -> (
+    Option<String>,
+    Option<Event>,
+    Option<Action>,
+    Option<Action>,
+) {
     (
         t.destination.map(|d| d.name().to_string()),
-        t.event.clone(),
+        t.event.cloned(),
         t.action.cloned(),
         t.guard.cloned(),
     )
@@ -291,7 +320,7 @@ impl<'a> PartialEq for State<'a> {
 pub(crate) struct Transition<'a> {
     pub source: State<'a>,
     pub destination: Option<State<'a>>,
-    pub event: &'a Event,
+    pub event: Option<&'a Event>,
     pub action: Option<&'a Action>,
     pub guard: Option<&'a Action>,
 }
@@ -301,7 +330,7 @@ impl<'a> Transition<'a> {
         Transition {
             source: State::new(data.source, arena),
             destination: data.target.map(|id| State::new(id, arena)),
-            event: &data.event,
+            event: data.event.as_ref(),
             action: data.action.as_ref(),
             guard: data.guard.as_ref(),
         }
@@ -310,6 +339,7 @@ impl<'a> Transition<'a> {
 
 impl std::fmt::Display for Transition<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let event_name = self.event.map(|e| e.0.as_str()).unwrap_or("(direct)");
         let guard = self
             .guard
             .map(|g| format!(" [{}]", g.0))
@@ -327,7 +357,7 @@ impl std::fmt::Display for Transition<'_> {
             f,
             "{} --[{}{}{}]--> {}",
             self.source.name(),
-            self.event.0,
+            event_name,
             guard,
             action,
             dest
@@ -351,9 +381,10 @@ impl PartialOrd for Transition<'_> {
 
 impl Ord for Transition<'_> {
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
-        self.source
-            .name()
-            .cmp(other.source.name())
-            .then_with(|| self.event.0.cmp(&other.event.0))
+        self.source.name().cmp(other.source.name()).then_with(|| {
+            let self_event = self.event.map(|e| e.0.as_str()).unwrap_or("");
+            let other_event = other.event.map(|e| e.0.as_str()).unwrap_or("");
+            self_event.cmp(other_event)
+        })
     }
 }

@@ -27,7 +27,7 @@ fn add_enter_state_after_transition() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "Event".into(),
+        event: Some("Event".into()),
         action: None,
         guard: None,
     });
@@ -46,7 +46,7 @@ fn add_transition_after_enter_state() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "Event".into(),
+        event: Some("Event".into()),
         action: None,
         guard: None,
     });

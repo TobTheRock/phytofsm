@@ -10,11 +10,11 @@ pub fn injective_action_mapping(arena: &ScopedArena<StateData>) -> Result<()> {
     let action_events = arena
         .iter()
         .flat_map(|node| node.get().transitions.iter())
+        .filter(|t| t.event.is_some())
         .dedup_by(|a, b| (a.event == b.event) && (a.action == b.action))
         .filter_map(|t| {
-            t.action
-                .as_ref()
-                .map(|action| (action.clone(), t.event.clone()))
+            let event = t.event.clone()?;
+            t.action.as_ref().map(|action| (action.clone(), event))
         });
 
     action_events
@@ -66,7 +66,7 @@ pub fn unique_guards_per_event(arena: &ScopedArena<StateData>) -> Result<()> {
 
 fn for_each_transition_group(
     arena: &ScopedArena<StateData>,
-    mut validate: impl FnMut(&str, &Event, &[Option<Action>]) -> Result<()>,
+    mut validate: impl FnMut(&str, &Option<Event>, &[Option<Action>]) -> Result<()>,
 ) -> Result<()> {
     arena
         .iter()

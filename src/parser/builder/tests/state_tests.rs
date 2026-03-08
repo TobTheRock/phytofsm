@@ -19,7 +19,7 @@ fn add_state_reuses_existing() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "E1".into(),
+        event: Some("E1".into()),
         action: None,
         guard: None,
     });
@@ -46,7 +46,7 @@ fn simple_state_upgraded_to_enter() {
     builder.add_transition(TransitionParameters {
         source: "Start",
         target: Some("B"),
-        event: "E1".into(),
+        event: Some("E1".into()),
         action: None,
         guard: None,
     });

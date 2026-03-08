@@ -19,7 +19,7 @@ Whenever a feature is added a reference implementation is first drafted and upda
 # Coding guidelines
 
 - Always follow DRY, SOLID and clean code principles
-- Follow the reference impl, but NEVER alter it without prior discussion
+- Follow the reference impl, ALWAYS stop when you want to alter it for a discussion
 - When implementing new features always do this first:
   - provide a test puml and module (might be provided by your human)
     - if necessary adapt the FSM builder if it is needed for the test module

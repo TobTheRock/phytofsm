@@ -54,13 +54,18 @@ fn add_fsm_elements(
     }
     // Add transitions last, as they can create new states
     for transition in &elements.transitions {
-        let label = uml::TransitionLabel::try_from(transition.description)?;
+        let (event, action, guard) = if let Some(desc) = transition.description {
+            let label = uml::TransitionLabel::try_from(desc)?;
+            (label.event, label.action, label.guard)
+        } else {
+            (None, None, None)
+        };
         builder.add_transition(TransitionParameters {
             source: transition.source,
             target: Some(transition.target),
-            event: label.event,
-            action: label.action,
-            guard: label.guard,
+            event,
+            action,
+            guard,
         });
     }
 
@@ -92,13 +97,18 @@ fn add_fsm_elements(
 impl<'a> TryFrom<plantuml::TransitionDescription<'a>> for TransitionParameters<'a> {
     type Error = crate::error::Error;
     fn try_from(transition: plantuml::TransitionDescription<'a>) -> Result<Self> {
-        let label = uml::TransitionLabel::try_from(transition.description)?;
+        let (event, action, guard) = if let Some(desc) = transition.description {
+            let label = uml::TransitionLabel::try_from(desc)?;
+            (label.event, label.action, label.guard)
+        } else {
+            (None, None, None)
+        };
         Ok(Self {
             source: transition.source,
             target: Some(transition.target),
-            event: label.event,
-            action: label.action,
-            guard: label.guard,
+            event,
+            action,
+            guard,
         })
     }
 }
@@ -111,7 +121,7 @@ mod test {
 
     const FSM_CASES: TestCases<FsmTestData> = cases!(FsmTestData::all());
 
-    #[test_casing(9, FSM_CASES)]
+    #[test_casing(11, FSM_CASES)]
     fn parses_fsm(data: FsmTestData) {
         crate::logging::init();
         let fsm = ParsedFsm::try_parse(data.content).unwrap();

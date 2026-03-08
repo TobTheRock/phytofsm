@@ -31,6 +31,20 @@ pub fn generate_action_trait(ctx: &GenerationContext) -> proc_macro2::TokenStrea
         }
     });
 
+    let direct_action_methods = ctx.fsm.direct_transition_actions().map(|action| {
+        let action_ident = action.ident();
+        quote::quote! {
+            fn #action_ident(&mut self);
+        }
+    });
+
+    let direct_guard_methods = ctx.fsm.direct_transition_guards().map(|guard| {
+        let guard_ident = guard.ident();
+        quote::quote! {
+            fn #guard_ident(&self) -> bool;
+        }
+    });
+
     let enter_methods = ctx.fsm.enter_actions().map(|action| {
         let action_ident = action.ident();
         quote::quote! {
@@ -51,9 +65,11 @@ pub fn generate_action_trait(ctx: &GenerationContext) -> proc_macro2::TokenStrea
     quote::quote! {
         pub trait #trait_ident : #event_params_trait{
             #(#action_methods)*
+            #(#direct_action_methods)*
             #(#enter_methods)*
             #(#exit_methods)*
             #(#guard_methods)*
+            #(#direct_guard_methods)*
         }
     }
 }
@@ -146,6 +162,7 @@ pub fn generate_state_struct(ctx: &GenerationContext) -> proc_macro2::TokenStrea
         struct #state_ident<A: #actions_trait> {
             id: #state_id_enum,
             transition: fn(event: #event_enum<A>, actions: &mut A) -> Option<Self>,
+            direct_transition: fn(actions: &mut A) -> Option<Self>,
             enter_state: fn() -> Self,
             enter: fn(&mut A, from: &Self),
             exit: fn(&mut A, to: &Self),
@@ -156,6 +173,7 @@ pub fn generate_state_struct(ctx: &GenerationContext) -> proc_macro2::TokenStrea
                 Self {
                     id: self.id,
                     transition: self.transition,
+                    direct_transition: self.direct_transition,
                     enter_state: self.enter_state,
                     enter: self.enter,
                     exit: self.exit,
@@ -174,13 +192,14 @@ pub fn generate_state_struct(ctx: &GenerationContext) -> proc_macro2::TokenStrea
 pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream {
     let state_id_enum = &ctx.idents.state_id_enum;
     let init_state_id_variant = &ctx.idents.init_state_id_variant;
+    let fsm_enter_fn = ctx.fsm.enter_state().function_ident();
 
     let state_fns = ctx.fsm.states().map(|state| {
         let state_id_variant = state.state_id_variant_ident();
         let fn_name = state.function_ident();
 
-        let transitions = state.transitions().map(|t| {
-            let event_ident = t.event.ident();
+        let transitions = state.transitions().filter_map(|t| {
+            let event_ident = t.event?.ident();
             let event_enum = &ctx.idents.event_enum;
             let next_state = t
                 .destination
@@ -204,12 +223,12 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
                 quote::quote! {}
             };
 
-            quote::quote! {
+            Some(quote::quote! {
                 #event_enum::#event_ident(params) #guard_condition => {
                     #action
                     #next_state
                 }
-            }
+            })
         });
 
         let parent_transition = if let Some(parent) = state.parent() {
@@ -230,6 +249,7 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
         let enter_fn = enter_state.function_ident();
         let enter_action = generate_enter_action(&state, state_id_enum);
         let exit_action = generate_exit_action(&state, state_id_enum);
+        let direct_transition = generate_direct_transition(&state);
 
         quote::quote! {
             fn #fn_name() -> Self {
@@ -239,6 +259,7 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
                         #(#transitions,)*
                         _ => #parent_transition,
                     },
+                    direct_transition: #direct_transition,
                     enter_state: Self::#enter_fn,
                     enter: #enter_action,
                     exit: #exit_action,
@@ -255,6 +276,7 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
                 Self {
                     id: #state_id_enum::#init_state_id_variant,
                     transition: |_event, _action| None,
+                    direct_transition: |_action| Some(Self::#fsm_enter_fn()),
                     enter_state: Self::init,
                     enter: |_actions, _from| {},
                     exit: |_actions, _to| {},
@@ -273,7 +295,6 @@ pub fn generate_fsm(ctx: &GenerationContext) -> proc_macro2::TokenStream {
     let state = &ctx.idents.state_struct;
     let event_enum = &ctx.idents.event_enum;
     let event_params_trait = &ctx.idents.event_params_trait;
-    let enter_state = ctx.fsm.enter_state().function_ident();
 
     let fsm_struct = quote::quote! {
         struct #fsm_inner<A: #action> {
@@ -301,11 +322,26 @@ pub fn generate_fsm(ctx: &GenerationContext) -> proc_macro2::TokenStream {
         where
             A: #action,
         {
-            fn change_state(&mut self, transition_state: #state<A>) {
-                let enter_state = (transition_state.enter_state)();
-                (self.current_state.exit)(&mut self.actions, &enter_state);
-                (enter_state.enter)(&mut self.actions, &self.current_state);
-                self.current_state = enter_state;
+            fn start(actions: A) -> Self {
+                let mut fsm = Self {
+                    actions,
+                    current_state: #state::init(),
+                };
+                fsm.try_direct_transition();
+                fsm
+            }
+
+            fn change_state(&mut self, next_state: #state<A>) {
+                (self.current_state.exit)(&mut self.actions, &next_state);
+                (next_state.enter)(&mut self.actions, &self.current_state);
+                self.current_state = next_state;
+            }
+
+            fn try_direct_transition(&mut self) {
+                while let Some(transition_state) = (self.current_state.direct_transition)(&mut self.actions) {
+                    let enter_state = (transition_state.enter_state)();
+                    self.change_state(enter_state);
+                }
             }
         }
 
@@ -316,11 +352,8 @@ pub fn generate_fsm(ctx: &GenerationContext) -> proc_macro2::TokenStream {
             #(#methods)*
         }
 
-        pub fn start<A: #action>(mut actions: A) -> #fsm<A> {
-            let init = #state::init();
-            let enter_state = #state::#enter_state();
-            (enter_state.enter)(&mut actions, &init);
-            #fsm(#fsm_inner { actions, current_state: enter_state })
+        pub fn start<A: #action>(actions: A) -> #fsm<A> {
+            #fsm(#fsm_inner::start(actions))
         }
     };
 
@@ -336,7 +369,7 @@ fn generate_trigger_event(ctx: &GenerationContext) -> proc_macro2::TokenStream {
     let action = &ctx.idents.action_trait;
     let event_enum = &ctx.idents.event_enum;
 
-    let body = if let Some(log_level) = ctx.options.log_level {
+    let event_body = if let Some(log_level) = ctx.options.log_level {
         let level = log_level_token(log_level);
         let log_transition = format! {"{}: {{}} -[{{}}]-> {{}}, entering {{}}", ctx.fsm.name()};
         quote::quote! {
@@ -349,13 +382,14 @@ fn generate_trigger_event(ctx: &GenerationContext) -> proc_macro2::TokenStream {
                     transition_state.id,
                     enter_state.id
                 );
-                self.change_state(transition_state);
+                self.change_state(enter_state);
             }
         }
     } else {
         quote::quote! {
             if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
-                self.change_state(transition_state);
+                let enter_state = (transition_state.enter_state)();
+                self.change_state(enter_state);
             }
         }
     };
@@ -366,7 +400,12 @@ fn generate_trigger_event(ctx: &GenerationContext) -> proc_macro2::TokenStream {
             A: #action,
         {
             fn trigger_event(&mut self, event: #event_enum<A>) {
-                #body
+                self.try_event_based_transition(event);
+                self.try_direct_transition();
+            }
+
+            fn try_event_based_transition(&mut self, event: #event_enum<A>) {
+                #event_body
             }
         }
     }
@@ -379,6 +418,62 @@ fn log_level_token(level: log::Level) -> proc_macro2::TokenStream {
         log::Level::Info => quote::quote! {log::Level::Info},
         log::Level::Debug => quote::quote! {log::Level::Debug},
         log::Level::Trace => quote::quote! {log::Level::Trace},
+    }
+}
+
+fn generate_direct_transition(state: &crate::parser::State<'_>) -> proc_macro2::TokenStream {
+    let direct_transitions: Vec<_> = state
+        .transitions()
+        .filter(|t| t.event.is_none() && t.destination.is_some())
+        .collect();
+
+    if direct_transitions.is_empty() {
+        return quote::quote! { |_action| None };
+    }
+
+    let all_guarded = direct_transitions.iter().all(|t| t.guard.is_some());
+
+    let branches: Vec<_> = direct_transitions
+        .iter()
+        .map(|t| {
+            let dest = t.destination.as_ref().unwrap();
+            let dest_fn = dest.function_ident();
+
+            let action = if let Some(a) = t.action {
+                let action_ident = a.ident();
+                quote::quote! { action.#action_ident(); }
+            } else {
+                quote::quote! {}
+            };
+
+            if let Some(g) = t.guard {
+                let guard_ident = g.ident();
+                quote::quote! {
+                    if action.#guard_ident() {
+                        #action
+                        return Some(Self::#dest_fn());
+                    }
+                }
+            } else {
+                quote::quote! {
+                    #action
+                    return Some(Self::#dest_fn());
+                }
+            }
+        })
+        .collect();
+
+    let fallback = if all_guarded {
+        quote::quote! { None }
+    } else {
+        quote::quote! {}
+    };
+
+    quote::quote! {
+        |action| {
+            #(#branches)*
+            #fallback
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::parser::{Event, ParsedFsmBuilder, StateType, TransitionParameters};
+use crate::parser::{Action, Event, ParsedFsmBuilder, StateType, TransitionParameters};
 
 #[test]
 fn add_transition() {
@@ -7,7 +7,7 @@ fn add_transition() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "EventAB".into(),
+        event: Some("EventAB".into()),
         action: Some("ActionAB".into()),
         guard: None,
     });
@@ -17,7 +17,7 @@ fn add_transition() {
     let transitions: Vec<_> = fsm.transitions().collect();
     assert_eq!(transitions.len(), 1);
     assert_eq!(transitions[0].destination.as_ref().unwrap().name(), "B");
-    assert_eq!(transitions[0].event, &Event::from("EventAB"));
+    assert_eq!(transitions[0].event, Some(&Event::from("EventAB")));
     assert_eq!(transitions[0].action, Some(&"ActionAB".into()));
 }
 
@@ -28,7 +28,7 @@ fn add_transition_creates_states() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "Event".into(),
+        event: Some("Event".into()),
         action: None,
         guard: None,
     });
@@ -54,7 +54,7 @@ fn add_transition_finds_existing_substate_from_root_scope() {
     builder.add_transition(TransitionParameters {
         source: "Child",
         target: Some("Other"),
-        event: "toOther".into(),
+        event: Some("toOther".into()),
         action: None,
         guard: None,
     });
@@ -73,4 +73,140 @@ fn add_transition_finds_existing_substate_from_root_scope() {
         .unwrap();
     let t = child.transitions().next().unwrap();
     assert_eq!(t.destination.as_ref().unwrap().name(), "Other");
+}
+
+#[test]
+fn add_direct_transition() {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("A", StateType::Enter);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: Some("B"),
+        event: None,
+        action: Some("DoSomething".into()),
+        guard: None,
+    });
+    let fsm = builder.build().unwrap();
+
+    let transitions: Vec<_> = fsm.transitions().collect();
+    assert_eq!(transitions.len(), 1);
+    assert_eq!(transitions[0].event, None);
+    assert_eq!(transitions[0].destination.as_ref().unwrap().name(), "B");
+    assert_eq!(transitions[0].action, Some(&Action::from("DoSomething")));
+}
+
+#[test]
+fn add_guarded_direct_transitions() {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("A", StateType::Enter);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: Some("B"),
+        event: None,
+        action: Some("GoToB".into()),
+        guard: Some("CanGoToB".into()),
+    });
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: Some("C"),
+        event: None,
+        action: None,
+        guard: Some("CanGoToC".into()),
+    });
+    let fsm = builder.build().unwrap();
+
+    let transitions: Vec<_> = fsm.transitions().collect();
+    assert_eq!(transitions.len(), 2);
+    assert!(transitions.iter().all(|t| t.event.is_none()));
+}
+
+#[test]
+fn direct_transitions_not_in_events() {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("A", StateType::Enter);
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: Some("B"),
+        event: None,
+        action: Some("DoSomething".into()),
+        guard: None,
+    });
+    builder.add_transition(TransitionParameters {
+        source: "B",
+        target: Some("A"),
+        event: Some("GoBack".into()),
+        action: None,
+        guard: None,
+    });
+    let fsm = builder.build().unwrap();
+
+    let events: Vec<_> = fsm.events().collect();
+    assert_eq!(events.len(), 1);
+    assert_eq!(events[0], &Event::from("GoBack"));
+}
+
+#[test]
+fn direct_transition_actions_separate_from_event_actions() {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("A", StateType::Enter);
+    // Direct transition with action
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: Some("B"),
+        event: None,
+        action: Some("DirectAction".into()),
+        guard: None,
+    });
+    // Event-based transition with action
+    builder.add_transition(TransitionParameters {
+        source: "B",
+        target: Some("A"),
+        event: Some("GoBack".into()),
+        action: Some("EventAction".into()),
+        guard: None,
+    });
+    let fsm = builder.build().unwrap();
+
+    // actions() returns only event-based
+    let actions: Vec<_> = fsm.actions().collect();
+    assert_eq!(actions.len(), 1);
+    assert_eq!(actions[0].0, &Action::from("EventAction"));
+
+    // direct_transition_actions() returns only direct
+    let direct_actions: Vec<_> = fsm.direct_transition_actions().collect();
+    assert_eq!(direct_actions.len(), 1);
+    assert_eq!(direct_actions[0], &Action::from("DirectAction"));
+}
+
+#[test]
+fn direct_transition_guards_separate_from_event_guards() {
+    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    builder.add_state("A", StateType::Enter);
+    // Direct transition with guard
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: Some("B"),
+        event: None,
+        action: None,
+        guard: Some("DirectGuard".into()),
+    });
+    // Event-based transition with guard
+    builder.add_transition(TransitionParameters {
+        source: "A",
+        target: Some("C"),
+        event: Some("GoToC".into()),
+        action: None,
+        guard: Some("EventGuard".into()),
+    });
+    let fsm = builder.build().unwrap();
+
+    // guards() returns only event-based
+    let guards: Vec<_> = fsm.guards().collect();
+    assert_eq!(guards.len(), 1);
+    assert_eq!(guards[0].0, &Action::from("EventGuard"));
+
+    // direct_transition_guards() returns only direct
+    let direct_guards: Vec<_> = fsm.direct_transition_guards().collect();
+    assert_eq!(direct_guards.len(), 1);
+    assert_eq!(direct_guards[0], &Action::from("DirectGuard"));
 }

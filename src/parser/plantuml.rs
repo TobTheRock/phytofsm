@@ -21,8 +21,7 @@ pub struct StateDescription<'a> {
 pub struct TransitionDescription<'a> {
     pub source: StateName<'a>,
     pub target: StateName<'a>,
-    // TODO make this optional for direct transitions
-    pub description: &'a str,
+    pub description: Option<&'a str>,
 }
 
 #[derive(Debug, PartialEq, Clone, Default)]
@@ -133,7 +132,7 @@ fn parse_enter_state(pair: Pair<'_>) -> Option<StateName<'_>> {
 fn parse_transition(pair: Pair<'_>) -> Result<TransitionDescription<'_>> {
     let mut from = None;
     let mut to = None;
-    let mut description = "";
+    let mut description = None;
 
     for inner in pair.into_inner() {
         match inner.as_rule() {
@@ -145,7 +144,10 @@ fn parse_transition(pair: Pair<'_>) -> Result<TransitionDescription<'_>> {
                 }
             }
             Rule::description => {
-                description = inner.as_str();
+                let text = inner.as_str().trim();
+                if !text.is_empty() {
+                    description = Some(text);
+                }
             }
             _ => {}
         }
@@ -278,7 +280,7 @@ mod tests {
         assert_eq!(diagram.root.transitions.len(), 1);
         assert_eq!(diagram.root.transitions[0].source, "A");
         assert_eq!(diagram.root.transitions[0].target, "B");
-        assert_eq!(diagram.root.transitions[0].description, "label");
+        assert_eq!(diagram.root.transitions[0].description, Some("label"));
     }
 
     #[test]

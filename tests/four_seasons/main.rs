@@ -21,6 +21,8 @@ mock! {
         fn ripen_fruit(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
         fn drop_petals(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
         fn spontaneous_combustion(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TemperatureRisesParams);
+        // Direct transition actions
+        fn start_blizzard(&mut self);
         // Enter actions
         fn winter_is_coming(&mut self);
         fn start_heat_wave(&mut self);
@@ -31,6 +33,8 @@ mock! {
             &self,
             event: &<MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams,
         ) -> bool;
+        // Direct transition guards
+        fn has_very_cold_weather(&self) -> bool;
     }
 }
 
@@ -70,6 +74,10 @@ fn test_transitions() {
     actions.expect_start_heat_wave().never();
     actions.expect_end_heat_wave().never();
     actions.expect_spontaneous_combustion().never();
+
+    // Direct transition guards (no blizzard in this test)
+    actions.expect_has_very_cold_weather().returning(|| false);
+    actions.expect_start_blizzard().never();
 
     let mut fsm = plant_fsm::start(actions);
     fsm.temperature_rises(());

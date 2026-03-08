@@ -34,6 +34,7 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 | Alternative transitions | Multiple transitions from the same state with different events | [transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/transitions.rs) |
 | Guard conditions | Conditional transitions using `[GuardName]` syntax | [guards.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/guards.rs) |
 | Internal transitions | Stay in state without triggering exit/enter actions | [internal_transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/internal_transitions.rs) |
+| Direct transitions | Automatic transitions without events, with optional guards and actions | [direct_transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/direct_transitions.rs) |
 | Transition logging | Optional logging via [log](https://docs.rs/log/latest/log/) crate | [four_seasons.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/four_seasons.rs) |
 
 ### Missing Features
@@ -105,6 +106,29 @@ StateA -> StateA : EventName / ActionName
 ```
 
 Internal transitions also work inside composite states — they will not trigger the parent state's exit/enter actions.
+
+### Direct Transitions
+
+Direct transitions fire automatically without an event. They are evaluated on FSM start and after every event-based transition:
+
+```puml
+StateA --> StateB : / ActionName
+StateA --> StateC : [GuardName] / ActionName
+StateA --> StateD : [GuardName]
+```
+
+- **No event name**: The absence of an event name makes this a direct transition
+- **GuardName** (optional): A boolean method called to decide if the transition should fire
+- **ActionName** (optional): An action executed when the transition fires
+
+When multiple guarded direct transitions exist on a state, they are evaluated in declaration order and the first matching guard wins. If no guard matches, the state remains unchanged.
+
+Direct transition actions and guards have no event parameters:
+
+```rust
+fn action_name(&mut self);
+fn guard_name(&self) -> bool;
+```
 
 ### Enter/Exit Actions
 

@@ -6,14 +6,14 @@ pub trait IPlantFsmEventParams {
     type TimeAdvancesParams;
 }
 
-// TODO
-// - action results
 pub trait IPlantFsmActions: IPlantFsmEventParams {
     // transition actions
     fn start_blooming(&mut self, event: Self::TimeAdvancesParams);
     fn ripen_fruit(&mut self, event: Self::TimeAdvancesParams);
     fn drop_petals(&mut self, event: Self::TimeAdvancesParams);
     fn spontaneous_combustion(&mut self, event: Self::TemperatureRisesParams);
+    // direct transition actions
+    fn start_blizzard(&mut self);
     // enter actions
     fn start_heat_wave(&mut self);
     fn winter_is_coming(&mut self);
@@ -21,6 +21,7 @@ pub trait IPlantFsmActions: IPlantFsmEventParams {
     fn end_heat_wave(&mut self);
     // guards
     fn enough_time_passed(&self, event: &Self::TimeAdvancesParams) -> bool;
+    fn has_very_cold_weather(&self) -> bool;
 }
 
 type NoEventData = ();
@@ -50,6 +51,8 @@ struct PlantFsmState<T: IPlantFsmActions> {
     id: PlantFsmStateId,
     // Transition based on an event, depending on the state
     transition: fn(event: PlantFsmEvent<T>, actions: &mut T) -> Option<Self>,
+    // Direct transitions, not based on an event
+    direct_transition: fn(actions: &mut T) -> Option<Self>,
     // state to enter when transitioned to, if there are no substates this is Self
     enter_state: fn() -> Self,
     // enter action, composite states check for internal transitions
@@ -63,6 +66,7 @@ enum PlantFsmStateId {
     Winter,
     WinterMild,
     WinterFreezing,
+    WinterArcticBlast,
     Spring,
     SpringBrisk,
     SpringTemperate,
@@ -79,6 +83,7 @@ impl From<PlantFsmStateId> for &'static str {
     fn from(name: PlantFsmStateId) -> Self {
         match name {
             PlantFsmStateId::Winter => "Winter",
+            PlantFsmStateId::WinterArcticBlast => "Winter::ArcticBlast",
             PlantFsmStateId::WinterMild => "Winter::Mild",
             PlantFsmStateId::WinterFreezing => "Winter::Freezing",
             PlantFsmStateId::Spring => "Spring",
@@ -107,6 +112,7 @@ impl<T: IPlantFsmActions> Clone for PlantFsmState<T> {
         Self {
             id: self.id,
             transition: self.transition,
+            direct_transition: self.direct_transition,
             enter_state: self.enter_state,
             enter: self.enter,
             exit: self.exit,
@@ -129,6 +135,7 @@ where
         Self {
             id: PlantFsmStateId::_PlantFsmInitialState_,
             transition: |_event, _action| None,
+            direct_transition: |_action| Some(PlantFsmState::winter_freezing()),
             enter_state: Self::init,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
@@ -144,6 +151,7 @@ where
                 }
                 _ => None,
             },
+            direct_transition: |_action| None,
             enter_state: Self::winter_freezing,
             enter: |actions, from| {
                 if matches!(
@@ -169,6 +177,14 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |action| {
+                if action.has_very_cold_weather() {
+                    action.start_blizzard();
+                    Some(Self::winter_arctic_blast())
+                } else {
+                    None
+                }
+            },
             enter_state: Self::winter_freezing,
             enter: |actions, from| (Self::winter().enter)(actions, from),
             exit: |actions, to| (Self::winter().exit)(actions, to),
@@ -185,7 +201,19 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |_action| None,
             enter_state: Self::winter_mild,
+            enter: |actions, from| (Self::winter().enter)(actions, from),
+            exit: |actions, to| (Self::winter().exit)(actions, to),
+        }
+    }
+
+    fn winter_arctic_blast() -> Self {
+        Self {
+            id: PlantFsmStateId::WinterArcticBlast,
+            transition: |event, actions| (Self::winter().transition)(event, actions),
+            direct_transition: |_action| None,
+            enter_state: Self::winter_arctic_blast,
             enter: |actions, from| (Self::winter().enter)(actions, from),
             exit: |actions, to| (Self::winter().exit)(actions, to),
         }
@@ -201,6 +229,7 @@ where
                 }
                 _ => None,
             },
+            direct_transition: |_action| None,
             enter_state: Self::spring_brisk,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
@@ -217,6 +246,7 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |_action| None,
             enter_state: Self::spring_brisk,
             enter: |actions, from| (Self::spring().enter)(actions, from),
             exit: |actions, to| (Self::spring().exit)(actions, to),
@@ -233,6 +263,7 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |_action| None,
             enter_state: Self::spring_temperate,
             enter: |actions, from| (Self::spring().enter)(actions, from),
             exit: |actions, to| (Self::spring().exit)(actions, to),
@@ -249,6 +280,7 @@ where
                 }
                 _ => None,
             },
+            direct_transition: |_action| None,
             enter_state: Self::summer_balmy,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
@@ -265,6 +297,7 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |_action| None,
             enter_state: Self::summer_balmy,
             enter: |actions, from| (Self::summer().enter)(actions, from),
             exit: |actions, to| (Self::summer().exit)(actions, to),
@@ -285,6 +318,7 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |_action| None,
             enter_state: Self::summer_scorching,
             enter: |actions, _from| actions.start_heat_wave(),
             exit: |actions, _to| actions.end_heat_wave(),
@@ -301,6 +335,7 @@ where
                 }
                 _ => None,
             },
+            direct_transition: |_action| None,
             enter_state: Self::autumn_crisp,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
@@ -317,6 +352,7 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |_action| None,
             enter_state: Self::autumn_crisp,
             enter: |actions, from| (Self::autumn().enter)(actions, from),
             exit: |actions, to| (Self::autumn().exit)(actions, to),
@@ -333,6 +369,7 @@ where
                     (parent.transition)(event, actions)
                 }
             },
+            direct_transition: |_action| None,
             enter_state: Self::autumn_pleasant,
             enter: |actions, from| (Self::autumn().enter)(actions, from),
             exit: |actions, to| (Self::autumn().exit)(actions, to),
@@ -349,14 +386,29 @@ impl<A> PlantFsmImpl<A>
 where
     A: IPlantFsmActions,
 {
+    fn start(actions: A) -> Self {
+        let mut fsm = Self {
+            actions,
+            current_state: PlantFsmState::init(),
+        };
+
+        fsm.try_direct_transition();
+        fsm
+    }
+
     fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
+        self.try_event_based_transition(event);
+        self.try_direct_transition();
+    }
+
+    fn try_event_based_transition(&mut self, event: PlantFsmEvent<A>) {
         let event_name = format!("{}", event);
         if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
             let enter_state = (transition_state.enter_state)();
 
             debug!(
                 "PlantFsm: {} -[{}]-> {}, entering {}",
-                self.current_state.id, event_name, enter_state.id, transition_state.id
+                self.current_state.id, event_name, transition_state.id, enter_state.id
             );
 
             self.change_state(enter_state);
@@ -368,18 +420,24 @@ where
         (next_state.enter)(&mut self.actions, &self.current_state);
         self.current_state = next_state;
     }
+
+    fn try_direct_transition(&mut self) {
+        while let Some(transition_state) = (self.current_state.direct_transition)(&mut self.actions)
+        {
+            let enter_state = (transition_state.enter_state)();
+            debug!(
+                "PlantFsm: {} -[direct]-> {}, entering {}",
+                self.current_state.id, enter_state.id, transition_state.id
+            );
+            self.change_state(enter_state);
+        }
+    }
 }
 
 pub struct PlantFsm<A: IPlantFsmActions>(PlantFsmImpl<A>);
 // This may already trigger actions, depending on the initial state
-pub fn start<A: IPlantFsmActions>(mut actions: A) -> PlantFsm<A> {
-    let init = PlantFsmState::init();
-    let enter_state = PlantFsmState::winter_freezing();
-    (enter_state.enter)(&mut actions, &init);
-    PlantFsm(PlantFsmImpl {
-        actions,
-        current_state: enter_state,
-    })
+pub fn start<A: IPlantFsmActions>(actions: A) -> PlantFsm<A> {
+    PlantFsm(PlantFsmImpl::start(actions))
 }
 
 impl<A> PlantFsm<A>
@@ -420,6 +478,7 @@ mod test {
             fn ripen_fruit(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
             fn drop_petals(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams);
             fn spontaneous_combustion(&mut self, event: <MockPlantFsmActions as IPlantFsmEventParams>::TemperatureRisesParams);
+            fn start_blizzard(&mut self);
 
             fn start_heat_wave(&mut self);
             fn winter_is_coming(&mut self);
@@ -430,10 +489,10 @@ mod test {
                 &self,
                 event: &<MockPlantFsmActions as IPlantFsmEventParams>::TimeAdvancesParams,
             ) -> bool;
+            fn has_very_cold_weather(&self) -> bool;
         }
     }
 
-    // TODO add a paremeter which is a reference
     impl IPlantFsmEventParams for MockPlantFsmActions {
         type TemperatureRisesParams = NoEventData;
         type TemperatureDropsParams = NoEventData;
@@ -464,6 +523,7 @@ mod test {
         actions.expect_drop_petals().returning(|_| ()).times(1);
         // Called twice: once on init (entering Winter::Freezing), once when returning from Autumn
         actions.expect_winter_is_coming().returning(|| ()).times(2);
+        actions.expect_has_very_cold_weather().returning(|| false);
 
         let mut fsm = super::start(actions);
         fsm.temperature_rises(());
@@ -485,6 +545,7 @@ mod test {
 
         // Called once on init (entering Winter::Freezing)
         actions.expect_winter_is_coming().returning(|| ()).times(1);
+        actions.expect_has_very_cold_weather().returning(|| false);
         actions.expect_start_blooming().returning(|_| ()).times(1);
         actions.expect_start_heat_wave().returning(|| ()).times(1);
         actions.expect_end_heat_wave().returning(|| ()).times(1);

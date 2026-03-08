@@ -10,21 +10,21 @@ fn build_internal_names_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("TriggerEvent".into()),
+        event: Some(Event("TriggerEvent".into())),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("ChangeState".into()),
+        event: Some(Event("ChangeState".into())),
         action: None,
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("Start".into()),
+        event: Some(Event("Start".into())),
         action: None,
         guard: None,
     });

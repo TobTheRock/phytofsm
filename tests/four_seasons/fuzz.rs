@@ -124,6 +124,9 @@ macro_rules! impl_recorder {
             fn spontaneous_combustion(&mut self, _event: ()) {
                 self.0.record("spontaneous_combustion");
             }
+            fn start_blizzard(&mut self) {
+                self.0.record("start_blizzard");
+            }
             fn start_heat_wave(&mut self) {
                 self.0.record("start_heat_wave");
             }
@@ -134,6 +137,9 @@ macro_rules! impl_recorder {
                 self.0.record("end_heat_wave");
             }
             fn enough_time_passed(&self, _event: &()) -> bool {
+                self.0.next_guard()
+            }
+            fn has_very_cold_weather(&self) -> bool {
                 self.0.next_guard()
             }
         }

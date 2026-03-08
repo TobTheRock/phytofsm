@@ -14,7 +14,7 @@ fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: None,
-        event: Event("InternalEvent".into()),
+        event: Some(Event("InternalEvent".into())),
         action: Some(Action("HandleInternalEvent".into())),
         guard: None,
     });
@@ -23,7 +23,7 @@ fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateA"),
-        event: Event("SelfTransitionEvent".into()),
+        event: Some(Event("SelfTransitionEvent".into())),
         action: Some(Action("HandleSelfTransitionEvent".into())),
         guard: None,
     });
@@ -31,7 +31,7 @@ fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("GoToB".into()),
+        event: Some(Event("GoToB".into())),
         action: None,
         guard: None,
     });
@@ -48,7 +48,7 @@ fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateBa",
         target: None,
-        event: Event("InternalEvent".into()),
+        event: Some(Event("InternalEvent".into())),
         action: Some(Action("HandleInternalEvent".into())),
         guard: None,
     });
@@ -57,7 +57,7 @@ fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateBa",
         target: Some("StateBa"),
-        event: Event("SelfTransitionEvent".into()),
+        event: Some(Event("SelfTransitionEvent".into())),
         action: Some(Action("HandleSelfTransitionEvent".into())),
         guard: None,
     });
@@ -73,21 +73,21 @@ fn build_guards_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateA"),
-        event: Event("ChangeState".into()),
+        event: Some(Event("ChangeState".into())),
         action: Some(Action("ActionToA".into())),
         guard: Some(Action("AGuard".into())),
     });
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("ChangeState".into()),
+        event: Some(Event("ChangeState".into())),
         action: Some(Action("ActionToB".into())),
         guard: Some(Action("BGuard".into())),
     });
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateC"),
-        event: Event("ChangeState".into()),
+        event: Some(Event("ChangeState".into())),
         action: Some(Action("ActionToC".into())),
         guard: Some(Action("CGuard".into())),
     });
@@ -98,14 +98,14 @@ fn build_guards_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateC",
         target: Some("StateCa"),
-        event: Event("ChangeState".into()),
+        event: Some(Event("ChangeState".into())),
         action: Some(Action("ActionToCa".into())),
         guard: Some(Action("CaGuard".into())),
     });
     builder.add_transition(TransitionParameters {
         source: "StateC",
         target: Some("StateCb"),
-        event: Event("ChangeState".into()),
+        event: Some(Event("ChangeState".into())),
         action: Some(Action("ActionToCb".into())),
         guard: Some(Action("CbGuard".into())),
     });
@@ -119,31 +119,74 @@ fn build_transitions_fsm() -> Result<ParsedFsm> {
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateA"),
-        event: Event("SelfTransition".into()),
+        event: Some(Event("SelfTransition".into())),
         action: Some(Action("Action1".into())),
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("GoToB".into()),
+        event: Some(Event("GoToB".into())),
         action: Some(Action("Action2".into())),
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
-        event: Event("GoToBDifferently".into()),
+        event: Some(Event("GoToBDifferently".into())),
         action: Some(Action("Action3".into())),
         guard: None,
     });
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateC"),
-        event: Event("GoToC".into()),
+        event: Some(Event("GoToC".into())),
         action: None,
         guard: None,
     });
+    builder.build()
+}
+
+fn build_direct_transitions_fsm() -> Result<ParsedFsm> {
+    let mut builder = ParsedFsmBuilder::new("DirectTransitions");
+    builder.add_state("StateA", StateType::Enter);
+
+    // Direct transition: no event, just action
+    builder.add_transition(TransitionParameters {
+        source: "StateA",
+        target: Some("StateB"),
+        event: None,
+        action: Some(Action("toStateB".into())),
+        guard: None,
+    });
+
+    // Direct transitions with guards
+    builder.add_transition(TransitionParameters {
+        source: "StateB",
+        target: Some("StateC"),
+        event: None,
+        action: Some(Action("toStateC".into())),
+        guard: Some(Action("CanGoToC".into())),
+    });
+    builder.add_transition(TransitionParameters {
+        source: "StateB",
+        target: Some("StateD"),
+        event: None,
+        action: None,
+        guard: Some(Action("CanGoToD".into())),
+    });
+
+    // Regular event-based transition
+    builder.add_transition(TransitionParameters {
+        source: "StateB",
+        target: Some("StateA"),
+        event: Some(Event("GotoA".into())),
+        action: None,
+        guard: None,
+    });
+
+    builder.add_enter_action("StateD", Action::from("enterD"));
+
     builder.build()
 }
 
@@ -164,6 +207,16 @@ impl FsmTestData {
             name: "internal_transitions",
             content: include_str!("./internal_transitions.puml"),
             parsed: build_internal_transitions_fsm().expect("Failed to create expected FSM"),
+            path,
+        }
+    }
+
+    pub fn direct_transitions() -> Self {
+        let path = get_adjacent_file_path(file!(), "direct_transitions.puml");
+        Self {
+            name: "direct_transitions",
+            content: include_str!("./direct_transitions.puml"),
+            parsed: build_direct_transitions_fsm().expect("Failed to create expected FSM"),
             path,
         }
     }

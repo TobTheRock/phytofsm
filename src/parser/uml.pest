@@ -13,7 +13,8 @@ entry_action = { ^"entry" ~ ws* ~ "/" ~ ws* ~ action_name }
 exit_action = { ^"exit" ~ ws* ~ "/" ~ ws* ~ action_name }
 
 // Transition description: EventName [GuardName] / ActionName
-transition_description = { SOI ~ ws* ~ event_name ~ (ws* ~ "[" ~ ws* ~ guard_name ~ ws* ~ "]")? ~ (ws* ~ "/" ~ ws* ~ action_name)? ~ ws* ~ EOI }
+// event_name is optional for direct transitions (e.g., "/ ActionName" or "[Guard] / ActionName")
+transition_description = { SOI ~ ws* ~ event_name? ~ (ws* ~ "[" ~ ws* ~ guard_name ~ ws* ~ "]")? ~ (ws* ~ "/" ~ ws* ~ action_name)? ~ ws* ~ EOI }
 
 // Identifiers
 event_name = @{ ASCII_ALPHANUMERIC+ }

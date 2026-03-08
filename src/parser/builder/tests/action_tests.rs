@@ -18,7 +18,7 @@ fn set_actions_on_state_created_by_transition() {
     builder.add_transition(TransitionParameters {
         source: "Start",
         target: Some("Other"),
-        event: "GoToOther".into(),
+        event: Some("GoToOther".into()),
         action: None,
         guard: None,
     });

@@ -66,7 +66,7 @@ fn add_substate_transition() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "E1".into(),
+        event: Some("E1".into()),
         action: None,
         guard: None,
     });
@@ -76,7 +76,7 @@ fn add_substate_transition() {
     let a = parent_state.substates().find(|s| s.name() == "A").unwrap();
     let t = a.transitions().next().unwrap();
     assert_eq!(t.destination.as_ref().unwrap().name(), "B");
-    assert_eq!(t.event, &Event::from("E1"));
+    assert_eq!(t.event, Some(&Event::from("E1")));
 }
 
 #[test]
@@ -91,7 +91,7 @@ fn add_substate_transition_same_name_different_parents() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "E1".into(),
+        event: Some("E1".into()),
         action: None,
         guard: None,
     });
@@ -102,7 +102,7 @@ fn add_substate_transition_same_name_different_parents() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "E2".into(),
+        event: Some("E2".into()),
         action: None,
         guard: None,
     });
@@ -114,8 +114,14 @@ fn add_substate_transition_same_name_different_parents() {
     let p1_a = parent1.substates().find(|s| s.name() == "A").unwrap();
     let p2_a = parent2.substates().find(|s| s.name() == "A").unwrap();
 
-    assert_eq!(p1_a.transitions().next().unwrap().event, &Event::from("E1"));
-    assert_eq!(p2_a.transitions().next().unwrap().event, &Event::from("E2"));
+    assert_eq!(
+        p1_a.transitions().next().unwrap().event,
+        Some(&Event::from("E1"))
+    );
+    assert_eq!(
+        p2_a.transitions().next().unwrap().event,
+        Some(&Event::from("E2"))
+    );
 }
 
 #[test]
@@ -126,7 +132,7 @@ fn add_substate_transition_creates_substates() {
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
-        event: "E1".into(),
+        event: Some("E1".into()),
         action: None,
         guard: None,
     });
