@@ -39,7 +39,6 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 ### Missing Features
 
-- run to completion model (RTC), currently events in transitions are UB
 - exit state
 - event deferring
 - sub state machines
@@ -63,6 +62,11 @@ StateA --> StateB : EventName / ActionName
 - **ActionName** (optional): The action method called during the transition seperated by `/`
 
 **Be aware that actions MUST be unique per event**, else a compile time error is raised.
+
+#### Run-to-Completion (RTC)
+
+Transition actions are atomic. An action cannot trigger another event on the same FSM — Rust's borrow checker enforces this at compile time since the FSM is mutably borrowed during the entire transition.
+If you need actions to trigger follow-up events, use an external event loop (see [rtc example](https://github.com/TobTheRock/phytofsm/blob/main/examples/rtc.rs)).
 
 ### Guards
 
