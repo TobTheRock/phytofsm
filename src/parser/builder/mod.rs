@@ -4,7 +4,7 @@ use log::{debug, trace};
 use crate::error::{Error, Result};
 
 use super::fsm::{ParsedFsm, StateData, StateId, TransitionData, TransitionParameters};
-use super::types::{Action, StateType};
+use super::types::{Action, Event, StateType};
 
 mod scoped_arena;
 mod validation;
@@ -22,6 +22,7 @@ impl StateData {
             enter_action: None,
             exit_action: None,
             enter_state: None,
+            deferred_events: vec![],
         }
     }
 }
@@ -92,6 +93,12 @@ impl ParsedFsmBuilder {
     pub fn add_exit_action(&mut self, state_name: &str, action: Action) {
         if let Some(id) = self.find_descendant_state(state_name) {
             self.arena[id].get_mut().exit_action = Some(action);
+        }
+    }
+
+    pub fn add_deferred_event(&mut self, state_name: &str, event: Event) {
+        if let Some(id) = self.find_descendant_state(state_name) {
+            self.arena[id].get_mut().deferred_events.push(event);
         }
     }
 

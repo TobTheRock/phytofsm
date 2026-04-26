@@ -69,6 +69,7 @@ fn build_four_seasons_fsm() -> Result<ParsedFsm> {
         action: Some(Action("StartBlizzard".into())),
         guard: Some(Action("HasVeryColdWeather".into())),
     });
+    builder.add_deferred_event("ArcticBlast", Event::from("TemperatureRises"));
 
     // Spring substates
     builder.set_scope(Some(spring));

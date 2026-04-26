@@ -22,6 +22,7 @@ pub enum StateDescription {
     Entry(Action),
     Exit(Action),
     InternalTransition(TransitionLabel),
+    DeferEvent(Event),
 }
 
 impl TryFrom<&str> for TransitionLabel {
@@ -98,6 +99,7 @@ fn parse_state_description(input: &str) -> Result<StateDescription> {
     let flat: Vec<_> = pairs.flatten().collect();
 
     try_parse_state_action(&flat)
+        .or_else(|| try_parse_defer_event(&flat))
         .or_else(|| try_parse_internal_transition(&flat))
         .ok_or_else(|| Error::Parse(format!("Unrecognised state description: {}", input)))?
 }
@@ -125,6 +127,24 @@ fn try_parse_state_action(
         Rule::exit_action => Ok(StateDescription::Exit(action)),
         _ => unreachable!(),
     })
+}
+
+fn try_parse_defer_event(
+    pairs: &[pest::iterators::Pair<Rule>],
+) -> Option<Result<StateDescription>> {
+    let pair = pairs.iter().find(|p| p.as_rule() == Rule::defer_event)?;
+
+    let event = pair
+        .clone()
+        .into_inner()
+        .find(|p| p.as_rule() == Rule::event_name)
+        .map(|p| p.as_str().to_owned().into());
+
+    let Some(event) = event else {
+        return Some(Err(Error::Parse("Event name is required".to_string())));
+    };
+
+    Some(Ok(StateDescription::DeferEvent(event)))
 }
 
 fn try_parse_internal_transition(
@@ -281,5 +301,14 @@ mod test {
         assert_eq!(desc.event, Some("ChangeState".to_owned().into()));
         assert_eq!(desc.guard, Some("AGuard".to_owned().into()));
         assert_eq!(desc.action, Some("DoSomething".to_owned().into()));
+    }
+
+    #[test]
+    fn parse_deferred_event() {
+        let desc = StateDescription::try_from("SomeEvent / defer").unwrap();
+        assert_eq!(
+            desc,
+            StateDescription::DeferEvent("SomeEvent".to_owned().into())
+        );
     }
 }

@@ -24,8 +24,7 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 
 | Feature | Description | Example |
 |---------|-------------|---------|
-| Events with custom data | Trigger transitions with typed event parameters | [actions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/actions.rs) |
-| Custom data types | Use any type (primitives, structs, references, pointers) as event data | [data_types.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/data_types.rs) |
+| Events with custom data | Trigger transitions with typed event parameters | [actions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/actions.rs) [data_types.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/data_types.rs) |
 | Actions on transitions | Execute custom code when transitions occur | [actions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/actions.rs) |
 | Enter/exit actions | Execute custom code when entering or exiting a state | [enter_exit.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/enter_exit.rs) |
 | Composite states | Nested/hierarchical states with automatic enter state resolution | [composite_states.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/composite_states.rs) |
@@ -35,15 +34,18 @@ This way the design of the FSM is easy to grasp first hand and documentation and
 | Guard conditions | Conditional transitions using `[GuardName]` syntax | [guards.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/guards.rs) |
 | Internal transitions | Stay in state without triggering exit/enter actions | [internal_transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/internal_transitions.rs) |
 | Direct transitions | Automatic transitions without events, with optional guards and actions | [direct_transitions.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/direct_transitions.rs) |
-| Transition logging | Optional logging via [log](https://docs.rs/log/latest/log/) crate | [four_seasons.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/four_seasons.rs) |
+| Deferred events | Events deferred in one state are re-evaluated after transitioning to another state | [deferred_events.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/deferred_events.rs) |
+| Transition logging | Optional logging via [log](https://docs.rs/log/latest/log/) crate | [four_seasons.rs](https://github.com/TobTheRock/phytofsm/blob/main/tests/four_seasons/main.rs) |
 
 ### Missing Features
 
-- exit state
-- event deferring
+- Pseudo States
+  - exit
+  - history states
+  - ...
 - sub state machines
-- history states
 - orthogonal regions
+- event lists
 
 ## UML Syntax for FSM Actions & Events
 
@@ -65,7 +67,7 @@ StateA --> StateB : EventName / ActionName
 
 #### Run-to-Completion (RTC)
 
-Transition actions are atomic. An action cannot trigger another event on the same FSM — Rust's borrow checker enforces this at compile time since the FSM is mutably borrowed during the entire transition.
+Transition actions are atomic. An action cannot trigger another event on the same FSM — Rust's enforces this with its borrow sematincs, the FSM is mutably borrowed during the entire transition.
 If you need actions to trigger follow-up events, use an external event loop (see [rtc example](https://github.com/TobTheRock/phytofsm/blob/main/examples/rtc.rs)).
 
 ### Guards
@@ -133,6 +135,32 @@ Direct transition actions and guards have no event parameters:
 fn action_name(&mut self);
 fn guard_name(&self) -> bool;
 ```
+
+### Deferred Events
+
+Events can be deferred in a state using the `/defer` syntax. A deferred event is stored and re-evaluated whenever the FSM transitions to a new state:
+
+```puml
+StateA : EventName /defer
+```
+
+When `EventName` occurs while in `StateA`, instead of being discarded it is placed in a deferred event queue. After any subsequent state transition, all deferred events are re-evaluated in the new state:
+
+- If the new state also defers the event, it stays in the queue (re-deferred)
+- If the new state handles the event, a transition fires
+- If the new state neither defers nor handles the event, it is silently discarded
+
+```puml
+StateA : GoToA /defer
+StateA -> StateB : GoToB
+StateB -> StateA : GoToA
+```
+
+In this example, sending `GoToA` while in `StateA` defers it. Sending `GoToB` transitions to `StateB`, where the deferred `GoToA` fires and transitions back to `StateA`.
+
+The deferred event queue and associated `defer_event` function pointer are only generated when at least one state in the FSM uses `/defer`.
+
+**Note on event parameter lifetimes:** Deferred events are stored in an internal queue until they can be processed, which means event parameters must live long enough to outlast the deferral. If your event parameter types contain references (e.g. `&str`, `&[u8]`), the borrowed data must remain valid until the deferred event is eventually consumed or discarded. In practice, prefer owned types (e.g. `String`, `Vec<u8>`) for event parameters when deferral is involved.
 
 ### Enter/Exit Actions
 

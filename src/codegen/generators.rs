@@ -157,6 +157,9 @@ pub fn generate_state_struct(ctx: &GenerationContext) -> proc_macro2::TokenStrea
     let actions_trait = &ctx.idents.action_trait;
     let event_enum = &ctx.idents.event_enum;
 
+    let defer_field = &ctx.deferred.state_field;
+    let defer_clone = &ctx.deferred.state_clone_field;
+
     quote::quote! {
         #[derive(Copy)]
         struct #state_ident<A: #actions_trait> {
@@ -166,6 +169,7 @@ pub fn generate_state_struct(ctx: &GenerationContext) -> proc_macro2::TokenStrea
             enter_state: fn() -> Self,
             enter: fn(&mut A, from: &Self),
             exit: fn(&mut A, to: &Self),
+            #defer_field
         }
 
         impl<A: #actions_trait> Clone for #state_ident<A> {
@@ -177,6 +181,7 @@ pub fn generate_state_struct(ctx: &GenerationContext) -> proc_macro2::TokenStrea
                     enter_state: self.enter_state,
                     enter: self.enter,
                     exit: self.exit,
+                    #defer_clone
                 }
             }
         }
@@ -250,6 +255,7 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
         let enter_action = generate_enter_action(&state, state_id_enum);
         let exit_action = generate_exit_action(&state, state_id_enum);
         let direct_transition = generate_direct_transition(&state);
+        let defer_event = ctx.deferred.state_field_value(&state);
 
         quote::quote! {
             fn #fn_name() -> Self {
@@ -263,6 +269,7 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
                     enter_state: Self::#enter_fn,
                     enter: #enter_action,
                     exit: #exit_action,
+                    #defer_event
                 }
             }
         }
@@ -270,6 +277,7 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
 
     let struct_ident = &ctx.idents.state_struct;
     let actions_trait = &ctx.idents.action_trait;
+    let init_defer = &ctx.deferred.state_init_field;
     quote::quote! {
         impl<A: #actions_trait> #struct_ident<A> {
             fn init() -> Self {
@@ -280,6 +288,7 @@ pub fn generate_state_impl(ctx: &GenerationContext) -> proc_macro2::TokenStream 
                     enter_state: Self::init,
                     enter: |_actions, _from| {},
                     exit: |_actions, _to| {},
+                    #init_defer
                 }
             }
 
@@ -296,15 +305,21 @@ pub fn generate_fsm(ctx: &GenerationContext) -> proc_macro2::TokenStream {
     let event_enum = &ctx.idents.event_enum;
     let event_params_trait = &ctx.idents.event_params_trait;
 
+    let deferred_field = &ctx.deferred.fsm_field;
+    let deferred_init = &ctx.deferred.fsm_init_field;
+
     let fsm_struct = quote::quote! {
         struct #fsm_inner<A: #action> {
             actions: A,
             current_state: #state<A>,
+            #deferred_field
         }
         pub struct #fsm<A: #action>(#fsm_inner<A>);
     };
 
     let trigger_event = generate_trigger_event(ctx);
+
+    let entry_method = &ctx.deferred.entry_method;
 
     let methods = ctx.fsm.events().map(|event| {
         let fn_ident = event.method_ident();
@@ -312,7 +327,7 @@ pub fn generate_fsm(ctx: &GenerationContext) -> proc_macro2::TokenStream {
         let params_ident = event.params_ident();
         quote::quote! {
             pub fn #fn_ident(&mut self, params: <A as #event_params_trait>::#params_ident) {
-                self.0.trigger_event(#event_enum::#event_ident(params));
+                self.0.#entry_method(#event_enum::#event_ident(params));
             }
         }
     });
@@ -326,6 +341,7 @@ pub fn generate_fsm(ctx: &GenerationContext) -> proc_macro2::TokenStream {
                 let mut fsm = Self {
                     actions,
                     current_state: #state::init(),
+                    #deferred_init
                 };
                 fsm.try_direct_transition();
                 fsm
@@ -383,28 +399,31 @@ fn generate_trigger_event(ctx: &GenerationContext) -> proc_macro2::TokenStream {
                     enter_state.id
                 );
                 self.change_state(enter_state);
+                return true;
             }
+            false
         }
     } else {
         quote::quote! {
             if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
                 let enter_state = (transition_state.enter_state)();
                 self.change_state(enter_state);
+                return true;
             }
+            false
         }
     };
+
+    let entry_point = &ctx.deferred.entry_point;
 
     quote::quote! {
         impl<A> #fsm_inner<A>
         where
             A: #action,
         {
-            fn trigger_event(&mut self, event: #event_enum<A>) {
-                self.try_event_based_transition(event);
-                self.try_direct_transition();
-            }
+            #entry_point
 
-            fn try_event_based_transition(&mut self, event: #event_enum<A>) {
+            fn try_event_based_transition(&mut self, event: #event_enum<A>) -> bool {
                 #event_body
             }
         }

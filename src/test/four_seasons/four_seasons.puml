@@ -9,6 +9,8 @@ state Winter {
   Freezing -> Mild: TemperatureRises 
   Mild -> Freezing: TemperatureDrops
   Freezing -> ArcticBlast: [HasVeryColdWeather]  / StartBlizzard  
+
+  ArcticBlast: TemperatureRises / defer
 } 
 
 state Spring {

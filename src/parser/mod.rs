@@ -77,6 +77,9 @@ fn add_fsm_elements(
             Ok(uml::StateDescription::Exit(action)) => {
                 builder.add_exit_action(desc.name, action);
             }
+            Ok(uml::StateDescription::DeferEvent(event)) => {
+                builder.add_deferred_event(desc.name, event);
+            }
             Ok(uml::StateDescription::InternalTransition(label)) => {
                 builder.add_transition(TransitionParameters {
                     source: desc.name,
@@ -121,7 +124,7 @@ mod test {
 
     const FSM_CASES: TestCases<FsmTestData> = cases!(FsmTestData::all());
 
-    #[test_casing(11, FSM_CASES)]
+    #[test_casing(12, FSM_CASES)]
     fn parses_fsm(data: FsmTestData) {
         crate::logging::init();
         let fsm = ParsedFsm::try_parse(data.content).unwrap();

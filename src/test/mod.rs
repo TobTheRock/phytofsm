@@ -3,6 +3,7 @@ use std::path::PathBuf;
 use crate::parser;
 mod actions;
 mod composite_states;
+mod deferred_events;
 mod four_seasons;
 mod misc;
 mod transitions;
@@ -40,6 +41,7 @@ impl FsmTestData {
             Self::substate_to_substate(),
             Self::transitions(),
             Self::direct_transitions(),
+            Self::deferred_events(),
         ]
         .into_iter()
     }

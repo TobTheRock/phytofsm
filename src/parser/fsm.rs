@@ -34,6 +34,7 @@ pub(super) struct StateData {
     pub enter_action: Option<Action>,
     pub exit_action: Option<Action>,
     pub enter_state: Option<StateId>,
+    pub deferred_events: Vec<Event>,
 }
 
 #[derive(Clone)]
@@ -297,6 +298,10 @@ impl<'a> State<'a> {
         } else {
             State::new(self.id, self.arena)
         }
+    }
+
+    pub fn deferred_events(&self) -> impl Iterator<Item = &Event> {
+        self.node_data().deferred_events.iter()
     }
 
     fn node(&self) -> &indextree::Node<StateData> {

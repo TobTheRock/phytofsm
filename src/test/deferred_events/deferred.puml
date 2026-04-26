@@ -1,0 +1,24 @@
+@startuml DeferredEvents
+
+[*] --> StateA
+
+StateA: GoToA /defer
+StateA: entry / enterA
+StateA -> StateB: GoToB
+StateA -> StateC: GoToC
+StateA -> StateD: GoToD
+
+StateB: entry / enterB
+StateB -> StateA: GoToA
+
+' Event is deferred again
+StateC: GoToA /defer
+StateC: entry / enterC
+StateC -> StateB: GoToBFromC
+
+' Event is deferred again after direct transition
+StateD: GoToA /defer
+StateD: entry / enterD
+StateD -> StateB
+
+@enduml

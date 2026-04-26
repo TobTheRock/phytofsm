@@ -25,6 +25,7 @@ pub trait IPlantFsmActions: IPlantFsmEventParams {
 }
 
 type NoEventData = ();
+
 enum PlantFsmEvent<T: IPlantFsmActions> {
     TemperatureRises(T::TemperatureRisesParams),
     TemperatureDrops(T::TemperatureDropsParams),
@@ -50,6 +51,7 @@ where
 struct PlantFsmState<T: IPlantFsmActions> {
     id: PlantFsmStateId,
     // Transition based on an event, depending on the state
+    // Returns Some(state) if consumed, None if not consumed
     transition: fn(event: PlantFsmEvent<T>, actions: &mut T) -> Option<Self>,
     // Direct transitions, not based on an event
     direct_transition: fn(actions: &mut T) -> Option<Self>,
@@ -59,6 +61,8 @@ struct PlantFsmState<T: IPlantFsmActions> {
     enter: fn(actions: &mut T, from: &Self) -> (),
     // exit action, composite states check for internal transitions
     exit: fn(actions: &mut T, to: &Self) -> (),
+    // check if event would be deferred, only generated if the FSM contains deferred events
+    defer_event: fn(event: &PlantFsmEvent<T>) -> bool,
 }
 
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
@@ -116,6 +120,7 @@ impl<T: IPlantFsmActions> Clone for PlantFsmState<T> {
             enter_state: self.enter_state,
             enter: self.enter,
             exit: self.exit,
+            defer_event: self.defer_event,
         }
     }
 }
@@ -139,6 +144,7 @@ where
             enter_state: Self::init,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
+            defer_event: |_event| false,
         }
     }
 
@@ -163,6 +169,7 @@ where
                 actions.winter_is_coming();
             },
             exit: |_actions, _to| {},
+            defer_event: |_event| false,
         }
     }
 
@@ -188,6 +195,7 @@ where
             enter_state: Self::winter_freezing,
             enter: |actions, from| (Self::winter().enter)(actions, from),
             exit: |actions, to| (Self::winter().exit)(actions, to),
+            defer_event: |_event| false,
         }
     }
 
@@ -205,17 +213,28 @@ where
             enter_state: Self::winter_mild,
             enter: |actions, from| (Self::winter().enter)(actions, from),
             exit: |actions, to| (Self::winter().exit)(actions, to),
+            defer_event: |_event| false,
         }
     }
 
     fn winter_arctic_blast() -> Self {
         Self {
             id: PlantFsmStateId::WinterArcticBlast,
-            transition: |event, actions| (Self::winter().transition)(event, actions),
+            transition: |event, actions| {
+                let parent = Self::winter();
+                (parent.transition)(event, actions)
+            },
             direct_transition: |_action| None,
             enter_state: Self::winter_arctic_blast,
             enter: |actions, from| (Self::winter().enter)(actions, from),
             exit: |actions, to| (Self::winter().exit)(actions, to),
+            defer_event: |event| {
+                // Defer all events in this state
+                match event {
+                    PlantFsmEvent::TemperatureRises(_) => true,
+                    _ => false,
+                }
+            },
         }
     }
 
@@ -233,6 +252,7 @@ where
             enter_state: Self::spring_brisk,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
+            defer_event: |_event| false,
         }
     }
 
@@ -250,6 +270,7 @@ where
             enter_state: Self::spring_brisk,
             enter: |actions, from| (Self::spring().enter)(actions, from),
             exit: |actions, to| (Self::spring().exit)(actions, to),
+            defer_event: |_event| false,
         }
     }
 
@@ -267,6 +288,7 @@ where
             enter_state: Self::spring_temperate,
             enter: |actions, from| (Self::spring().enter)(actions, from),
             exit: |actions, to| (Self::spring().exit)(actions, to),
+            defer_event: |_event| false,
         }
     }
 
@@ -284,6 +306,7 @@ where
             enter_state: Self::summer_balmy,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
+            defer_event: |_event| false,
         }
     }
 
@@ -301,6 +324,7 @@ where
             enter_state: Self::summer_balmy,
             enter: |actions, from| (Self::summer().enter)(actions, from),
             exit: |actions, to| (Self::summer().exit)(actions, to),
+            defer_event: |_event| false,
         }
     }
 
@@ -311,7 +335,7 @@ where
                 PlantFsmEvent::TemperatureDrops(_) => Some(Self::summer_balmy()),
                 PlantFsmEvent::TemperatureRises(params) => {
                     actions.spontaneous_combustion(params);
-                    None
+                    Some(Self::summer_scorching())
                 }
                 _ => {
                     let parent = Self::summer();
@@ -322,6 +346,7 @@ where
             enter_state: Self::summer_scorching,
             enter: |actions, _from| actions.start_heat_wave(),
             exit: |actions, _to| actions.end_heat_wave(),
+            defer_event: |_event| false,
         }
     }
 
@@ -339,6 +364,7 @@ where
             enter_state: Self::autumn_crisp,
             enter: |_actions, _from| {},
             exit: |_actions, _to| {},
+            defer_event: |_event| false,
         }
     }
 
@@ -356,6 +382,7 @@ where
             enter_state: Self::autumn_crisp,
             enter: |actions, from| (Self::autumn().enter)(actions, from),
             exit: |actions, to| (Self::autumn().exit)(actions, to),
+            defer_event: |_event| false,
         }
     }
 
@@ -373,6 +400,7 @@ where
             enter_state: Self::autumn_pleasant,
             enter: |actions, from| (Self::autumn().enter)(actions, from),
             exit: |actions, to| (Self::autumn().exit)(actions, to),
+            defer_event: |_event| false,
         }
     }
 }
@@ -380,6 +408,8 @@ where
 struct PlantFsmImpl<A: IPlantFsmActions> {
     actions: A,
     current_state: PlantFsmState<A>,
+    // This member is only generated when the FSM contains deferred events
+    deferred_events: std::collections::VecDeque<PlantFsmEvent<A>>,
 }
 
 impl<A> PlantFsmImpl<A>
@@ -390,35 +420,60 @@ where
         let mut fsm = Self {
             actions,
             current_state: PlantFsmState::init(),
+            deferred_events: std::collections::VecDeque::new(),
         };
 
         fsm.try_direct_transition();
         fsm
     }
 
-    fn trigger_event(&mut self, event: PlantFsmEvent<A>) {
-        self.try_event_based_transition(event);
-        self.try_direct_transition();
+    fn run_event_loop(&mut self, event: PlantFsmEvent<A>) {
+        let pending = std::mem::take(&mut self.deferred_events);
+
+        std::iter::once(event)
+            .chain(pending.into_iter())
+            .for_each(|event| {
+                self.process_event(event);
+            });
     }
 
-    fn try_event_based_transition(&mut self, event: PlantFsmEvent<A>) {
-        let event_name = format!("{}", event);
-        if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
-            let enter_state = (transition_state.enter_state)();
-
-            debug!(
-                "PlantFsm: {} -[{}]-> {}, entering {}",
-                self.current_state.id, event_name, transition_state.id, enter_state.id
-            );
-
-            self.change_state(enter_state);
+    fn process_event(&mut self, event: PlantFsmEvent<A>) {
+        let Some(event) = self.try_defer_event(event) else {
+            return;
+        };
+        if self.try_event_based_transition(event) {
+            self.try_direct_transition();
         }
     }
 
-    fn change_state(&mut self, next_state: PlantFsmState<A>) {
-        (self.current_state.exit)(&mut self.actions, &next_state);
-        (next_state.enter)(&mut self.actions, &self.current_state);
-        self.current_state = next_state;
+    fn try_defer_event(&mut self, event: PlantFsmEvent<A>) -> Option<PlantFsmEvent<A>> {
+        if (self.current_state.defer_event)(&event) {
+            debug!(
+                "PlantFsm: {} deferring event {}",
+                self.current_state.id, event
+            );
+            self.deferred_events.push_back(event);
+            None
+        } else {
+            Some(event)
+        }
+    }
+
+    fn try_event_based_transition(&mut self, event: PlantFsmEvent<A>) -> bool {
+        let event_name = format!("{}", event);
+        if let Some(transition_state) = (self.current_state.transition)(event, &mut self.actions) {
+            if transition_state.id != self.current_state.id {
+                let enter_state = (transition_state.enter_state)();
+                debug!(
+                    "PlantFsm: {} -[{}]-> {}, entering {}",
+                    self.current_state.id, event_name, transition_state.id, enter_state.id
+                );
+                self.change_state(enter_state);
+            }
+            true
+        } else {
+            false
+        }
     }
 
     fn try_direct_transition(&mut self) {
@@ -431,6 +486,12 @@ where
             );
             self.change_state(enter_state);
         }
+    }
+
+    fn change_state(&mut self, next_state: PlantFsmState<A>) {
+        (self.current_state.exit)(&mut self.actions, &next_state);
+        (next_state.enter)(&mut self.actions, &self.current_state);
+        self.current_state = next_state;
     }
 }
 
@@ -449,7 +510,7 @@ where
         params: <A as IPlantFsmEventParams>::TemperatureRisesParams,
     ) {
         self.0
-            .trigger_event(PlantFsmEvent::TemperatureRises(params));
+            .run_event_loop(PlantFsmEvent::TemperatureRises(params));
     }
 
     pub fn temperature_drops(
@@ -457,11 +518,11 @@ where
         params: <A as IPlantFsmEventParams>::TemperatureDropsParams,
     ) {
         self.0
-            .trigger_event(PlantFsmEvent::TemperatureDrops(params));
+            .run_event_loop(PlantFsmEvent::TemperatureDrops(params));
     }
 
     pub fn time_advances(&mut self, params: <A as IPlantFsmEventParams>::TimeAdvancesParams) {
-        self.0.trigger_event(PlantFsmEvent::TimeAdvances(params));
+        self.0.run_event_loop(PlantFsmEvent::TimeAdvances(params));
     }
 }
 
@@ -532,6 +593,65 @@ mod test {
         fsm.temperature_drops(());
         fsm.time_advances(time);
         fsm.time_advances(time);
+    }
+
+    #[test]
+    fn test_deferred_event_fires_after_state_change() {
+        let mut actions = setup();
+
+        // Enter ArcticBlast: cold weather guard triggers direct transition
+        actions
+            .expect_has_very_cold_weather()
+            .returning(|| true)
+            .times(1);
+        actions.expect_start_blizzard().returning(|| ()).times(1);
+        actions.expect_winter_is_coming().returning(|| ()).times(1);
+
+        // TimeAdvances will trigger Winter→Spring (guard passes)
+        actions
+            .expect_enough_time_passed()
+            .returning(|_| true)
+            .times(1);
+
+        // No other actions expected
+        actions.expect_start_blooming().never();
+        actions.expect_ripen_fruit().never();
+        actions.expect_drop_petals().never();
+        actions.expect_spontaneous_combustion().never();
+        actions.expect_start_heat_wave().never();
+        actions.expect_end_heat_wave().never();
+
+        let mut fsm = super::PlantFsmImpl::start(actions);
+        assert_eq!(
+            fsm.current_state.id,
+            super::PlantFsmStateId::WinterArcticBlast
+        );
+
+        // Defer TemperatureRises while in ArcticBlast
+        fsm.run_event_loop(super::PlantFsmEvent::TemperatureRises(()));
+        assert_eq!(
+            fsm.current_state.id,
+            super::PlantFsmStateId::WinterArcticBlast
+        );
+        assert_eq!(
+            fsm.deferred_events.len(),
+            1,
+            "Event should be deferred, not lost"
+        );
+
+        // TimeAdvances transitions Winter→Spring::Brisk
+        // Then deferred TemperatureRises fires: Brisk→Temperate
+        fsm.run_event_loop(super::PlantFsmEvent::TimeAdvances(42));
+        assert_eq!(
+            fsm.current_state.id,
+            super::PlantFsmStateId::SpringTemperate,
+            "Deferred TemperatureRises should have fired in Spring::Brisk"
+        );
+        assert_eq!(
+            fsm.deferred_events.len(),
+            0,
+            "Deferred event should be consumed"
+        );
     }
 
     #[test]

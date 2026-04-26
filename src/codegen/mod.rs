@@ -1,3 +1,4 @@
+mod deferred;
 pub mod generators;
 pub mod ident;
 
@@ -21,8 +22,10 @@ impl FsmCodeGenerator {
 
     pub fn generate(&self, fsm: parser::ParsedFsm) -> GeneratedCode {
         let idents = ident::Idents::new(fsm.name());
+        let deferred = deferred::DeferredEventsCodegen::new(&fsm, &idents);
         let ctx = GenerationContext {
             fsm: &fsm,
+            deferred: &deferred,
             idents: &idents,
             options: &self.options,
         };
@@ -53,8 +56,9 @@ impl FsmCodeGenerator {
     }
 }
 
-pub(crate) struct GenerationContext<'a> {
+pub struct GenerationContext<'a> {
     pub fsm: &'a parser::ParsedFsm,
+    pub deferred: &'a deferred::DeferredEventsCodegen,
     pub idents: &'a ident::Idents,
     pub options: &'a Options,
 }
