@@ -1,8 +1,8 @@
-use super::GenerationContext;
+use super::{extract, GenerationContext};
 
 pub fn generate_event_params_trait(ctx: &GenerationContext) -> proc_macro2::TokenStream {
     let trait_ident = &ctx.idents.event_params_trait;
-    let associated_types = ctx.fsm.events().map(|event| {
+    let associated_types = extract::events(ctx.fsm).map(|event| {
         let type_ident = event.params_ident();
         quote::quote! { type #type_ident; }
     });
@@ -15,7 +15,7 @@ pub fn generate_event_params_trait(ctx: &GenerationContext) -> proc_macro2::Toke
 }
 
 pub fn generate_action_trait(ctx: &GenerationContext) -> proc_macro2::TokenStream {
-    let action_methods = ctx.fsm.actions().map(|(action, event)| {
+    let action_methods = extract::actions(ctx.fsm).map(|(action, event)| {
         let action_ident = action.ident();
         let params_ident = event.params_ident();
         quote::quote! {
@@ -23,7 +23,7 @@ pub fn generate_action_trait(ctx: &GenerationContext) -> proc_macro2::TokenStrea
         }
     });
 
-    let guard_methods = ctx.fsm.guards().map(|(guard, event)| {
+    let guard_methods = extract::guards(ctx.fsm).map(|(guard, event)| {
         let guard_ident = guard.ident();
         let params_ident = event.params_ident();
         quote::quote! {
@@ -31,28 +31,28 @@ pub fn generate_action_trait(ctx: &GenerationContext) -> proc_macro2::TokenStrea
         }
     });
 
-    let direct_action_methods = ctx.fsm.direct_transition_actions().map(|action| {
+    let direct_action_methods = extract::direct_transition_actions(ctx.fsm).map(|action| {
         let action_ident = action.ident();
         quote::quote! {
             fn #action_ident(&mut self);
         }
     });
 
-    let direct_guard_methods = ctx.fsm.direct_transition_guards().map(|guard| {
+    let direct_guard_methods = extract::direct_transition_guards(ctx.fsm).map(|guard| {
         let guard_ident = guard.ident();
         quote::quote! {
             fn #guard_ident(&self) -> bool;
         }
     });
 
-    let enter_methods = ctx.fsm.enter_actions().map(|action| {
+    let enter_methods = extract::enter_actions(ctx.fsm).map(|action| {
         let action_ident = action.ident();
         quote::quote! {
             fn #action_ident(&mut self);
         }
     });
 
-    let exit_methods = ctx.fsm.exit_actions().map(|action| {
+    let exit_methods = extract::exit_actions(ctx.fsm).map(|action| {
         let action_ident = action.ident();
         quote::quote! {
             fn #action_ident(&mut self);
@@ -75,7 +75,7 @@ pub fn generate_action_trait(ctx: &GenerationContext) -> proc_macro2::TokenStrea
 }
 
 pub fn generate_event_enum(ctx: &GenerationContext) -> proc_macro2::TokenStream {
-    let event_variants = ctx.fsm.events().map(|event| {
+    let event_variants = extract::events(ctx.fsm).map(|event| {
         let params_ident = event.params_ident();
         let event_ident = event.ident();
         quote::quote! { #event_ident(P::#params_ident),}
@@ -92,7 +92,7 @@ pub fn generate_event_enum(ctx: &GenerationContext) -> proc_macro2::TokenStream 
 
 pub fn generate_event_enum_display(ctx: &GenerationContext) -> proc_macro2::TokenStream {
     let event_enum_ident = &ctx.idents.event_enum;
-    let event_variants = ctx.fsm.events().map(|event| {
+    let event_variants = extract::events(ctx.fsm).map(|event| {
         let event_ident = event.ident();
         let event_name = &event.0;
         quote::quote! { #event_enum_ident::#event_ident(_) => #event_name, }
@@ -321,7 +321,7 @@ pub fn generate_fsm(ctx: &GenerationContext) -> proc_macro2::TokenStream {
 
     let entry_method = &ctx.deferred.entry_method;
 
-    let methods = ctx.fsm.events().map(|event| {
+    let methods = extract::events(ctx.fsm).map(|event| {
         let fn_ident = event.method_ident();
         let event_ident = event.ident();
         let params_ident = event.params_ident();

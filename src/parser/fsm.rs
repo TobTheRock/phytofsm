@@ -1,7 +1,5 @@
 use std::collections::HashSet;
 
-use itertools::Itertools;
-
 use super::types::{Action, Event, StateType};
 
 pub(crate) type StateId = indextree::NodeId;
@@ -61,53 +59,6 @@ impl ParsedFsm {
         &self.name
     }
 
-    pub fn events(&self) -> impl Iterator<Item = &Event> {
-        self.transitions().filter_map(|t| t.event).unique()
-    }
-
-    pub fn actions(&self) -> impl Iterator<Item = (&Action, &Event)> {
-        self.transitions()
-            .filter_map(|t| {
-                let event = t.event?;
-                t.action.map(|action| (action, event))
-            })
-            .unique()
-    }
-
-    pub fn guards(&self) -> impl Iterator<Item = (&Action, &Event)> {
-        self.transitions()
-            .filter_map(|t| {
-                let event = t.event?;
-                t.guard.map(|guard| (guard, event))
-            })
-            .unique()
-    }
-
-    pub fn direct_transition_actions(&self) -> impl Iterator<Item = &Action> {
-        self.transitions()
-            .filter(|t| t.event.is_none())
-            .filter_map(|t| t.action)
-            .unique()
-    }
-
-    pub fn direct_transition_guards(&self) -> impl Iterator<Item = &Action> {
-        self.transitions()
-            .filter(|t| t.event.is_none())
-            .filter_map(|t| t.guard)
-            .unique()
-    }
-
-    pub fn enter_actions(&self) -> impl Iterator<Item = Action> + '_ {
-        self.states()
-            .filter_map(|s| s.enter_action().cloned())
-            .unique()
-    }
-
-    pub fn exit_actions(&self) -> impl Iterator<Item = Action> + '_ {
-        self.states()
-            .filter_map(|s| s.exit_action().cloned())
-            .unique()
-    }
 
     pub fn enter_state(&self) -> State<'_> {
         State::new(self.enter_state, &self.arena)
