@@ -1,6 +1,6 @@
-use crate::parser::{Event, ParsedFsm, ParsedFsmBuilder, State, StateType, TransitionParameters};
+use crate::fsm::{Event, UmlFsm, UmlFsmBuilder, State, StateType, TransitionParameters};
 
-use crate::parser::fsm::StateId;
+use crate::fsm::model::StateId;
 
 #[test]
 fn add_substate() {
@@ -141,17 +141,17 @@ fn add_substate_transition_creates_substates() {
     assert_eq!(find_state(&fsm, "Parent").substates().count(), 2);
 }
 
-fn builder_with_enter() -> ParsedFsmBuilder {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+fn builder_with_enter() -> UmlFsmBuilder {
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder
 }
 
-fn find_state<'a>(fsm: &'a ParsedFsm, name: &str) -> State<'a> {
+fn find_state<'a>(fsm: &'a UmlFsm, name: &str) -> State<'a> {
     fsm.states().find(|s| s.name() == name).unwrap()
 }
 
-fn assert_n_times_state(fsm: &ParsedFsm, name: &str, n: usize) {
+fn assert_n_times_state(fsm: &UmlFsm, name: &str, n: usize) {
     let count = fsm.states().filter(|s| s.name() == name).count();
     assert_eq!(
         count, n,
@@ -161,7 +161,7 @@ fn assert_n_times_state(fsm: &ParsedFsm, name: &str, n: usize) {
 }
 
 fn add_state_with_substate(
-    builder: &mut ParsedFsmBuilder,
+    builder: &mut UmlFsmBuilder,
     parent: &str,
     child: &str,
     child_type: StateType,

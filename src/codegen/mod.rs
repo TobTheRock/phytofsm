@@ -3,7 +3,7 @@ mod extract;
 pub mod generators;
 pub mod ident;
 
-use crate::parser;
+use crate::fsm;
 
 type GeneratedCode = proc_macro2::TokenStream;
 
@@ -21,7 +21,7 @@ impl FsmCodeGenerator {
         Self { options: *options }
     }
 
-    pub fn generate(&self, fsm: parser::ParsedFsm) -> GeneratedCode {
+    pub fn generate(&self, fsm: fsm::UmlFsm) -> GeneratedCode {
         let idents = ident::Idents::new(fsm.name());
         let deferred = deferred::DeferredEventsCodegen::new(&fsm, &idents);
         let ctx = GenerationContext {
@@ -58,7 +58,7 @@ impl FsmCodeGenerator {
 }
 
 pub struct GenerationContext<'a> {
-    pub fsm: &'a parser::ParsedFsm,
+    pub fsm: &'a fsm::UmlFsm,
     pub deferred: &'a deferred::DeferredEventsCodegen,
     pub idents: &'a ident::Idents,
     pub options: &'a Options,

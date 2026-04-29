@@ -1,19 +1,13 @@
 use crate::error::{Error, Result};
+use crate::fsm::{StateId, StateType, TransitionParameters, UmlFsm, UmlFsmBuilder};
 
-mod builder;
-mod fsm;
 mod plantuml;
-mod types;
 mod uml;
 
-pub(crate) use builder::ParsedFsmBuilder;
-use fsm::StateId;
-pub(crate) use fsm::{ParsedFsm, State, TransitionParameters};
 use log::trace;
-pub(crate) use types::{Action, Event, StateType};
 
-impl ParsedFsm {
-    pub fn try_parse<C>(content: C) -> Result<ParsedFsm>
+impl UmlFsm {
+    pub fn try_parse<C>(content: C) -> Result<UmlFsm>
     where
         C: AsRef<str>,
     {
@@ -23,11 +17,11 @@ impl ParsedFsm {
     }
 }
 
-impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
+impl TryFrom<plantuml::StateDiagram<'_>> for UmlFsm {
     type Error = Error;
     fn try_from(diagram: plantuml::StateDiagram<'_>) -> Result<Self> {
         let name = diagram.name().map(|s| s.to_string()).unwrap_or_default();
-        let mut builder = ParsedFsmBuilder::new(name);
+        let mut builder = UmlFsmBuilder::new(name);
 
         add_fsm_elements(&mut builder, diagram.elements(), None)?;
 
@@ -38,7 +32,7 @@ impl TryFrom<plantuml::StateDiagram<'_>> for ParsedFsm {
 // TODO order matters here. there might be a mismatch on how plantuml processes this (line by line
 // vs element by element), need to verify
 fn add_fsm_elements(
-    builder: &mut ParsedFsmBuilder,
+    builder: &mut UmlFsmBuilder,
     elements: &plantuml::StateElements<'_>,
     scope: Option<StateId>,
 ) -> Result<()> {
@@ -118,7 +112,7 @@ impl<'a> TryFrom<plantuml::TransitionDescription<'a>> for TransitionParameters<'
 
 #[cfg(test)]
 mod test {
-    use crate::{parser::ParsedFsm, test::FsmTestData};
+    use crate::{fsm::UmlFsm, test::FsmTestData};
     use pretty_assertions::assert_eq;
     use test_casing::{TestCases, cases, test_casing};
 
@@ -127,7 +121,7 @@ mod test {
     #[test_casing(12, FSM_CASES)]
     fn parses_fsm(data: FsmTestData) {
         crate::logging::init();
-        let fsm = ParsedFsm::try_parse(data.content).unwrap();
+        let fsm = UmlFsm::try_parse(data.content).unwrap();
         assert_eq!(data.parsed, fsm);
     }
 }

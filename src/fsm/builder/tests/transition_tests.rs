@@ -1,8 +1,8 @@
-use crate::parser::{Action, Event, ParsedFsmBuilder, StateType, TransitionParameters};
+use crate::fsm::{Action, Event, UmlFsmBuilder, StateType, TransitionParameters};
 
 #[test]
 fn add_transition() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -23,7 +23,7 @@ fn add_transition() {
 
 #[test]
 fn add_transition_creates_states() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -43,7 +43,7 @@ fn add_transition_creates_states() {
 #[test]
 fn add_transition_finds_existing_substate_from_root_scope() {
     crate::logging::init();
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
 
     let parent = builder.add_state("Parent", StateType::Simple);
@@ -77,7 +77,7 @@ fn add_transition_finds_existing_substate_from_root_scope() {
 
 #[test]
 fn add_direct_transition() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -97,7 +97,7 @@ fn add_direct_transition() {
 
 #[test]
 fn add_guarded_direct_transitions() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",

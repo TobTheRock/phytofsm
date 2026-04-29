@@ -1,8 +1,8 @@
-use crate::parser::{Event, ParsedFsmBuilder, StateType};
+use crate::fsm::{Event, UmlFsmBuilder, StateType};
 
 #[test]
 fn add_deferred_event_to_state() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_deferred_event("Start", Event::from("MyEvent"));
     let fsm = builder.build().unwrap();
@@ -14,7 +14,7 @@ fn add_deferred_event_to_state() {
 
 #[test]
 fn state_without_deferred_events_returns_empty() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     let fsm = builder.build().unwrap();
 
@@ -24,7 +24,7 @@ fn state_without_deferred_events_returns_empty() {
 
 #[test]
 fn multiple_deferred_events_on_same_state() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_deferred_event("Start", Event::from("EventA"));
     builder.add_deferred_event("Start", Event::from("EventB"));

@@ -1,11 +1,11 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
+    fsm::{Action, Event, UmlFsm, UmlFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
-fn build_actions_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("TestFsm");
+fn build_actions_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("TestFsm");
     builder.add_state("StateA", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "StateA",
@@ -24,8 +24,8 @@ fn build_actions_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
-fn build_enter_exit_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("EnterExitActions");
+fn build_enter_exit_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("EnterExitActions");
 
     // Root level states
     builder.add_state("A", StateType::Enter);

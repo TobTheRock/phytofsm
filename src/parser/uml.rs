@@ -3,7 +3,7 @@ use pest_derive::Parser;
 
 use crate::{
     error::{Error, Result},
-    parser::{Action, Event},
+    fsm::{Action, Event},
 };
 
 #[derive(Parser)]

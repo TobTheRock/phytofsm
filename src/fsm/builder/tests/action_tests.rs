@@ -1,4 +1,4 @@
-use crate::parser::{Action, ParsedFsm, ParsedFsmBuilder, State, StateType, TransitionParameters};
+use crate::fsm::{Action, UmlFsm, UmlFsmBuilder, State, StateType, TransitionParameters};
 
 #[test]
 fn set_state_enter_and_exit_actions() {
@@ -50,12 +50,12 @@ fn set_substate_actions() {
     assert_eq!(child.exit_action(), Some(&Action::from("OnExitChild")));
 }
 
-fn builder_with_enter() -> ParsedFsmBuilder {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+fn builder_with_enter() -> UmlFsmBuilder {
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder
 }
 
-fn find_state<'a>(fsm: &'a ParsedFsm, name: &str) -> State<'a> {
+fn find_state<'a>(fsm: &'a UmlFsm, name: &str) -> State<'a> {
     fsm.states().find(|s| s.name() == name).unwrap()
 }

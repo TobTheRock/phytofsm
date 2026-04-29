@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use crate::parser;
+use crate::fsm;
 mod actions;
 mod composite_states;
 mod deferred_events;
@@ -12,7 +12,7 @@ mod utils;
 pub struct FsmTestData {
     pub name: &'static str,
     pub content: &'static str,
-    pub parsed: parser::ParsedFsm,
+    pub parsed: fsm::UmlFsm,
     pub path: PathBuf,
 }
 

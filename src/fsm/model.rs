@@ -36,13 +36,13 @@ pub(super) struct StateData {
 }
 
 #[derive(Clone)]
-pub(crate) struct ParsedFsm {
+pub(crate) struct UmlFsm {
     name: String,
     enter_state: StateId,
     arena: indextree::Arena<StateData>,
 }
 
-impl ParsedFsm {
+impl UmlFsm {
     pub(super) fn new(
         name: String,
         enter_state: StateId,
@@ -83,7 +83,7 @@ impl ParsedFsm {
     }
 }
 
-impl PartialEq for ParsedFsm {
+impl PartialEq for UmlFsm {
     fn eq(&self, other: &Self) -> bool {
         self.name == other.name
             && self.enter_states_eq(other)
@@ -92,9 +92,9 @@ impl PartialEq for ParsedFsm {
     }
 }
 
-impl Eq for ParsedFsm {}
+impl Eq for UmlFsm {}
 
-impl ParsedFsm {
+impl UmlFsm {
     fn enter_states_eq(&self, other: &Self) -> bool {
         let self_enter = self.enter_state();
         let other_enter = other.enter_state();
@@ -121,9 +121,9 @@ impl ParsedFsm {
     }
 }
 
-impl std::fmt::Display for ParsedFsm {
+impl std::fmt::Display for UmlFsm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        writeln!(f, "ParsedFsm {{")?;
+        writeln!(f, "UmlFsm {{")?;
         writeln!(f, "  name: {}", self.name)?;
         writeln!(f, "  states:")?;
         self.fmt_state_tree(f, self.enter_state(), 2)?;
@@ -137,13 +137,13 @@ impl std::fmt::Display for ParsedFsm {
     }
 }
 
-impl std::fmt::Debug for ParsedFsm {
+impl std::fmt::Debug for UmlFsm {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         std::fmt::Display::fmt(self, f)
     }
 }
 
-impl ParsedFsm {
+impl UmlFsm {
     fn fmt_state_tree(
         &self,
         f: &mut std::fmt::Formatter<'_>,

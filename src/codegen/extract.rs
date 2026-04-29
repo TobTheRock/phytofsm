@@ -1,12 +1,12 @@
 use itertools::Itertools;
 
-use crate::parser::{Action, Event, ParsedFsm};
+use crate::fsm::{Action, Event, UmlFsm};
 
-pub fn events(fsm: &ParsedFsm) -> impl Iterator<Item = &Event> {
+pub fn events(fsm: &UmlFsm) -> impl Iterator<Item = &Event> {
     fsm.transitions().filter_map(|t| t.event).unique()
 }
 
-pub fn actions(fsm: &ParsedFsm) -> impl Iterator<Item = (&Action, &Event)> {
+pub fn actions(fsm: &UmlFsm) -> impl Iterator<Item = (&Action, &Event)> {
     fsm.transitions()
         .filter_map(|t| {
             let event = t.event?;
@@ -15,7 +15,7 @@ pub fn actions(fsm: &ParsedFsm) -> impl Iterator<Item = (&Action, &Event)> {
         .unique()
 }
 
-pub fn guards(fsm: &ParsedFsm) -> impl Iterator<Item = (&Action, &Event)> {
+pub fn guards(fsm: &UmlFsm) -> impl Iterator<Item = (&Action, &Event)> {
     fsm.transitions()
         .filter_map(|t| {
             let event = t.event?;
@@ -24,27 +24,27 @@ pub fn guards(fsm: &ParsedFsm) -> impl Iterator<Item = (&Action, &Event)> {
         .unique()
 }
 
-pub fn direct_transition_actions(fsm: &ParsedFsm) -> impl Iterator<Item = &Action> {
+pub fn direct_transition_actions(fsm: &UmlFsm) -> impl Iterator<Item = &Action> {
     fsm.transitions()
         .filter(|t| t.event.is_none())
         .filter_map(|t| t.action)
         .unique()
 }
 
-pub fn direct_transition_guards(fsm: &ParsedFsm) -> impl Iterator<Item = &Action> {
+pub fn direct_transition_guards(fsm: &UmlFsm) -> impl Iterator<Item = &Action> {
     fsm.transitions()
         .filter(|t| t.event.is_none())
         .filter_map(|t| t.guard)
         .unique()
 }
 
-pub fn enter_actions(fsm: &ParsedFsm) -> impl Iterator<Item = Action> + '_ {
+pub fn enter_actions(fsm: &UmlFsm) -> impl Iterator<Item = Action> + '_ {
     fsm.states()
         .filter_map(|s| s.enter_action().cloned())
         .unique()
 }
 
-pub fn exit_actions(fsm: &ParsedFsm) -> impl Iterator<Item = Action> + '_ {
+pub fn exit_actions(fsm: &UmlFsm) -> impl Iterator<Item = Action> + '_ {
     fsm.states()
         .filter_map(|s| s.exit_action().cloned())
         .unique()
@@ -53,11 +53,11 @@ pub fn exit_actions(fsm: &ParsedFsm) -> impl Iterator<Item = Action> + '_ {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::parser::{ParsedFsmBuilder, StateType, TransitionParameters};
+    use crate::fsm::{UmlFsmBuilder, StateType, TransitionParameters};
 
     #[test]
     fn direct_transitions_not_in_events() {
-        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        let mut builder = UmlFsmBuilder::new("TestFSM");
         builder.add_state("A", StateType::Enter);
         builder.add_transition(TransitionParameters {
             source: "A",
@@ -82,7 +82,7 @@ mod tests {
 
     #[test]
     fn direct_transition_actions_separate_from_event_actions() {
-        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        let mut builder = UmlFsmBuilder::new("TestFSM");
         builder.add_state("A", StateType::Enter);
         builder.add_transition(TransitionParameters {
             source: "A",
@@ -111,7 +111,7 @@ mod tests {
 
     #[test]
     fn direct_transition_guards_separate_from_event_guards() {
-        let mut builder = ParsedFsmBuilder::new("TestFSM");
+        let mut builder = UmlFsmBuilder::new("TestFSM");
         builder.add_state("A", StateType::Enter);
         builder.add_transition(TransitionParameters {
             source: "A",

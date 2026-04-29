@@ -3,7 +3,7 @@ use log::{debug, trace};
 
 use crate::error::{Error, Result};
 
-use super::fsm::{ParsedFsm, StateData, StateId, TransitionData, TransitionParameters};
+use super::model::{UmlFsm, StateData, StateId, TransitionData, TransitionParameters};
 use super::types::{Action, Event, StateType};
 
 mod scoped_arena;
@@ -28,12 +28,12 @@ impl StateData {
 }
 
 #[derive(Debug)]
-pub struct ParsedFsmBuilder {
+pub struct UmlFsmBuilder {
     name: String,
     arena: ScopedArena<StateData>,
 }
 
-impl ParsedFsmBuilder {
+impl UmlFsmBuilder {
     pub fn new(name: impl Into<String>) -> Self {
         Self {
             name: name.into(),
@@ -102,7 +102,7 @@ impl ParsedFsmBuilder {
         }
     }
 
-    pub fn build(mut self) -> Result<ParsedFsm> {
+    pub fn build(mut self) -> Result<UmlFsm> {
         trace!(
             "All states: {:?}",
             self.arena
@@ -124,7 +124,7 @@ impl ParsedFsmBuilder {
             return Err(Error::Parse("FSM name cannot be empty".to_string()));
         }
 
-        Ok(ParsedFsm::new(name, enter_state, self.arena.into_inner()))
+        Ok(UmlFsm::new(name, enter_state, self.arena.into_inner()))
     }
 
     fn find_or_create_state(&mut self, name: &str) -> StateId {

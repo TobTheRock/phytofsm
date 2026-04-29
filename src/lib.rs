@@ -4,6 +4,7 @@ use quote::quote;
 mod codegen;
 mod error;
 mod file;
+mod fsm;
 mod logging;
 mod options;
 mod parser;
@@ -94,7 +95,7 @@ fn generate_fsm_inner(input: TokenStream) -> error::Result<TokenStream> {
         syn::parse(input).map_err(|e| error::Error::InvalidInput(e.to_string()))?;
     let file_path = file::FilePath::resolve(&options.file_path, proc_macro::Span::call_site());
     let file = file::FsmFile::try_open(file_path)?;
-    let parsed_fsm = parser::ParsedFsm::try_parse(file.content())?;
+    let parsed_fsm = fsm::UmlFsm::try_parse(file.content())?;
     let generator = FsmCodeGenerator::new(&options.codegen);
     let fsm_code = generator.generate(parsed_fsm);
 

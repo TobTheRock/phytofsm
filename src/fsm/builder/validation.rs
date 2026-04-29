@@ -1,10 +1,10 @@
 use itertools::Itertools;
 
 use crate::error::{Error, Result};
-use crate::parser::types::{Action, Event};
+use crate::fsm::types::{Action, Event};
 
 use super::scoped_arena::ScopedArena;
-use crate::parser::fsm::StateData;
+use crate::fsm::model::StateData;
 
 pub fn injective_action_mapping(arena: &ScopedArena<StateData>) -> Result<()> {
     let action_events = arena

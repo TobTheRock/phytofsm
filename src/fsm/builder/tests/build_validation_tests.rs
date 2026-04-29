@@ -1,15 +1,15 @@
-use crate::parser::{ParsedFsmBuilder, StateType, TransitionParameters};
+use crate::fsm::{UmlFsmBuilder, StateType, TransitionParameters};
 
 #[test]
 fn build_without_enter_state_fails() {
-    let builder = ParsedFsmBuilder::new("TestFSM");
+    let builder = UmlFsmBuilder::new("TestFSM");
     let result = builder.build();
     assert!(result.is_err());
 }
 
 #[test]
 fn build_with_empty_name_fails() {
-    let mut builder = ParsedFsmBuilder::new("  ");
+    let mut builder = UmlFsmBuilder::new("  ");
     builder.add_state("Start", StateType::Enter);
     let result = builder.build();
     assert!(result.is_err());
@@ -17,7 +17,7 @@ fn build_with_empty_name_fails() {
 
 #[test]
 fn build_with_duplicate_events_per_action_fails() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "Start",
@@ -39,7 +39,7 @@ fn build_with_duplicate_events_per_action_fails() {
 
 #[test]
 fn build_with_conflicting_transitions_fails() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -61,7 +61,7 @@ fn build_with_conflicting_transitions_fails() {
 
 #[test]
 fn build_with_guarded_conflicting_transitions_succeeds() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -83,7 +83,7 @@ fn build_with_guarded_conflicting_transitions_succeeds() {
 
 #[test]
 fn build_with_partially_guarded_conflicting_transitions_fails() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -105,7 +105,7 @@ fn build_with_partially_guarded_conflicting_transitions_fails() {
 
 #[test]
 fn build_with_duplicate_guards_per_event_fails() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",

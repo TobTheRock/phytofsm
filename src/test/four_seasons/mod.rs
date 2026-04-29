@@ -1,11 +1,11 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
+    fsm::{Action, Event, UmlFsm, UmlFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
-fn build_four_seasons_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("PlantFsm");
+fn build_four_seasons_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("PlantFsm");
 
     // Root level states
     let winter = builder.add_state("Winter", StateType::Enter);

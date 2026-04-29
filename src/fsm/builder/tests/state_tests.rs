@@ -1,8 +1,8 @@
-use crate::parser::{ParsedFsm, ParsedFsmBuilder, State, StateType, TransitionParameters};
+use crate::fsm::{UmlFsm, UmlFsmBuilder, State, StateType, TransitionParameters};
 
 #[test]
 fn add_state_creates_simple_state() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_state("State1", StateType::Simple);
     let fsm = builder.build().unwrap();
@@ -14,7 +14,7 @@ fn add_state_creates_simple_state() {
 
 #[test]
 fn add_state_reuses_existing() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("A", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -31,7 +31,7 @@ fn add_state_reuses_existing() {
 
 #[test]
 fn enter_state_not_overwritten_by_simple() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_state("Start", StateType::Simple);
     let fsm = builder.build().unwrap();
@@ -42,7 +42,7 @@ fn enter_state_not_overwritten_by_simple() {
 
 #[test]
 fn simple_state_upgraded_to_enter() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_transition(TransitionParameters {
         source: "Start",
         target: Some("B"),
@@ -57,6 +57,6 @@ fn simple_state_upgraded_to_enter() {
     assert_eq!(start.state_type(), StateType::Enter);
 }
 
-fn find_state<'a>(fsm: &'a ParsedFsm, name: &str) -> State<'a> {
+fn find_state<'a>(fsm: &'a UmlFsm, name: &str) -> State<'a> {
     fsm.states().find(|s| s.name() == name).unwrap()
 }

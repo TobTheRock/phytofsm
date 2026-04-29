@@ -440,7 +440,7 @@ fn log_level_token(level: log::Level) -> proc_macro2::TokenStream {
     }
 }
 
-fn generate_direct_transition(state: &crate::parser::State<'_>) -> proc_macro2::TokenStream {
+fn generate_direct_transition(state: &crate::fsm::State<'_>) -> proc_macro2::TokenStream {
     let direct_transitions: Vec<_> = state
         .transitions()
         .filter(|t| t.event.is_none() && t.destination.is_some())
@@ -497,7 +497,7 @@ fn generate_direct_transition(state: &crate::parser::State<'_>) -> proc_macro2::
 }
 
 fn generate_enter_action(
-    state: &crate::parser::State<'_>,
+    state: &crate::fsm::State<'_>,
     state_id_enum: &proc_macro2::Ident,
 ) -> proc_macro2::TokenStream {
     let enter_action = if let Some(action) = state.enter_action() {
@@ -529,7 +529,7 @@ fn generate_enter_action(
 }
 
 fn generate_exit_action(
-    state: &crate::parser::State<'_>,
+    state: &crate::fsm::State<'_>,
     state_id_enum: &proc_macro2::Ident,
 ) -> proc_macro2::TokenStream {
     let exit_action = if let Some(action) = state.exit_action() {
@@ -561,7 +561,7 @@ fn generate_exit_action(
 }
 
 fn all_substate_ids(
-    state: &crate::parser::State<'_>,
+    state: &crate::fsm::State<'_>,
     state_id_enum: &proc_macro2::Ident,
 ) -> Vec<proc_macro2::TokenStream> {
     state
@@ -574,7 +574,7 @@ fn all_substate_ids(
 }
 
 fn generate_internal_transition_guard(
-    state: &crate::parser::State<'_>,
+    state: &crate::fsm::State<'_>,
     state_id_enum: &proc_macro2::Ident,
     is_enter: bool,
 ) -> proc_macro2::TokenStream {

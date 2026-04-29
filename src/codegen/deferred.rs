@@ -1,4 +1,4 @@
-use crate::parser;
+use crate::fsm;
 
 use super::ident;
 
@@ -14,7 +14,7 @@ pub(crate) struct DeferredEventsCodegen {
 }
 
 impl DeferredEventsCodegen {
-    pub fn new(fsm: &parser::ParsedFsm, idents: &ident::Idents) -> Self {
+    pub fn new(fsm: &fsm::UmlFsm, idents: &ident::Idents) -> Self {
         let has_deferred = fsm.states().any(|s| s.deferred_events().next().is_some());
         if has_deferred {
             Self::enabled(idents)
@@ -75,7 +75,7 @@ impl DeferredEventsCodegen {
         }
     }
 
-    pub fn state_field_value(&self, state: &parser::State<'_>) -> proc_macro2::TokenStream {
+    pub fn state_field_value(&self, state: &fsm::State<'_>) -> proc_macro2::TokenStream {
         let event_enum = match &self.event_enum {
             Some(e) => e,
             None => return quote::quote! {},

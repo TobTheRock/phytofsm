@@ -1,6 +1,7 @@
 use heck::{ToSnakeCase, ToUpperCamelCase};
 
-use crate::parser;
+use crate::fsm;
+use crate::fsm::{Action, Event};
 
 pub struct Idents {
     pub fsm: proc_macro2::Ident,
@@ -34,7 +35,7 @@ impl Idents {
     }
 }
 
-impl parser::Event {
+impl Event {
     pub fn params_ident(&self) -> proc_macro2::Ident {
         quote::format_ident!("{}Params", self.0.to_upper_camel_case())
     }
@@ -48,13 +49,13 @@ impl parser::Event {
     }
 }
 
-impl parser::Action {
+impl Action {
     pub fn ident(&self) -> proc_macro2::Ident {
         quote::format_ident!("{}", self.0.to_snake_case())
     }
 }
 
-impl parser::State<'_> {
+impl fsm::State<'_> {
     pub fn function_ident(&self) -> proc_macro2::Ident {
         quote::format_ident!("{}", self.qualified_name("_").to_snake_case())
     }
@@ -76,7 +77,7 @@ impl parser::State<'_> {
     }
 }
 
-impl quote::ToTokens for parser::State<'_> {
+impl quote::ToTokens for fsm::State<'_> {
     fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
         self.name().to_tokens(tokens);
     }

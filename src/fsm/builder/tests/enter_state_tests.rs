@@ -1,8 +1,8 @@
-use crate::parser::{ParsedFsmBuilder, StateType, TransitionParameters};
+use crate::fsm::{UmlFsmBuilder, StateType, TransitionParameters};
 
 #[test]
 fn add_enter_state() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
 
     let fsm = builder.build().unwrap();
@@ -13,7 +13,7 @@ fn add_enter_state() {
 
 #[test]
 fn add_enter_state_twice_fails() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_state("AnotherStart", StateType::Enter);
 
@@ -23,7 +23,7 @@ fn add_enter_state_twice_fails() {
 
 #[test]
 fn add_enter_state_after_transition() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_transition(TransitionParameters {
         source: "A",
         target: Some("B"),
@@ -41,7 +41,7 @@ fn add_enter_state_after_transition() {
 
 #[test]
 fn add_transition_after_enter_state() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("Start", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "A",
@@ -59,7 +59,7 @@ fn add_transition_after_enter_state() {
 
 #[test]
 fn enter_state_resolves_to_deepest_nested_enter() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
 
     let root = builder.add_state("RootEnter", StateType::Enter);
     builder.set_scope(Some(root));
@@ -76,7 +76,7 @@ fn enter_state_resolves_to_deepest_nested_enter() {
 
 #[test]
 fn sets_deepest_enter_state_on_composite() {
-    let mut builder = ParsedFsmBuilder::new("TestFSM");
+    let mut builder = UmlFsmBuilder::new("TestFSM");
     builder.add_state("RootEnter", StateType::Enter);
     let root = builder.add_state("Composite", StateType::Simple);
     builder.set_scope(Some(root));

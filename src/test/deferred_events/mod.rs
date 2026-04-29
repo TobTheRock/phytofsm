@@ -1,11 +1,11 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
+    fsm::{Action, Event, UmlFsm, UmlFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
-fn build_deferred_events_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("DeferredEvents");
+fn build_deferred_events_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("DeferredEvents");
 
     builder.add_state("StateA", StateType::Enter);
     builder.add_enter_action("StateA", Action::from("enterA"));

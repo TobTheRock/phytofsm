@@ -1,11 +1,11 @@
 use crate::{
     error::Result,
-    parser::{Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
+    fsm::{Event, UmlFsm, UmlFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
-fn build_internal_names_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("InternalNames");
+fn build_internal_names_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("InternalNames");
     builder.add_state("StateA", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "StateA",

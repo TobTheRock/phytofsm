@@ -1,11 +1,11 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
+    fsm::{Action, Event, UmlFsm, UmlFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
-fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("InternalTransitions");
+fn build_internal_transitions_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("InternalTransitions");
     builder.add_state("StateA", StateType::Enter);
     builder.add_enter_action("StateA", Action::from("EnterStateA"));
     builder.add_exit_action("StateA", Action::from("ExitStateA"));
@@ -65,8 +65,8 @@ fn build_internal_transitions_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
-fn build_guards_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("Guards");
+fn build_guards_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("Guards");
     builder.add_state("StateA", StateType::Enter);
 
     // Root level guarded transitions
@@ -113,8 +113,8 @@ fn build_guards_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
-fn build_transitions_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("TestFsm");
+fn build_transitions_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("TestFsm");
     builder.add_state("StateA", StateType::Enter);
     builder.add_transition(TransitionParameters {
         source: "StateA",
@@ -147,8 +147,8 @@ fn build_transitions_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
-fn build_direct_transitions_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("DirectTransitions");
+fn build_direct_transitions_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("DirectTransitions");
     builder.add_state("StateA", StateType::Enter);
 
     // Direct transition: no event, just action

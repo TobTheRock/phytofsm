@@ -1,11 +1,11 @@
 use crate::{
     error::Result,
-    parser::{Action, Event, ParsedFsm, ParsedFsmBuilder, StateType, TransitionParameters},
+    fsm::{Action, Event, UmlFsm, UmlFsmBuilder, StateType, TransitionParameters},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 
-fn build_composite_states_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("Composite States");
+fn build_composite_states_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("Composite States");
 
     // Root level
     let state_a = builder.add_state("StateA", StateType::Enter);
@@ -44,8 +44,8 @@ fn build_composite_states_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
-fn build_substate_to_substate_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("Substate To Substate");
+fn build_substate_to_substate_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("Substate To Substate");
 
     // Root level
     let state_a = builder.add_state("A", StateType::Enter);
@@ -80,8 +80,8 @@ fn build_substate_to_substate_fsm() -> Result<ParsedFsm> {
     builder.build()
 }
 
-fn build_same_name_substates_fsm() -> Result<ParsedFsm> {
-    let mut builder = ParsedFsmBuilder::new("Same Name Substates");
+fn build_same_name_substates_fsm() -> Result<UmlFsm> {
+    let mut builder = UmlFsmBuilder::new("Same Name Substates");
 
     // Root level
     let parent_a = builder.add_state("ParentA", StateType::Enter);
