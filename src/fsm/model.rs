@@ -2,10 +2,10 @@ use std::collections::HashSet;
 
 use super::types::{Action, Event, StateType};
 
-pub(crate) type StateId = indextree::NodeId;
+pub type StateId = indextree::NodeId;
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(crate) struct TransitionParameters<'a> {
+pub struct TransitionParameters<'a> {
     pub source: &'a str,
     /// No target indicates an internal transition
     pub target: Option<&'a str>,
@@ -16,7 +16,7 @@ pub(crate) struct TransitionParameters<'a> {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
-pub(super) struct TransitionData {
+pub struct TransitionData {
     pub source: StateId,
     pub target: Option<StateId>,
     pub event: Option<Event>,
@@ -25,7 +25,7 @@ pub(super) struct TransitionData {
 }
 
 #[derive(Debug, Clone)]
-pub(super) struct StateData {
+pub struct StateData {
     pub name: String,
     pub state_type: StateType,
     pub transitions: Vec<TransitionData>,
@@ -37,14 +37,14 @@ pub(super) struct StateData {
 }
 
 #[derive(Clone)]
-pub(crate) struct UmlFsm {
+pub struct UmlFsm {
     name: String,
     enter_state: StateId,
     arena: indextree::Arena<StateData>,
 }
 
 impl UmlFsm {
-    pub(super) fn new(
+    pub fn new(
         name: String,
         enter_state: StateId,
         arena: indextree::Arena<StateData>,
@@ -196,7 +196,7 @@ fn transition_key(
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct State<'a> {
+pub struct State<'a> {
     id: StateId,
     arena: &'a indextree::Arena<StateData>,
 }
@@ -273,7 +273,7 @@ impl<'a> PartialEq for State<'a> {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct Transition<'a> {
+pub struct Transition<'a> {
     pub source: State<'a>,
     pub destination: Option<State<'a>>,
     pub event: Option<&'a Event>,

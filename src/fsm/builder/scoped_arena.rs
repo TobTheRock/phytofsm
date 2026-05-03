@@ -4,7 +4,7 @@ use itertools::Either;
 /// A wrapper around indextree::Arena that provides scoped operations.
 /// The scope determines the parent context for state lookups and creation.
 #[derive(Debug)]
-pub(super) struct ScopedArena<T> {
+pub struct ScopedArena<T> {
     arena: Arena<T>,
     scope: Option<NodeId>,
 }

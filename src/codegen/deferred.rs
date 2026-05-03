@@ -2,7 +2,7 @@ use crate::fsm;
 
 use super::ident;
 
-pub(crate) struct DeferredEventsCodegen {
+pub struct DeferredEventsCodegen {
     pub state_field: proc_macro2::TokenStream,
     pub state_clone_field: proc_macro2::TokenStream,
     pub state_init_field: proc_macro2::TokenStream,
