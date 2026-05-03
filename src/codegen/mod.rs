@@ -1,7 +1,7 @@
 mod deferred;
 mod extract;
-pub mod generators;
-pub mod ident;
+mod generators;
+mod ident;
 
 use crate::fsm;
 

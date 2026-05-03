@@ -20,6 +20,7 @@ mock! {
         fn enter_b(&mut self);
         fn enter_c(&mut self);
         fn enter_d(&mut self);
+        fn enter_f(&mut self);
     }
 }
 
@@ -28,7 +29,9 @@ impl IDeferredEventsEventParams for MockDeferredEventsActions {
     type GoToBParams = NoEventData;
     type GoToCParams = NoEventData;
     type GoToDParams = NoEventData;
+    type GoToFParams = NoEventData;
     type GoToBFromCParams = NoEventData;
+    type GoToBFromFParams = NoEventData;
 }
 
 #[test]
@@ -88,4 +91,24 @@ fn deferred_event_fires_after_direct_transition() {
     // GoToD: StateA -> StateD, direct transition StateD -> StateB
     // Deferred GoToA fires in StateB: StateB -> StateA
     fsm.go_to_d(());
+}
+
+#[test]
+fn substate_inherits_defer() {
+    let mut actions = MockDeferredEventsActions::new();
+
+    actions.expect_enter_a().returning(|| ()).times(2); // once on start, once when deferred GoToA fires
+    actions.expect_enter_b().returning(|| ()).times(1); //  transition//  StateF -> StateB
+    actions.expect_enter_c().never();
+    actions.expect_enter_d().never();
+    actions.expect_enter_f().returning(|| ()).times(1); // transitions StateA -> StateF
+
+    let mut fsm = deferred_events::start(actions);
+
+    fsm.go_to_f(());
+    // GoToA is deferred in StateF
+    fsm.go_to_a(());
+
+    // Deferred GoTo fires
+    fsm.go_to_b_from_f(());
 }

@@ -7,6 +7,7 @@ StateA: entry / enterA
 StateA -> StateB: GoToB
 StateA -> StateC: GoToC
 StateA -> StateD: GoToD
+StateA -> StateF: GoToF
 
 StateB: entry / enterB
 StateB -> StateA: GoToA
@@ -20,5 +21,13 @@ StateC -> StateB: GoToBFromC
 StateD: GoToA /defer
 StateD: entry / enterD
 StateD -> StateB
+
+' Substate inherits deferring from parent
+state StateE {
+  StateE: GoToA /defer
+  state StateF : entry / enterF
+  StateF -> StateB: GoToBFromF
+}
+
 
 @enduml

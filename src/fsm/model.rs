@@ -32,6 +32,7 @@ pub(super) struct StateData {
     pub enter_action: Option<Action>,
     pub exit_action: Option<Action>,
     pub enter_state: Option<StateId>,
+    /// Includes the inherited events from potential parents
     pub deferred_events: Vec<Event>,
 }
 
@@ -58,7 +59,6 @@ impl UmlFsm {
     pub fn name(&self) -> &str {
         &self.name
     }
-
 
     pub fn enter_state(&self) -> State<'_> {
         State::new(self.enter_state, &self.arena)

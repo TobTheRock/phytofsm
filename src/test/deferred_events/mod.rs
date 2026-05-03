@@ -16,10 +16,8 @@ fn build_deferred_events_fsm() -> Result<UmlFsm> {
     builder.add_state("StateD", StateType::Simple);
     builder.add_enter_action("StateD", Action::from("enterD"));
 
-    // StateA defers GoToA
     builder.add_deferred_event("StateA", Event::from("GoToA"));
 
-    // StateA -> StateB on GoToB
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateB"),
@@ -28,7 +26,6 @@ fn build_deferred_events_fsm() -> Result<UmlFsm> {
         guard: None,
     });
 
-    // StateA -> StateC on GoToC
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateC"),
@@ -37,7 +34,6 @@ fn build_deferred_events_fsm() -> Result<UmlFsm> {
         guard: None,
     });
 
-    // StateA -> StateD on GoToD
     builder.add_transition(TransitionParameters {
         source: "StateA",
         target: Some("StateD"),
@@ -46,7 +42,6 @@ fn build_deferred_events_fsm() -> Result<UmlFsm> {
         guard: None,
     });
 
-    // StateB -> StateA on GoToA
     builder.add_transition(TransitionParameters {
         source: "StateB",
         target: Some("StateA"),
@@ -55,10 +50,8 @@ fn build_deferred_events_fsm() -> Result<UmlFsm> {
         guard: None,
     });
 
-    // StateC defers GoToA
     builder.add_deferred_event("StateC", Event::from("GoToA"));
 
-    // StateC -> StateB on GoToBFromC
     builder.add_transition(TransitionParameters {
         source: "StateC",
         target: Some("StateB"),
@@ -67,14 +60,37 @@ fn build_deferred_events_fsm() -> Result<UmlFsm> {
         guard: None,
     });
 
-    // StateD defers GoToA
     builder.add_deferred_event("StateD", Event::from("GoToA"));
 
-    // StateD -> StateB (direct transition, no event)
     builder.add_transition(TransitionParameters {
         source: "StateD",
         target: Some("StateB"),
         event: None,
+        action: None,
+        guard: None,
+    });
+
+    builder.add_transition(TransitionParameters {
+        source: "StateA",
+        target: Some("StateF"),
+        event: Some("GoToF".into()),
+        action: None,
+        guard: None,
+    });
+
+    // Composite StateE with substate StateF
+    let state_e = builder.add_state("StateE", StateType::Simple);
+    builder.add_deferred_event("StateE", Event::from("GoToA"));
+
+    builder.set_scope(Some(state_e));
+    builder.add_state("StateF", StateType::Simple);
+    builder.set_scope(None);
+
+    // StateF -> StateB on GoToBFromF
+    builder.add_transition(TransitionParameters {
+        source: "StateF",
+        target: Some("StateB"),
+        event: Some(Event("GoToBFromF".into())),
         action: None,
         guard: None,
     });

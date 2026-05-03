@@ -228,13 +228,7 @@ where
             enter_state: Self::winter_arctic_blast,
             enter: |actions, from| (Self::winter().enter)(actions, from),
             exit: |actions, to| (Self::winter().exit)(actions, to),
-            defer_event: |event| {
-                // Defer all events in this state
-                match event {
-                    PlantFsmEvent::TemperatureRises(_) => true,
-                    _ => false,
-                }
-            },
+            defer_event: |event| matches!(event, PlantFsmEvent::TemperatureRises(_)),
         }
     }
 
@@ -430,11 +424,9 @@ where
     fn run_event_loop(&mut self, event: PlantFsmEvent<A>) {
         let pending = std::mem::take(&mut self.deferred_events);
 
-        std::iter::once(event)
-            .chain(pending.into_iter())
-            .for_each(|event| {
-                self.process_event(event);
-            });
+        std::iter::once(event).chain(pending).for_each(|event| {
+            self.process_event(event);
+        });
     }
 
     fn process_event(&mut self, event: PlantFsmEvent<A>) {

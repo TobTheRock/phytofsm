@@ -77,6 +77,13 @@ impl<T> ScopedArena<T> {
         self.arena.iter()
     }
 
+    /// Returns an iterator over all node ids
+    pub fn node_ids(&self) -> impl Iterator<Item = NodeId> {
+        self.arena
+            .iter()
+            .filter_map(|node| self.arena.get_node_id(node))
+    }
+
     /// Returns the node ID for a given node reference.
     pub fn get_node_id(&self, node: &Node<T>) -> Option<NodeId> {
         self.arena.get_node_id(node)
@@ -85,6 +92,11 @@ impl<T> ScopedArena<T> {
     /// Returns children of a node.
     pub fn children(&self, node_id: NodeId) -> impl Iterator<Item = NodeId> + '_ {
         node_id.children(&self.arena)
+    }
+
+    /// Returns an iterator over all ancestors of a node
+    pub fn ancestors(&self, node_id: NodeId) -> impl Iterator<Item = NodeId> + '_ {
+        node_id.ancestors(&self.arena)
     }
 
     /// Consumes the ScopedArena and returns the underlying Arena.

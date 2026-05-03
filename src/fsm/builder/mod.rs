@@ -3,9 +3,10 @@ use log::{debug, trace};
 
 use crate::error::{Error, Result};
 
-use super::model::{UmlFsm, StateData, StateId, TransitionData, TransitionParameters};
+use super::model::{StateData, StateId, TransitionData, TransitionParameters, UmlFsm};
 use super::types::{Action, Event, StateType};
 
+mod inheritance;
 mod scoped_arena;
 mod validation;
 use scoped_arena::ScopedArena;
@@ -85,18 +86,24 @@ impl UmlFsmBuilder {
     }
 
     pub fn add_enter_action(&mut self, state_name: &str, action: Action) {
+        debug!("Adding enter action '{}' to state '{}'", action, state_name);
         if let Some(id) = self.find_descendant_state(state_name) {
             self.arena[id].get_mut().enter_action = Some(action);
         }
     }
 
     pub fn add_exit_action(&mut self, state_name: &str, action: Action) {
+        debug!("Adding exit action '{}' to state '{}'", action, state_name);
         if let Some(id) = self.find_descendant_state(state_name) {
             self.arena[id].get_mut().exit_action = Some(action);
         }
     }
 
     pub fn add_deferred_event(&mut self, state_name: &str, event: Event) {
+        debug!(
+            "Adding deferred event '{}' to state '{}'",
+            event, state_name
+        );
         if let Some(id) = self.find_descendant_state(state_name) {
             self.arena[id].get_mut().deferred_events.push(event);
         }
@@ -114,6 +121,8 @@ impl UmlFsmBuilder {
         validation::injective_action_mapping(&self.arena)?;
         validation::no_conflicting_transitions(&self.arena)?;
         validation::unique_guards_per_event(&self.arena)?;
+
+        inheritance::extract_deferred_events(&mut self.arena);
         self.link_enter_states();
 
         let enter_state = self.find_root_enter_state()?;
