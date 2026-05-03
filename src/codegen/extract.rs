@@ -53,7 +53,7 @@ pub fn exit_actions(fsm: &UmlFsm) -> impl Iterator<Item = Action> + '_ {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::fsm::{UmlFsmBuilder, StateType, TransitionParameters};
+    use crate::fsm::{StateType, TransitionParameters, UmlFsmBuilder};
 
     #[test]
     fn direct_transitions_not_in_events() {

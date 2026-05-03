@@ -1,7 +1,7 @@
 use crate::fsm::types::{Action, Event};
 
-use super::state::{State, StateData};
 use super::StateId;
+use super::state::{State, StateData};
 
 #[derive(Debug, Clone, PartialEq, Eq, Hash)]
 pub struct TransitionParameters<'a> {
@@ -33,7 +33,10 @@ pub struct Transition<'a> {
 }
 
 impl<'a> Transition<'a> {
-    pub fn from(data: &'a TransitionData, arena: &'a indextree::Arena<StateData>) -> Transition<'a> {
+    pub fn from(
+        data: &'a TransitionData,
+        arena: &'a indextree::Arena<StateData>,
+    ) -> Transition<'a> {
         Transition {
             source: State::new(data.source, arena),
             destination: data.target.map(|id| State::new(id, arena)),

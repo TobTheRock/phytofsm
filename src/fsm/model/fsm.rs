@@ -2,9 +2,9 @@ use std::collections::HashSet;
 
 use crate::fsm::types::{Action, Event, StateType};
 
+use super::StateId;
 use super::state::{State, StateData};
 use super::transition::Transition;
-use super::StateId;
 
 #[derive(Clone)]
 pub struct UmlFsm {
@@ -14,11 +14,7 @@ pub struct UmlFsm {
 }
 
 impl UmlFsm {
-    pub fn new(
-        name: String,
-        enter_state: StateId,
-        arena: indextree::Arena<StateData>,
-    ) -> Self {
+    pub fn new(name: String, enter_state: StateId, arena: indextree::Arena<StateData>) -> Self {
         Self {
             name,
             enter_state,

@@ -1,6 +1,6 @@
 use crate::{
     error::Result,
-    fsm::{Event, UmlFsm, UmlFsmBuilder, StateType, TransitionParameters},
+    fsm::{Event, StateType, TransitionParameters, UmlFsm, UmlFsmBuilder},
     test::{FsmTestData, utils::get_adjacent_file_path},
 };
 

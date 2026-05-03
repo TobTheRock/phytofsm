@@ -1,4 +1,4 @@
-use crate::fsm::{UmlFsm, UmlFsmBuilder, State, StateType, TransitionParameters};
+use crate::fsm::{State, StateType, TransitionParameters, UmlFsm, UmlFsmBuilder};
 
 #[test]
 fn add_state_creates_simple_state() {

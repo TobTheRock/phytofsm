@@ -1,7 +1,7 @@
 use crate::fsm::types::{Action, Event, StateType};
 
-use super::transition::Transition;
 use super::StateId;
+use super::transition::Transition;
 
 #[derive(Debug, Clone)]
 pub struct StateData {

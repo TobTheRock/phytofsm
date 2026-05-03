@@ -1,4 +1,4 @@
-use super::{extract, GenerationContext};
+use super::{GenerationContext, extract};
 
 pub fn generate_event_params_trait(ctx: &GenerationContext) -> proc_macro2::TokenStream {
     let trait_ident = &ctx.idents.event_params_trait;

@@ -19,7 +19,9 @@ pub fn extract_deferred_events(arena: &mut ScopedArena<StateData>) {
 fn extract_deferred_events_for_node(arena: &ScopedArena<StateData>, node_id: NodeId) -> Vec<Event> {
     let all_transition_events: HashSet<_> = ancestor_transition_events(arena, node_id).collect();
     let not_overwritten = |event: &Event| !all_transition_events.contains(event);
-    ancestor_deferred_events(arena, node_id).filter(|&x| not_overwritten(x)).cloned()
+    ancestor_deferred_events(arena, node_id)
+        .filter(|&x| not_overwritten(x))
+        .cloned()
         .unique()
         .collect_vec()
 }

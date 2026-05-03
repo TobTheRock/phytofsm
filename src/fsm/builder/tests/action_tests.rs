@@ -1,4 +1,4 @@
-use crate::fsm::{Action, UmlFsm, UmlFsmBuilder, State, StateType, TransitionParameters};
+use crate::fsm::{Action, State, StateType, TransitionParameters, UmlFsm, UmlFsmBuilder};
 
 #[test]
 fn set_state_enter_and_exit_actions() {

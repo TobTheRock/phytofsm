@@ -1,4 +1,4 @@
-use crate::fsm::{Action, Event, UmlFsmBuilder, StateType, TransitionParameters};
+use crate::fsm::{Action, Event, StateType, TransitionParameters, UmlFsmBuilder};
 
 #[test]
 fn add_transition() {
@@ -119,4 +119,3 @@ fn add_guarded_direct_transitions() {
     assert_eq!(transitions.len(), 2);
     assert!(transitions.iter().all(|t| t.event.is_none()));
 }
-

@@ -1,4 +1,4 @@
-use crate::fsm::{Event, UmlFsm, UmlFsmBuilder, State, StateType, TransitionParameters};
+use crate::fsm::{Event, State, StateType, TransitionParameters, UmlFsm, UmlFsmBuilder};
 
 use crate::fsm::model::StateId;
 

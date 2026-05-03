@@ -46,7 +46,10 @@ fn parse_transition_description(input: &str) -> Result<TransitionLabel> {
 
     let label_pair = pairs
         .next()
-        .and_then(|p| p.into_inner().find(|p| p.as_rule() == Rule::transition_label))
+        .and_then(|p| {
+            p.into_inner()
+                .find(|p| p.as_rule() == Rule::transition_label)
+        })
         .ok_or_else(|| Error::Parse(format!("Invalid transition description: {}", input)))?;
 
     let label = extract_transition_label(label_pair);

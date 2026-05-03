@@ -1,4 +1,4 @@
-use crate::fsm::{UmlFsmBuilder, StateType, TransitionParameters};
+use crate::fsm::{StateType, TransitionParameters, UmlFsmBuilder};
 
 #[test]
 fn build_without_enter_state_fails() {
