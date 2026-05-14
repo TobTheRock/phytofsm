@@ -1,5 +1,5 @@
 use phyto_fsm::generate_fsm;
-generate_fsm!(file_path = "./test/transitions/direct_transitions.puml");
+generate_fsm!(file_path = "test/transitions/direct_transitions.puml");
 
 use direct_transitions::{IDirectTransitionsActions, IDirectTransitionsEventParams};
 use mockall::mock;

@@ -22,7 +22,7 @@ impl FilePath {
             return Self(file_path);
         }
 
-        if file_path_str.starts_with("../") {
+        if is_relative_path(&file_path) {
             return FilePath::resolve_relative_to_caller(file_path_str, span);
         }
 
@@ -42,6 +42,10 @@ impl FilePath {
             .join(file_path);
         Self(src_path)
     }
+}
+
+fn is_relative_path(file_path: &std::path::Path) -> bool {
+    file_path.starts_with("../") || file_path.starts_with("./")
 }
 
 pub struct FsmFile {
